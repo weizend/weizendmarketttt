@@ -78,6 +78,30 @@ html.wz77-admin-restoring #loginCard { display:none!important; }
 .wz156GiftForm button{flex:0 0 auto}
 .wz156GiftBtn{white-space:normal;text-align:center}
 
+
+/* V31.1.68 — Every actionable Admin button can report its actual result nearby. */
+#adminArea .wz168-operation-feedback{
+  display:block!important;
+  box-sizing:border-box;
+  width:fit-content;
+  max-width:100%;
+  flex:0 0 100%;
+  margin:7px 0 5px;
+  padding:5px 8px;
+  border-left:3px solid #65758a;
+  border-radius:5px;
+  color:#e5e7eb;
+  background:transparent;
+  font-size:12px;
+  font-weight:500;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+  white-space:pre-wrap;
+}
+#adminArea .wz168-operation-feedback[data-kind="success"]{border-left-color:#2ba36a;color:#a9e9bf;}
+#adminArea .wz168-operation-feedback[data-kind="error"]{border-left-color:#e35555;color:#ffb2b2;}
+#adminArea .wz168-operation-feedback[data-kind="pending"]{border-left-color:#d9a23a;color:#f1d38d;}
+
 </style>
 <meta name="robots" content="noindex,nofollow">
 <title>WEİZEND Market Admin</title>
@@ -4916,6 +4940,109 @@ function tlFromCents(value){
   )} TL`;
 }
 
+
+/* V31.1.68 — Admin işlem sonuçları: buton yanında ek geri bildirim.
+   Yalnızca gerçek API yanıtı, mevcut showStatus veya mevcut alert üzerinden
+   sonuç bildirir. Kaydetme/silme/puan/çekiliş işlemlerini değiştirmez. */
+const wz168StatusOwners=new Map();
+let wz168LastClick=null;
+let wz168LastApiContext=null;
+const wz168ClickWindowMs=1700;
+const wz168ResultWindowMs=45000;
+document.addEventListener('click',event=>{
+  const target=event.target;
+  if(!(target instanceof Element))return;
+  const button=target.closest('#adminArea button,#adminArea input[type="submit"]');
+  if(!button||button.disabled)return;
+  wz168LastClick={button,started:Date.now(),final:false};
+},true);
+function wz168RecentClick(){
+  const c=wz168LastClick;
+  return c&&Date.now()-c.started<wz168ClickWindowMs&&c.button?.isConnected?c:null;
+}
+function wz168NormalizeMessage(raw){
+  const el=document.createElement('span');
+  el.innerHTML=String(raw??'');
+  return (el.textContent||'').replace(/\s+/g,' ').trim().slice(0,650);
+}
+function wz168MessageKind(text,ok){
+  if(/(?:⏳|⌛|yükleniyor|bekleniyor|işleniyor|gönderiliyor|taranıyor|kaydediliyor|oluşturuluyor|hazırlanıyor|kontrol ediliyor|güncelleniyor)/i.test(text))return 'pending';
+  if(!ok||/(?:❌|⚠️|hata|başarısız|engellendi|reddedildi|bulunamadı)/i.test(text))return 'error';
+  return 'success';
+}
+function wz168Place(c,raw,kind){
+  if(!c?.button?.isConnected)return;
+  const text=wz168NormalizeMessage(raw);
+  if(!text)return;
+  const button=c.button;
+  let node=button.wz168Notice;
+  if(!node||!node.isConnected){
+    node=document.createElement('div');
+    node.className='wz168-operation-feedback';
+    node.setAttribute('role','status');
+    node.setAttribute('aria-live','polite');
+    const parent=button.parentElement;
+    const layout=parent?getComputedStyle(parent):null;
+    // Preserve flex-nowrap button toolbars and CSS grids: add the message
+    // immediately BELOW the controls, instead of creating horizontal overflow.
+    const outsideRow=layout && ((/^(inline-)?flex$/.test(layout.display)&&layout.flexWrap==='nowrap') ||
+      /^(inline-)?grid$/.test(layout.display));
+    if(outsideRow&&parent.parentElement)parent.insertAdjacentElement('afterend',node);
+    else button.insertAdjacentElement('afterend',node);
+    button.wz168Notice=node;
+  }
+  node.dataset.kind=kind;
+  node.textContent=text;
+  if(kind==='success'||kind==='error')c.final=true;
+}
+function wz168MirrorStatus(id,message,ok){
+  const recent=wz168RecentClick();
+  let c=recent;
+  if(c)wz168StatusOwners.set(id,{context:c,at:Date.now()});
+  else{
+    const owner=wz168StatusOwners.get(id);
+    if(owner&&Date.now()-owner.at<wz168ResultWindowMs&&owner.context.button?.isConnected)c=owner.context;
+    else if(wz168LastApiContext && wz168LastClick===wz168LastApiContext.context &&
+      Date.now()-wz168LastApiContext.at<wz168ResultWindowMs && wz168LastApiContext.context.button?.isConnected)
+      c=wz168LastApiContext.context;
+  }
+  if(!c)return;
+  const clean=wz168NormalizeMessage(message);
+  wz168Place(c,clean,wz168MessageKind(clean,ok));
+}
+function wz168ApiStart(path,options){
+  const c=wz168RecentClick();
+  if(!c||c.final)return null;
+  wz168LastApiContext={context:c,at:Date.now()};
+  const method=String(options?.method||'GET').toUpperCase();
+  c.requestCount=(c.requestCount||0)+1;
+  wz168Place(c,method==='GET'?'⏳ Bilgiler alınıyor…':'⏳ Sunucu işlemi yürütüyor…','pending');
+  return {context:c,path,method};
+}
+function wz168ApiResult(op,r,data,problem){
+  const c=op?.context;
+  if(!c||c.final||!c.button?.isConnected)return;
+  if(problem||!r?.ok||data?.success===false){
+    const detail=problem?.message||data?.error||data?.message||('HTTP '+(r?.status||'?'));
+    wz168Place(c,'❌ İşlem tamamlanamadı: '+String(detail),'error');
+    return;
+  }
+  const detail=typeof data?.message==='string'?data.message.trim():'';
+  wz168Place(c,detail|| (op.method==='GET'?'✅ Bilgiler sunucudan alındı.':'✅ Sunucu işlemi kabul etti.'),'success');
+}
+// Mevcut JavaScript uyarılarını kaldırmaz: yalnızca işlemi başlatan butonun
+// yanında da gösterir. Onay sorularına ve tarayıcı davranışına dokunmaz.
+const wz168NativeAlert=window.alert.bind(window);
+window.alert=function(message){
+  const c=wz168RecentClick();
+  if(c){
+    const t=wz168NormalizeMessage(message);
+    const k=wz168MessageKind(t,!/(?:❌|⚠️|hata|başarısız)/i.test(t));
+    wz168Place(c,t,k);
+  }
+  return wz168NativeAlert(message);
+};
+
 function showStatus(id,message,ok=false){
   const el = document.getElementById(id);
 
@@ -4924,6 +5051,7 @@ function showStatus(id,message,ok=false){
   el.style.display = 'block';
   el.style.borderColor = ok ? '#236b3d' : '#6b2323';
   el.innerHTML = message;
+  wz168MirrorStatus(id,message,ok);
 }
 
 function hideStatus(id){
@@ -5131,6 +5259,7 @@ function openAdmin(){
 ========================================================= */
 
 async function api(path,options={}){
+  const wz168Operation=wz168ApiStart(path,options);
 
   const headers = {
     ...(options.headers || {}),
@@ -5164,6 +5293,7 @@ async function api(path,options={}){
       if(r.ok)throw new Error('Worker geçerli JSON yanıtı göndermedi.');
     }
   } catch(error){
+    wz168ApiResult(wz168Operation,null,null,error);
     throw new Error(controller.signal.aborted
       ? `Worker ${maxWait/1000} saniyede tamamlanmadı veya istek iptal edildi.`
       : `Worker bağlantı/yanıt hatası: ${error?.message||error}`);
@@ -5171,6 +5301,8 @@ async function api(path,options={}){
     clearTimeout(timer);
     externalSignal?.removeEventListener('abort',abortExternal);
   }
+
+  wz168ApiResult(wz168Operation,r,d,null);
 
   if(r.status === 401){
 
