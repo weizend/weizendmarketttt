@@ -77,6 +77,7 @@ html.wz77-admin-restoring #loginCard { display:none!important; }
 .wz156GiftForm input{flex:1 1 190px;min-width:0}
 .wz156GiftForm button{flex:0 0 auto}
 .wz156GiftBtn{white-space:normal;text-align:center}
+
 </style>
 <meta name="robots" content="noindex,nofollow">
 <title>WEİZEND Market Admin</title>
@@ -1033,15 +1034,17 @@ body.dmModalOpen{overflow:hidden}
   word-break:normal;
 }
 #section-supportrewards .supportRewardEventsTable th{font-size:.74rem;}
-#section-supportrewards .supportRewardEventsTable th:nth-child(1){width:10%;}
-#section-supportrewards .supportRewardEventsTable th:nth-child(2){width:13%;}
+/* V31.1.63: Gerçek 10 sütunun tamamına genişlik ver (eski CSS 9 sütunda %100 kullanıyordu). */
+#section-supportrewards .supportRewardEventsTable th:nth-child(1){width:8%;}
+#section-supportrewards .supportRewardEventsTable th:nth-child(2){width:12%;}
 #section-supportrewards .supportRewardEventsTable th:nth-child(3){width:8%;}
-#section-supportrewards .supportRewardEventsTable th:nth-child(4){width:12%;}
-#section-supportrewards .supportRewardEventsTable th:nth-child(5){width:14%;}
+#section-supportrewards .supportRewardEventsTable th:nth-child(4){width:14%;}
+#section-supportrewards .supportRewardEventsTable th:nth-child(5){width:10%;}
 #section-supportrewards .supportRewardEventsTable th:nth-child(6){width:9%;}
-#section-supportrewards .supportRewardEventsTable th:nth-child(7){width:11%;}
-#section-supportrewards .supportRewardEventsTable th:nth-child(8){width:14%;}
+#section-supportrewards .supportRewardEventsTable th:nth-child(7){width:10%;}
+#section-supportrewards .supportRewardEventsTable th:nth-child(8){width:10%;}
 #section-supportrewards .supportRewardEventsTable th:nth-child(9){width:9%;}
+#section-supportrewards .supportRewardEventsTable th:nth-child(10){width:10%;}
 #section-supportrewards .supportRewardEventsTable .supportRewardUser{min-width:0;}
 #section-supportrewards .supportRewardEventsTable .supportRewardUser .muted{font-size:.67rem;}
 #section-supportrewards .supportRewardEventsTable .supportRewardSource,
@@ -1093,17 +1096,41 @@ body.dmModalOpen{overflow:hidden}
   #section-supportrewards .supportRewardEventsTable tbody td:nth-child(1)::before{content:'Kaynak';}
   #section-supportrewards .supportRewardEventsTable tbody td:nth-child(2)::before{content:'Kullanıcı';}
   #section-supportrewards .supportRewardEventsTable tbody td:nth-child(3)::before{content:'Destek';}
-  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(4)::before{content:'Ödül Puanı';}
-  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(5)::before{content:'Durum';}
-  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(6)::before{content:'Hediye Kodu';}
-  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(7)::before{content:'Kullanan';}
-  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(8)::before{content:'Tarih';}
-  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(9)::before{content:'İşlem';}
+  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(4)::before{content:'Abonelik / Gift Yönetimi';}
+  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(5)::before{content:'Ödül Puanı';}
+  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(6)::before{content:'Durum';}
+  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(7)::before{content:'Hediye Kodu';}
+  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(8)::before{content:'Kullanan';}
+  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(9)::before{content:'Tarih';}
+  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(10)::before{content:'İşlem';}
   #section-supportrewards .supportRewardEventsTable tbody td[colspan]{grid-column:1/-1;}
   #section-supportrewards .supportRewardEventsTable tbody td[colspan]::before{content:none!important;}
 }
 @media(max-width:680px){
   #section-supportrewards .supportRewardEventsTable tbody tr{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+
+/* V31.1.64 — Var olan ilk 10 kayıt kaydırma mekanizmasını kullanır. */
+#section-supportrewards .wz164SearchField{flex:2 1 340px;min-width:0;}
+#section-supportrewards .wz164SearchGroup{display:flex;align-items:stretch;gap:7px;min-width:0;}
+#section-supportrewards .wz164SearchGroup input{flex:1 1 auto;min-width:115px;}
+#section-supportrewards .wz164SearchGroup button{
+  flex:0 0 auto;
+  width:auto;
+  min-width:0;
+  white-space:nowrap;
+  padding:9px 12px;
+}
+#section-supportrewards .wz164SupportScrollHint{
+  font-size:12px;
+  margin:8px 0 4px;
+  text-align:center;
+}
+@media(max-width:540px){
+  #section-supportrewards .wz164SearchGroup{flex-wrap:wrap;}
+  #section-supportrewards .wz164SearchGroup input{flex-basis:100%;}
+  #section-supportrewards .wz164SearchGroup button{flex:1 1 calc(50% - 4px);}
 }
 
 
@@ -3196,7 +3223,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
         <div class="supportRewardToolbar">
           <div class="field">
             <label class="title">Durum</label>
-            <select id="supportRewardStatusFilter" onchange="loadSupportRewardEvents()">
+            <select id="supportRewardStatusFilter" onchange="wz164SupportResetScroll();loadSupportRewardEvents()">
               <option value="">Tüm Durumlar</option>
               <option value="pending_identity">Kullanıcı Doğrulaması Bekliyor</option>
               <option value="issuing">Kod Hazırlanıyor</option>
@@ -3208,9 +3235,14 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
               <option value="cancelled">İptal Edildi</option>
             </select>
           </div>
-          <div class="field">
-            <label class="title">Kullanıcı / Kaynak Ara</label>
-            <input id="supportRewardSearch" type="text" autocomplete="off" placeholder="Kick adı, UID, destek türü..." oninput="renderSupportRewardEvents()">
+          <div class="field wz164SearchField">
+            <label class="title" for="supportRewardSearch">🔍 Kick Kullanıcı Adına Göre Ara</label>
+            <div class="wz164SearchGroup">
+              <input id="supportRewardSearch" type="search" autocomplete="off" spellcheck="false" placeholder="@KickKullanıcıAdı" oninput="wz164RunSupportSearch()" onkeydown="if(event.key==='Enter'){event.preventDefault();wz164RunSupportSearch()}">
+              <button type="button" class="smallBtn secondary" onclick="wz164RunSupportSearch()">🔍 Ara</button>
+              <button type="button" class="smallBtn secondary" onclick="wz164ClearSupportSearch()">✕ Temizle</button>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:5px">Gönderen / abone Kick adına göre filtreler. En yeni 500 destek kaydı içinde arama yapar.</div>
           </div>
         </div>
 
@@ -3237,6 +3269,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
             </tbody>
           </table>
         </div>
+        <div id="wz164SupportScrollHint" class="wz164SupportScrollHint muted" hidden aria-live="polite"></div>
         <div id="supportRewardEventsStatus" class="status"></div>
       <!-- V31.1.56: One Gift management modal per support record; no stacked recipient buttons. -->
       <div id="wz156GiftModal" class="wz156GiftOverlay" hidden onclick="if(event.target===this)wz156CloseGiftRecipients()">
@@ -5502,6 +5535,25 @@ async function deleteGiftCode(encodedId,currentStatus=''){
 ========================================================= */
 
 let supportRewardEventsCache = [];
+const wz164VisibleRows=10;
+function wz164SupportWrap(){return document.querySelector('#section-supportrewards .supportRewardEventsWrap');}
+function wz164SupportResetScroll(){const wrap=wz164SupportWrap();if(wrap)wrap.scrollTop=0;}
+function wz164RunSupportSearch(){wz164SupportResetScroll();renderSupportRewardEvents();}
+function wz164ClearSupportSearch(){
+  const input=document.getElementById('supportRewardSearch');
+  if(input){input.value='';input.focus();}
+  wz164RunSupportSearch();
+}
+// Existing V30.6.45 list-window logic already measures the first 10 table rows
+// and bounds the viewport on small screens. Avoid a second conflicting scroller.
+function wz164UpdateSupportScrollHint(total){
+  const hint=document.getElementById('wz164SupportScrollHint');if(!hint)return;
+  hint.hidden=total<=wz164VisibleRows;
+  if(total>wz164VisibleRows){
+    hint.textContent=`↕️ İlk ${wz164VisibleRows} işlem yüksekliğinde liste. Kalan ${total-wz164VisibleRows} işlemi görmek için listenin içinde aşağı kaydır.`;
+  }
+}
+
 let supportRewardConfigCache = null;
 let wz156EventsLoaded=false;
 let wz156EventsSeq=0;
@@ -5638,11 +5690,11 @@ function renderSupportRewardEvents(){
   const count=document.getElementById('supportRewardEventsCount');
   if(!body) return;
 
-  const q=String(document.getElementById('supportRewardSearch')?.value||'').trim().toLocaleLowerCase('tr-TR');
+  const q=String(document.getElementById('supportRewardSearch')?.value||'').trim().replace(/^@+/, '').toLocaleLowerCase('tr-TR');
   const items=supportRewardEventsCache.filter(item=>{
-    if(!q) return true;
-    return [item.source_type,item.username,item.username_norm,item.kick_uid,item.external_id,item.status]
-      .some(v=>String(v||'').toLocaleLowerCase('tr-TR').includes(q));
+    if(!q)return true;
+    return [item.username,item.username_norm].some(v=>
+      String(v||'').trim().replace(/^@+/, '').toLocaleLowerCase('tr-TR').includes(q));
   });
 
   const pending=supportRewardEventsCache.filter(x=>String(x.status)==='pending_identity').length;
@@ -5657,23 +5709,30 @@ function renderSupportRewardEvents(){
       <span class="badge bad">🚫 İptal: ${cancelled.toLocaleString('tr-TR')}</span>
       <span class="badge">🪙 Toplam Hak: ${totalPoints.toLocaleString('tr-TR')} Puan</span>`;
   }
-  if(count) count.textContent=`${supportRewardEventsCache.length.toLocaleString('tr-TR')} destek kaydı · ${items.length.toLocaleString('tr-TR')} gösteriliyor`;
-
-  body.innerHTML='';
+  if(count)count.textContent=`${supportRewardEventsCache.length.toLocaleString('tr-TR')} destek kaydı · ${items.length.toLocaleString('tr-TR')} eşleşen işlem${items.length>wz164VisibleRows?' · listede aşağı kaydırabilirsiniz':''}${supportRewardEventsCache.length>=500?' (en yeni 500 kayıt)':''}`;
+  const wrap=wz164SupportWrap();
+  const previousScroll=wrap?.scrollTop||0;
+  body.replaceChildren();
   if(!items.length){
-    body.innerHTML='<tr><td colspan="10" class="muted">Bu filtrede destek kaydı bulunamadı.</td></tr>';
+    body.innerHTML='<tr><td colspan="10" class="muted">Bu Kick kullanıcı adına ait destek kaydı bulunamadı.</td></tr>';
+    wz164UpdateSupportScrollHint(items.length);
     return;
   }
-
+  const fragment=document.createDocumentFragment();
   for(const item of items){
-    const [statusText,statusBadge]=supportRewardStatusInfo(item.status);
+    let [statusText,statusBadge]=supportRewardStatusInfo(item.status);
+    if(item.status==='code_issued'&&item.gift_code_status==='disabled'){statusText='Kod İptal Edildi';statusBadge='bad';}
     const eventStatus=String(item.status||'');
     const giftStatus=String(item.gift_code_status||'').trim();
     // A redeemed gift code has already awarded the user. Never offer cancellation then.
     const usedCode=giftStatus==='redeemed';
-    const canCancel=!usedCode && ['pending_identity','issuing'].includes(eventStatus)
-      || (!usedCode && eventStatus==='code_issued' && giftStatus==='unused');
-    const canDelete=eventStatus==='cancelled' || usedCode;
+    const hasAssignedGift=Array.isArray(item.gift_recipients)&&item.gift_recipients.length>0;
+    // İşlemdeki ya da kullanılmış kod iptal edilemez; atanmış Gift hakkı bozulmaz.
+    const canCancel=!usedCode && giftStatus!=='processing' &&
+      (eventStatus==='code_issued' && giftStatus==='unused' ||
+       eventStatus==='pending_identity' && !hasAssignedGift);
+    const canDelete=usedCode || eventStatus==='cancelled' ||
+      (eventStatus==='code_issued' && giftStatus==='disabled');
     const codeLast4=String(item.redeem_code_last4||'').trim();
     const codeText=codeLast4 ? `••••-${codeLast4}` : '-';
     const usedBy=String(item.gift_code_redeemed_by_username||'').trim();
@@ -5712,8 +5771,11 @@ function renderSupportRewardEvents(){
         : canDelete
           ? `<button class="iconDanger" title="Destek ödülünü listeden kaldır; kullanılmış kod ve puan korunur" aria-label="Destek kaydını sil" onclick="deleteSupportRewardEvent('${encodeURIComponent(item.id)}')">🗑️</button>`
           : '<span class="muted">-</span>'}</td>`;
-    body.appendChild(tr);
+    fragment.appendChild(tr);
   }
+  body.appendChild(fragment);
+  if(wrap)wrap.scrollTop=previousScroll;
+  wz164UpdateSupportScrollHint(items.length);
 }
 
 // V31.1.58: one modal for support and MissXss gift sources; slots are editable.
@@ -5925,7 +5987,7 @@ async function syncSupportRewardSourcesAdmin(){
 async function cancelSupportRewardEvent(encodedId){
   const id=decodeURIComponent(encodedId||'');
   if(!id) return;
-  if(!confirm('Bu destek ödülü iptal edilsin mi? Oluşturulmuş ve henüz kullanılmamış hediye kodu varsa o da geçersiz hale gelir.')) return;
+  if(!confirm('Kullanılmamış destek ödül kodu iptal edilsin mi? Gift alıcısının abonelik hakkı etkilenmez.')) return;
 
   try{
     const {r,d}=await api('/admin/support-rewards/event/cancel',{
@@ -5943,14 +6005,14 @@ async function cancelSupportRewardEvent(encodedId){
 async function deleteSupportRewardEvent(encodedId){
   const id=decodeURIComponent(encodedId||'');
   if(!id) return;
-  if(!confirm('Bu destek ödülü kaydı listeden kaldırılsın mı?\n\nKullanılmış hediye kodu, verilmiş puan ve işlem geçmişi değişmez.')) return;
+  if(!confirm('Bu destek kaydı Admin listesinden gizlensin mi?\n\nKullanılmış hediye kodu, verilmiş puan, Gift abonelik alıcıları ve denetim geçmişi korunacaktır.')) return;
 
   try{
     const {r,d}=await api('/admin/support-rewards/event/delete',{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})
     });
     if(!r.ok || !d?.success) throw new Error(d?.error || `HTTP ${r.status}`);
-    showStatus('supportRewardEventsStatus','✅ Destek kaydı listeden kaldırıldı. Kullanılmış kodlar ve puanlar korunuyor.',true);
+    showStatus('supportRewardEventsStatus','✅ Kayıt listeden gizlendi. Kod, puan ve hediye abonelik hakları korunuyor.',true);
     await loadSupportRewardEvents();
   }catch(error){
     showStatus('supportRewardEventsStatus','❌ '+esc(error.message || error),false);
