@@ -1106,6 +1106,11 @@ body.dmModalOpen{overflow:hidden}
   #section-supportrewards .supportRewardEventsTable tbody td[colspan]{grid-column:1/-1;}
   #section-supportrewards .supportRewardEventsTable tbody td[colspan]::before{content:none!important;}
 }
+@media(max-width:1050px){
+  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(4){grid-column:1/-1;}
+  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(4) .smallBtn{display:inline-flex;max-width:100%;}
+  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(4) .muted{display:block;overflow-wrap:anywhere;word-break:break-word;}
+}
 @media(max-width:680px){
   #section-supportrewards .supportRewardEventsTable tbody tr{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
@@ -7253,6 +7258,11 @@ function wz160RenderUserSubscription(state){
  line.textContent=(state.active?'✅ Aktif':'⏱️ Aktif değil')+' · '+Number(state.months||0)+' AY · '+(source[state.source]||'Abonelik');
  const date=document.createElement('div');date.textContent='Başlangıç: '+wz154AdminDate(state.startsAt)+' · Bitiş: '+wz154AdminDate(state.expiresAt);
  el.append(line,date);
+ const giver=String(state?.giftFrom||state?.giver_username||state?.giverUsername||'').trim();
+ if((state?.source==='gift' || state?.source==='verified_admin_gift') && giver){
+  const from=document.createElement('div');from.textContent='Hediye eden: @'+giver;
+  el.append(from);
+ }
 }
 async function wz81ShowUserTicketBalance(uid){
   const summary=document.getElementById('userSummary');
@@ -13457,7 +13467,7 @@ function renderSimpleRecentActivity(kind,data){
             ${id ? `<span>#${esc(id)}</span>` : ''}
           </div>` : ''}
           ${kind === 'giftSubscriptions' && Array.isArray(item?.recipients) && item.recipients.length
-            ? `<div class="activityMeta" style="margin-top:7px;color:#79dfa2">🎁 Abonelik alanlar: ${esc(item.recipients.join(', @')).replace(/^/, '@')}</div>`
+            ? `<div class="activityMeta" style="margin-top:7px;color:#79dfa2" title="${esc(item.recipients.map(x=>'@'+String(x).replace(/^@+/, '')).join(', '))}">🎁 Abonelik alanlar: ${esc(wz165GiftRecipientsSummary(item.recipients))}</div>`
             : ''}
         </div>
       `;
@@ -13468,6 +13478,14 @@ function renderSimpleRecentActivity(kind,data){
   return rows.length;
 }
 
+
+function wz165GiftRecipientsSummary(list){
+  const arr=Array.isArray(list)?list.filter(Boolean).map(x=>String(x).trim().replace(/^@+/, '')).filter(Boolean):[];
+  if(!arr.length)return '';
+  const tagged=arr.map(x=>'@'+x);
+  if(tagged.length<=4)return tagged.join(', ');
+  return tagged.slice(0,4).join(', ')+' ve +'+(tagged.length-4)+' kişi daha';
+}
 
 function recentActivityUi(kind){
   if(kind === 'donations'){
