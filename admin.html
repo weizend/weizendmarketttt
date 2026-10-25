@@ -5704,7 +5704,7 @@ function renderSupportRewardEvents(){
     const remaining=Math.max(0,giftQty-recipients.length);
     const giftEligible=['pending_identity','code_issued','ignored_disabled'].includes(eventStatus);
     const giftRecipientHtml=String(item.source_type)==='gift_subscription'
-      ? `<button class="smallBtn wz156GiftBtn" type="button" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.id).replace(/'/g,'%27')}')">🎁 Alıcıları Yönet (${recipients.length}/${giftQty})</button>`
+      ? `<button class="smallBtn wz156GiftBtn" type="button" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.gift_manage_id||item.id).replace(/'/g,'%27')}')">🎁 Alıcıları Yönet (${recipients.length}/${giftQty})</button>`
       : '<span class="muted">-</span>';
     const tr=document.createElement('tr');
     tr.innerHTML=`
@@ -5726,92 +5726,96 @@ function renderSupportRewardEvents(){
   }
 }
 
-// V31.1.56 — One modal for all recipient slots belonging to one Gift support event.
-let wz156GiftOpenId='';
-let wz156GiftAssignBusy=false;
-function wz156GiftModalEvent(){return supportRewardEventsCache.find(e=>String(e.id)===wz156GiftOpenId)||null;}
-function wz156OpenGiftRecipients(encodedId){
- const id=decodeURIComponent(encodedId||'');
- const item=supportRewardEventsCache.find(e=>String(e.id)===id);
- if(!item||String(item.source_type)!=='gift_subscription')return;
- wz156GiftOpenId=id;
- const overlay=document.getElementById('wz156GiftModal');
- if(!overlay)return;
+// V31.1.58: one modal for support and MissXss gift sources; slots are editable.
+let wz156GiftOpenId='',wz156GiftAssignBusy=false,wz158GiftPage=1,wz158ActiveGift=null;
+function wz156GiftModalEvent(){return wz158ActiveGift;}
+async function wz156OpenGiftRecipients(encodedId){
+ const id=decodeURIComponent(encodedId||'');if(!id)return;
+ wz156GiftOpenId=id;wz158GiftPage=1;
+ const overlay=document.getElementById('wz156GiftModal');if(!overlay)return;
  overlay.hidden=false;
- const feedback=document.getElementById('wz156GiftFeedback');if(feedback)feedback.textContent='';
- const input=document.getElementById('wz156GiftUsername');if(input)input.value='';
- wz156GiftModalDraw();
- input?.focus();
+ const feedback=document.getElementById('wz156GiftFeedback');if(feedback)feedback.textContent='⏳ Alıcılar yükleniyor...';
+ try{
+  const {r,d}=await api('/admin/gift/recipients?id='+encodeURIComponent(id));
+  if(wz156GiftOpenId!==id)return;
+  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
+  wz158ActiveGift={id,quantity:d.event.quantity,username:d.event.giverUsername,occurred_at:d.event.giftedAt,gift_recipients:d.recipients};
+  if(feedback)feedback.textContent='';wz156GiftModalDraw();
+ }catch(e){if(feedback)feedback.textContent='❌ '+String(e.message||e)}
 }
 function wz156CloseGiftRecipients(){
  if(wz156GiftAssignBusy)return;
  const overlay=document.getElementById('wz156GiftModal');if(overlay)overlay.hidden=true;
- wz156GiftOpenId='';
+ wz156GiftOpenId='';wz158ActiveGift=null;
 }
-document.addEventListener('keydown',event=>{
- if(event.key==='Escape'&&!document.getElementById('wz156GiftModal')?.hidden)wz156CloseGiftRecipients();
- if(event.key==='Enter'&&document.activeElement?.id==='wz156GiftUsername')wz156AssignGiftFromModal();
-});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!document.getElementById('wz156GiftModal')?.hidden)wz156CloseGiftRecipients()});
+function wz158GiftPageChange(delta){wz158GiftPage+=delta;wz156GiftModalDraw();}
 function wz156GiftModalDraw(){
  const overlay=document.getElementById('wz156GiftModal');if(!overlay||overlay.hidden)return;
- const event=wz156GiftModalEvent();
- const title=document.getElementById('wz156GiftTitle');
- const subtitle=document.getElementById('wz156GiftSubtitle');
- const list=document.getElementById('wz156GiftRecipientsList');
- const input=document.getElementById('wz156GiftUsername');
- const button=document.getElementById('wz156GiftAssignButton');
- if(!event){if(subtitle)subtitle.textContent='Kayıt yüklenemedi. Destek listesini yeniden aç.';if(button)button.disabled=true;return;}
- const recipients=Array.isArray(event.gift_recipients)?event.gift_recipients:[];
- const qty=Math.max(1,Math.trunc(Number(event.quantity||1)));
- const remaining=Math.max(0,qty-recipients.length);
- const eligible=['pending_identity','code_issued','ignored_disabled'].includes(String(event.status||''));
- if(title)title.textContent='🎁 Gift Alıcıları — '+recipients.length+'/'+qty;
- if(subtitle)subtitle.textContent='Gönderen: @'+String(event.username||event.username_norm||'—')+' • Gift tarihi: '+dateText(event.occurred_at);
- if(list){
-   list.replaceChildren();
-   if(!recipients.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Henüz alıcı girilmedi.';list.append(empty)}
-   recipients.forEach((person,i)=>{
-     const row=document.createElement('div');row.className='wz156GiftRecipient';
-     const label=document.createElement('strong');label.textContent=(i+1)+'. @'+String(person.recipient_username||'');
-     const detail=document.createElement('small');detail.className='muted';
-     detail.textContent=(person.recipient_kick_uid?'✅ Doğrulandı':'⏳ Doğrulama bekliyor')+' • '+dateText(person.gifted_at);
-     row.append(label,detail);list.append(row);
-   });
+ const item=wz156GiftModalEvent(),title=document.getElementById('wz156GiftTitle'),subtitle=document.getElementById('wz156GiftSubtitle');
+ const list=document.getElementById('wz156GiftRecipientsList'),input=document.getElementById('wz156GiftUsername'),button=document.getElementById('wz156GiftAssignButton');
+ if(input)input.hidden=true;if(button)button.hidden=true;
+ if(!item)return;
+ const rec=Array.isArray(item.gift_recipients)?item.gift_recipients:[],qty=Math.min(50,Math.max(1,Number(item.quantity||1)));
+ const pages=Math.ceil(qty/10);wz158GiftPage=Math.min(pages,Math.max(1,wz158GiftPage));
+ if(title)title.textContent='🎁 Gift Alıcıları — '+rec.length+'/'+qty;
+ if(subtitle)subtitle.textContent='Gönderen: @'+item.username+' • Gift tarihi: '+dateText(item.occurred_at);
+ if(!list)return;list.replaceChildren();
+ for(let slot=(wz158GiftPage-1)*10+1;slot<=Math.min(qty,wz158GiftPage*10);slot++){
+  const person=rec.find(x=>Number(x.gift_slot)===slot);
+  const row=document.createElement('div');row.className='wz156GiftRecipient';
+  const label=document.createElement('strong');label.textContent=slot+'. '+(person?'@'+person.recipient_username:'— Alıcı bekleniyor');
+  const detail=document.createElement('small');detail.className='muted';
+  detail.textContent=person?(person.recipient_kick_uid?'✅ Doğrulanmış':'⏳ Doğrulama bekliyor')+' • '+dateText(person.gifted_at):'Boş hediye hakkı';
+  const edit=document.createElement('button');edit.type='button';edit.className='smallBtn';edit.style.cssText='width:auto;align-self:flex-start;margin-top:5px';
+  edit.textContent=person?'✏️ Düzenle':'+ Alıcı Ata';edit.disabled=wz156GiftAssignBusy;
+  edit.onclick=()=>wz158SetGiftSlot(slot,person||null);row.append(label,detail,edit);list.append(row);
  }
- if(input)input.disabled=remaining===0||!eligible||wz156GiftAssignBusy;
- if(button){button.disabled=remaining===0||!eligible||wz156GiftAssignBusy;button.textContent=wz156GiftAssignBusy?'⏳ Kaydediliyor...':remaining?'+1 Gift Ata':'✅ Tüm alıcılar atandı';}
+ if(pages>1){
+  const nav=document.createElement('div');nav.style.cssText='display:flex;gap:10px;justify-content:center;align-items:center;margin-top:12px';
+  const prev=document.createElement('button');prev.textContent='← Önceki';prev.className='smallBtn';prev.disabled=wz158GiftPage===1;prev.onclick=()=>wz158GiftPageChange(-1);
+  const counter=document.createElement('b');counter.textContent=wz158GiftPage+' / '+pages;
+  const next=document.createElement('button');next.textContent='Sonraki →';next.className='smallBtn';next.disabled=wz158GiftPage===pages;next.onclick=()=>wz158GiftPageChange(1);
+  nav.append(prev,counter,next);list.append(nav);
+ }
 }
-async function wz156AssignGiftFromModal(){
- if(wz156GiftAssignBusy)return;
- const event=wz156GiftModalEvent(),input=document.getElementById('wz156GiftUsername');
- const feedback=document.getElementById('wz156GiftFeedback');
- if(!event||!input)return;
- const username=String(input.value||'').trim().replace(/^@/,'');
- if(!/^[a-zA-Z0-9_]{2,40}$/.test(username)){
-   if(feedback)feedback.textContent='❌ Geçerli bir Kick kullanıcı adı yaz.';return;
- }
- const recipients=Array.isArray(event.gift_recipients)?event.gift_recipients:[];
- const qty=Math.max(1,Math.trunc(Number(event.quantity||1)));
- if(recipients.length>=qty){if(feedback)feedback.textContent='Bu Gift kaydında boş hak yok.';return;}
- if(recipients.some(e=>String(e.recipient_username||'').toLowerCase()===username.toLowerCase())){
-   if(feedback)feedback.textContent='Bu kullanıcı bu Gift kaydında zaten mevcut.';return;
- }
- if(!confirm('@'+username+' kullanıcısına '+(recipients.length+1)+'/'+qty+' Gift hakkını kesin olarak ata?\nAbonelik Gift gönderim tarihinde başlar. Bu atama geri alınamaz.'))return;
+async function wz158SetGiftSlot(slot,person){
+ if(wz156GiftAssignBusy||!wz158ActiveGift)return;
+ const value=prompt('Gift '+slot+' alıcısının Kick kullanıcı adı:',person?.recipient_username||'');if(value===null)return;
+ const username=value.trim().replace(/^@/,'');if(!/^[a-zA-Z0-9_]{2,40}$/.test(username)){alert('Geçerli bir Kick adı gir.');return;}
+ const old=person?.recipient_username||'';
+ if(old.toLowerCase()===username.toLowerCase())return;
+ if(!confirm('Gift '+slot+' '+(old?'@'+old+' → ':'')+'@'+username+' olarak kaydedilsin mi? Yanlış atamanın bitmemiş çekiliş hakkı da düzeltilecek.'))return;
  wz156GiftAssignBusy=true;wz156GiftModalDraw();
+ const feedback=document.getElementById('wz156GiftFeedback');
  try{
-   const {r,d}=await api('/admin/support-rewards/gift/assign',{
-     method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:event.id,username})
-   });
-   if(!r.ok||!d?.success)throw Error(d?.error||`HTTP ${r.status}`);
-   if(feedback)feedback.textContent='✅ @'+String(d.recipient)+' kaydedildi. '+(d.awaitingVerification?'Doğrulama sonrası kalan süreyle bağlanır.':'Hesabı zaten doğrulanmış.');
-   input.value='';
-   await loadSupportRewardEvents();
- }catch(error){
-   if(feedback)feedback.textContent='❌ '+String(error.message||error);
- }finally{wz156GiftAssignBusy=false;wz156GiftModalDraw();}
+  const id=wz156GiftOpenId;
+  const {r,d}=await api('/admin/gift/recipient/slot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,slot,username,expectedUsername:old})});
+  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
+  const fresh=await api('/admin/gift/recipients?id='+encodeURIComponent(id));
+  if(!fresh.r.ok||!fresh.d?.success)throw Error(fresh.d?.error||'Liste yeniden okunamadı');
+  wz158ActiveGift={id,quantity:fresh.d.event.quantity,username:fresh.d.event.giverUsername,occurred_at:fresh.d.event.giftedAt,gift_recipients:fresh.d.recipients};
+  if(feedback)feedback.textContent='✅ @'+username+' kaydedildi.'+(d.revokedGiveaways?' Yanlış eski kayıt avantajı düzeltildi.':'');
+  loadSupportRewardEvents().catch(()=>{});
+ }catch(e){if(feedback)feedback.textContent='❌ '+String(e.message||e)}
+ finally{wz156GiftAssignBusy=false;wz156GiftModalDraw()}
 }
-// Old onclick compatibility for any cached Admin fragment.
+// Legacy cached onclick keeps working.
 function assignGiftRecipientAdmin(encodedId){wz156OpenGiftRecipients(encodedId)}
+async function wz158EditSubscriberMonths(encodedName,encodedDate,current){
+ const username=decodeURIComponent(encodedName||''),occurredAt=decodeURIComponent(encodedDate||'');
+ const input=prompt('@'+username+' için abonelik ayı (1–120):',String(current||1));if(input===null)return;
+ const months=Number(input.trim());if(!Number.isSafeInteger(months)||months<1||months>120){alert('1–120 arası tam sayı gir.');return;}
+ const startLocal=wz154LocalInputFromIso(occurredAt);
+ if(!startLocal){alert('MissXss abonelik tarihini okuyamadım; Kullanıcılar panelinden düzenle.');return;}
+ if(!confirm('@'+username+' için '+startLocal.replace('T',' ')+' tarihinde başlayan '+months+' ay abonelik tanımlansın mı?'))return;
+ try{
+  const {r,d}=await api('/admin/manual-subscription/by-name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,startLocal,months})});
+  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
+  alert('✅ '+username+': '+months+' AY kaydedildi.'+(d.awaitingVerification?' Hesabını doğruladığında kalan süreyle profiline aktarılacak.':''));
+  await loadRecentActivity('subscribers');
+ }catch(e){alert('❌ '+String(e.message||e))}
+}
 
 async function loadSupportRewardEvents(){
   const body=document.getElementById('supportRewardEventsBody');
@@ -13348,7 +13352,9 @@ function renderSimpleRecentActivity(kind,data){
       const date = item?.date || item?.occurred_at || '';
       const id = String(item?.id || '');
       const amountHtml = kind === 'giftSubscriptions'
-        ? `<div class="activityAmount">${quantity.toLocaleString('tr-TR')} Gift</div>`
+        ? `<div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end"><div class="activityAmount">${quantity.toLocaleString('tr-TR')} Gift</div>${item.giftManageId?`<button type="button" class="smallBtn" style="width:auto" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.giftManageId)}')">🎁 Yönet</button>`:'<small class="muted">Yönetim kaydı bulunamadı</small>'}</div>`
+        : kind === 'subscribers'
+          ? `<button type="button" class="smallBtn" style="width:auto" onclick="wz158EditSubscriberMonths('${encodeURIComponent(username)}','${encodeURIComponent(date)}',${Math.max(1,Math.trunc(Number(item.configuredMonths||1)))})">✏️ Ayı Düzenle</button>`
         : kind === 'kicks'
           ? `<div class="activityAmount">${quantity.toLocaleString('tr-TR')} Kicks</div>`
           : '';
@@ -13366,6 +13372,9 @@ function renderSimpleRecentActivity(kind,data){
             <span>${config.icon} ${esc(config.label)}</span>
             ${id ? `<span>#${esc(id)}</span>` : ''}
           </div>
+          ${kind === 'giftSubscriptions' && Array.isArray(item?.recipients) && item.recipients.length
+            ? `<div class="activityMeta" style="margin-top:7px;color:#79dfa2">🎁 Abonelik alanlar: ${esc(item.recipients.join(', @')).replace(/^/, '@')}</div>`
+            : ''}
         </div>
       `;
     }).join('');
