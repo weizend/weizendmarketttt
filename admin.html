@@ -3508,17 +3508,12 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
         <div id="userSummary" class="userSummaryGrid"></div>
 
 
-        <!-- V31.1.54 — Admin tarafından kullanıcıya başlangıç tarihinden itibaren üyelik tanımlama. -->
-        <div class="card" style="margin-top:16px;margin-bottom:16px;border:1px solid #725065" id="wz154ManualCard">
-          <h3 style="margin-top:0">⭐ Abonelik İşlemleri</h3>
-          <p class="muted">Kullanıcıya WEİZEND içinde abonelik tanımla. Tarih ve saat Türkiye saatidir. Mevcut gift ve gerçek abonelik kayıtlarını silmez.</p>
-          <div class="grid2">
-            <div class="field"><label class="title" for="wz154Start">Başlangıç tarihi ve saati (TSİ)</label><input id="wz154Start" type="datetime-local" step="60"></div>
-            <div class="field"><label class="title" for="wz154Months">Abonelik süresi (ay)</label><input id="wz154Months" type="number" min="1" max="120" step="1" value="1"></div>
-          </div>
-          <div id="wz154Current" class="muted" role="status">Abonelik bilgisi yükleniyor...</div>
-          <div class="btnRow"><button type="button" onclick="wz154SaveManual()">💾 Abonelik Tanımla / Güncelle</button><button type="button" class="secondary" onclick="wz154RemoveManual()">🗑️ Manuel Aboneliği Kaldır</button></div>
-          <p class="muted" style="font-size:12px">Abonelik sona erdiğinde daha önce kazanılmış çekiliş hakkı silinmez.</p>
+        <!-- V31.1.60 — Tek merkezli abonelik bilgisi: kullanıcı detayında yalnızca oku. -->
+        <div class="card" style="margin-top:16px;margin-bottom:16px;border:1px solid #725065" id="wz160SubscriptionCard">
+          <h3 style="margin-top:0">⭐ Abonelik Bilgileri</h3>
+          <p class="muted">Ay ve başlangıç tarihi yalnızca MissXss veya Destek Hakları üzerinden düzenlenir. Bu ekrandan abonelik kaydı değiştirilemez.</p>
+          <div id="wz160SubscriptionCurrent" role="status" class="muted">Abonelik bilgisi yükleniyor...</div>
+          <p class="muted" style="font-size:12px">Abonelik sona erse bile daha önce kazanılan çekiliş şansı korunur.</p>
         </div>
 
         <div id="userRestrictionBanner" class="userRestrictionBanner"></div>
@@ -5699,7 +5694,7 @@ function renderSupportRewardEvents(){
     const giftRecipientHtml=rewardType==='gift_subscription'
       ? `<button class="smallBtn wz156GiftBtn" type="button" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.gift_manage_id||item.id).replace(/'/g,'%27')}')">🎁 Alıcıları Yönet (${recipients.length}/${giftQty})</button>`
       : ['subscription','subscription_renewal'].includes(rewardType)
-      ? `<button class="smallBtn" type="button" onclick="wz158EditSubscriberMonths('${encodeURIComponent(userName)}','${encodeURIComponent(String(item.occurred_at||item.created_at||''))}',0)">✏️ Ayı Yönet</button>`
+      ? `<button class="smallBtn" type="button" onclick="wz158EditSubscriberMonths('${encodeURIComponent(userName)}','${encodeURIComponent(String(item.occurred_at||item.created_at||''))}',${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))})">✏️ Ayı Yönet · ${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))} AY</button>${item.subscriptionState?.startsAt?`<div class="muted" style="margin-top:4px;font-size:11px">Başlangıç: ${esc(dateText(item.subscriptionState.startsAt))}</div>`:''}`
       : '<span class="muted">-</span>';
     const tr=document.createElement('tr');
     tr.innerHTML=`
@@ -5799,22 +5794,39 @@ async function wz158SetGiftSlot(slot,person){
 }
 // Legacy cached onclick keeps working.
 function assignGiftRecipientAdmin(encodedId){wz156OpenGiftRecipients(encodedId)}
+function wz160LocalInputSeconds(iso){
+ const d=new Date(iso);if(!Number.isFinite(d.getTime()))return '';
+ return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Istanbul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(d).replace(' ','T');
+}
 async function wz158EditSubscriberMonths(encodedName,encodedDate,current){
- const username=decodeURIComponent(encodedName||''),occurredAt=decodeURIComponent(encodedDate||'');
- const input=prompt('@'+username+' için abonelik ayı (1–120):',Number(current)>0?String(current):'');if(input===null)return;
+ const username=decodeURIComponent(encodedName||''),eventAt=decodeURIComponent(encodedDate||'');
+ let state=null;
+ try{
+  const {r,d}=await api('/admin/subscription-state?username='+encodeURIComponent(username));
+  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
+  state=d.subscription;
+ }catch(e){alert('❌ Abonelik kaydı okunamadı: '+String(e?.message||e)+'\nİşlem uygulanmadı.');return}
+ const existing=Math.max(1,Math.trunc(Number(state?.months||current||1)));
+ const input=prompt('@'+username+' için kayıtlı abonelik ayı ('+existing+' AY). Yeni ay sayısı (1–120):',String(existing));
+ if(input===null)return;
  const months=Number(input.trim());if(!Number.isSafeInteger(months)||months<1||months>120){alert('1–120 arası tam sayı gir.');return;}
- const startLocal=wz154LocalInputFromIso(occurredAt);
- if(!startLocal){alert('MissXss abonelik tarihini okuyamadım; Kullanıcılar panelinden düzenle.');return;}
- if(!confirm('@'+username+' için '+startLocal.replace('T',' ')+' tarihinde başlayan '+months+' ay abonelik tanımlansın mı?'))return;
+ if(months===existing){alert('ℹ️ Zaten '+existing+' AY olarak kayıtlı. Değişiklik yapılmadı.');return;}
+ const startLocal=wz160LocalInputSeconds(state?.startsAt||eventAt);
+ if(!startLocal){alert('❌ Başlangıç tarihini okuyamadım. İşlem uygulanmadı.');return}
+ if(!confirm('@'+username+' abonelik süresi '+existing+' AY → '+months+' AY olarak güncellensin mi?\nBaşlangıç korunacak: '+startLocal.replace('T',' ')))return;
  try{
   const {r,d}=await api('/admin/manual-subscription/by-name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,startLocal,months})});
   if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
-  alert('✅ '+username+': '+months+' AY kaydedildi.'+(d.awaitingVerification?' Hesabını doğruladığında kalan süreyle profiline aktarılacak.':''));
+  alert('✅ @'+username+': '+months+' AY kaydedildi. Başlangıç: '+wz154AdminDate(d.startsAt)+(d.awaitingVerification?' · Doğrulama bekliyor.':''));
   await Promise.allSettled([loadSupportRewardEvents(),
-    document.getElementById('subscriberActivityOutput')?.style.display==='block'
-      ?loadRecentActivity('subscribers'):Promise.resolve()]);
- }catch(e){alert('❌ '+String(e.message||e))}
+   document.getElementById('subscriberActivityOutput')?.style.display==='block'?loadRecentActivity('subscribers'):Promise.resolve(),
+   document.getElementById('usersBody')?loadUsers():Promise.resolve()]);
+  if(currentAdminUser&&normalizeAdminUsername(currentAdminUser.username)===normalizeAdminUsername(username)){
+   try{await openUser(encodeURIComponent(currentAdminUser.kick_uid))}catch(_){/* lists already updated */}
+  }
+ }catch(e){alert('❌ '+String(e?.message||e))}
 }
+function normalizeAdminUsername(s){return String(s||'').trim().replace(/^@/,'').toLocaleLowerCase('tr-TR')}
 
 async function loadSupportRewardEvents(){
   const body=document.getElementById('supportRewardEventsBody');
@@ -7040,7 +7052,7 @@ function renderUsers(){
     const tr = document.createElement('tr');
     if(u.status === 'blocked') tr.classList.add('user-row-blocked');
     tr.innerHTML = `
-      <td><strong>${esc(u.username || '-')}</strong></td>
+      <td><strong>${u.subscription?.active?'⭐ ':''}${esc(u.username || '-')}</strong>${u.subscription?.active?`<div class="muted" style="font-size:11px">${Number(u.subscription.months||1)} AY</div>`:''}</td>
       <td>${esc(u.nickname || '-')}</td>
       <td>${esc(points(u.points))}</td>
       <td>${esc(String(u.ticketsAvailable??0))}</td>
@@ -7062,6 +7074,7 @@ async function openUser(encodedUid){
     const {r,d} = await api(`/admin/user?uid=${encodeURIComponent(uid)}`);
     if(!r.ok || !d?.success || !d?.user) throw new Error(d?.error || `HTTP ${r.status}`);
     currentAdminUser = d.user;
+    currentAdminUser.subscription=d.subscription||null;
     currentAdminUser.notes = Array.isArray(d.notes) ? d.notes : [];
     renderUserDetail();
   }catch(error){
@@ -7116,7 +7129,7 @@ function renderUserDetail(){
   renderUserNotes();
   // V31.0.81: Read-only ticket balance, asynchronous and bound to the current Kick UID.
   wz81ShowUserTicketBalance(u.kick_uid);
-  wz154LoadManualSubscription(u.kick_uid);
+  wz160RenderUserSubscription(u.subscription);
   document.getElementById('userDetailCard')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -7131,49 +7144,21 @@ function wz154LocalInputFromIso(iso){
  const parts=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Istanbul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(d);
  return parts.replace(' ','T');
 }
-async function wz154LoadManualSubscription(uid){
- const current=document.getElementById('wz154Current');if(!current)return;
- current.textContent='⏳ Abonelik bilgileri yükleniyor...';
- document.getElementById('wz154Start').value=wz154LocalInputFromIso(new Date().toISOString());
- document.getElementById('wz154Months').value='1';
- try{
-  const {r,d}=await api('/admin/manual-subscription?uid='+encodeURIComponent(uid));
-  if(currentAdminUser?.kick_uid!==uid)return;
-  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
-  const s=d.subscription;
-  if(!s){current.textContent='Bu kullanıcıya manuel abonelik tanımlanmamış.';return}
-  document.getElementById('wz154Start').value=wz154LocalInputFromIso(s.startsAt);
-  document.getElementById('wz154Months').value=s.months;
-  current.textContent=(s.active?'✅ Aktif':s.scheduled?'📅 Henüz başlamadı':'⏱️ Süresi doldu')+
-   ' · Başlangıç: '+wz154AdminDate(s.startsAt)+' · Bitiş: '+wz154AdminDate(s.expiresAt)+' · '+s.months+' ay';
- }catch(e){if(currentAdminUser?.kick_uid===uid)current.textContent='❌ '+String(e?.message||e)}
+function wz160RenderUserSubscription(state){
+ const el=document.getElementById('wz160SubscriptionCurrent');if(!el)return;
+ const title=document.getElementById('userDetailTitle');
+ const u=currentAdminUser;
+ if(title)title.textContent=(state?.active?'⭐ ':'👤 ')+(u?.username||'Kullanıcı');
+ const source={manual:'Yönetici tarafından tanımlandı',self_paid:'Kendi ödemeli abonelik',gift:'Hediye abonelik',pending:'Doğrulama bekliyor'};
+ if(!state||state.source==='none'){
+  el.textContent='Aktif veya kayıtlı abonelik bilgisi bulunamadı.';return;
+ }
+ el.replaceChildren();
+ const line=document.createElement('div');line.style.cssText='font-size:15px;line-height:2';
+ line.textContent=(state.active?'✅ Aktif':'⏱️ Aktif değil')+' · '+Number(state.months||0)+' AY · '+(source[state.source]||'Abonelik');
+ const date=document.createElement('div');date.textContent='Başlangıç: '+wz154AdminDate(state.startsAt)+' · Bitiş: '+wz154AdminDate(state.expiresAt);
+ el.append(line,date);
 }
-async function wz154SaveManual(){
- const u=currentAdminUser;if(!u?.kick_uid)return alert('Önce kullanıcı seç.');
- const startLocal=String(document.getElementById('wz154Start')?.value||'');
- const months=Number(document.getElementById('wz154Months')?.value);
- if(!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(startLocal)||!Number.isInteger(months)||months<1||months>120)
-  return alert('Başlangıç tarihini, saati ve 1–120 arası abonelik ayını gir.');
- if(!confirm('@'+u.username+' için '+startLocal.replace('T',' ')+' (Türkiye saati) başlangıçlı '+months+' AY abonelik tanımlansın mı?'))return;
- const info=document.getElementById('wz154Current');info.textContent='⏳ Kaydediliyor...';
- try{
-  const {r,d}=await api('/admin/manual-subscription',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set',uid:u.kick_uid,startLocal,months})});
-  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
-  info.textContent='✅ Kaydedildi. Bitiş: '+wz154AdminDate(d.expiresAt)+(d.upgradedGiveaways?' · '+d.upgradedGiveaways+' çekilişte abone hakkı eklendi.':'');
-  await wz154LoadManualSubscription(u.kick_uid);
- }catch(e){info.textContent='❌ '+String(e?.message||e)}
-}
-async function wz154RemoveManual(){
- const u=currentAdminUser;if(!u?.kick_uid)return;
- if(!confirm('@'+u.username+' için yalnızca YÖNETİCİ tarafından tanımlanmış abonelik kaydı kaldırılsın mı? Gerçek abonelik/gift ve kazanılmış çekiliş hakları korunacak.'))return;
- const info=document.getElementById('wz154Current');
- try{
-  const {r,d}=await api('/admin/manual-subscription',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',uid:u.kick_uid})});
-  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
-  await wz154LoadManualSubscription(u.kick_uid);
- }catch(e){info.textContent='❌ '+String(e?.message||e)}
-}
-
 async function wz81ShowUserTicketBalance(uid){
   const summary=document.getElementById('userSummary');
   if(!summary)return;
@@ -13353,7 +13338,7 @@ function renderSimpleRecentActivity(kind,data){
       const amountHtml = kind === 'giftSubscriptions'
         ? `<div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end"><div class="activityAmount">${quantity.toLocaleString('tr-TR')} Gift</div>${item.giftManageId?`<button type="button" class="smallBtn" style="width:auto" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.giftManageId)}')">🎁 Yönet</button>`:'<small class="muted">Yönetim kaydı bulunamadı</small>'}</div>`
         : kind === 'subscribers'
-          ? `<button type="button" class="smallBtn" style="width:auto" onclick="wz158EditSubscriberMonths('${encodeURIComponent(username)}','${encodeURIComponent(date)}',${Math.max(1,Math.trunc(Number(item.configuredMonths||1)))})">✏️ Ayı Düzenle</button>`
+          ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="activityAmount">${Math.max(1,Math.trunc(Number(item.configuredMonths||1)))} AY</span><button type="button" class="smallBtn" style="width:auto" onclick="wz158EditSubscriberMonths('${encodeURIComponent(username)}','${encodeURIComponent(date)}',${Math.max(1,Math.trunc(Number(item.configuredMonths||1)))})">✏️ Ayı Yönet</button></div>`
         : kind === 'kicks'
           ? `<div class="activityAmount">${quantity.toLocaleString('tr-TR')} Kicks</div>`
           : '';
