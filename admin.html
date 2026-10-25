@@ -5741,12 +5741,18 @@ function renderSupportRewardEvents(){
     const codeLast4=String(item.redeem_code_last4||'').trim();
     const codeText=codeLast4 ? `••••-${codeLast4}` : '-';
     const usedBy=String(item.gift_code_redeemed_by_username||'').trim();
+    const usedAt=String(item.gift_code_redeemed_at||'').trim();
     // Kullanilmamis kod kirmizi; kullanilan kodda yalnizca GERCEK kullanan.
     const redeemerText = !codeLast4 ? '<span class="muted">-</span>'
-      : giftStatus==='unused' ? '<span style="color:#ff6464;font-weight:800">Kullanılmadı</span>'
+      : giftStatus==='unused' ? '<span class="muted">-</span>'
       : giftStatus==='processing' ? `<span class="badge warn">${esc(usedBy||'Puan Gönderiliyor')}</span>`
       : giftStatus==='redeemed' ? (usedBy ? `<strong>${esc(usedBy)}</strong>` : '<span class="muted">Kullanıldı · isim yok</span>')
       : `<span class="muted">${esc(supportRewardGiftStatusText(giftStatus))}</span>`;
+    const redeemerMeta = !codeLast4 ? ''
+      : giftStatus==='redeemed' ? `<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.35;word-break:break-word">${esc(dateText(usedAt||item.redeemed_at||''))}</div>`
+      : giftStatus==='unused' ? '<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.35;word-break:break-word">Kullanılmadı</div>'
+      : giftStatus==='processing' ? '<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.35;word-break:break-word">Kullanım bekleniyor</div>'
+      : '';
     const userName=String(item.username||item.username_norm||'-');
     const uid=String(item.kick_uid||'');
 
@@ -5758,7 +5764,7 @@ function renderSupportRewardEvents(){
     const giftRecipientHtml=rewardType==='gift_subscription'
       ? `<button class="smallBtn wz156GiftBtn" type="button" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.gift_manage_id||item.id).replace(/'/g,'%27')}')">🎁 Alıcıları Yönet (${recipients.length}/${giftQty})</button>`
       : ['subscription','subscription_renewal'].includes(rewardType)
-      ? `<button class="smallBtn" type="button" onclick="wz158EditSubscriberMonths('${encodeURIComponent(userName)}','${encodeURIComponent(String(item.occurred_at||item.created_at||''))}',${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))})">✏️ Ayı Yönet · ${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))} AY</button>${item.subscriptionState?.startsAt?`<div class="muted" style="margin-top:4px;font-size:11px">Başlangıç: ${esc(dateText(item.subscriptionState.startsAt))}</div>`:''}`
+      ? `<button class="smallBtn" type="button" onclick="wz158EditSubscriberMonths('${encodeURIComponent(userName)}','${encodeURIComponent(String(item.occurred_at||item.created_at||''))}',${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))})">✏️ Ayı Yönet · ${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))} AY</button>${item.subscriptionState?.startsAt?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç: ${esc(dateText(item.subscriptionState.startsAt))}</div>`:''}${item.subscriptionState?.expiresAt?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Bitiş: ${esc(dateText(item.subscriptionState.expiresAt))}</div>`:''}`
       : '<span class="muted">-</span>';
     const tr=document.createElement('tr');
     tr.innerHTML=`
@@ -5769,7 +5775,7 @@ function renderSupportRewardEvents(){
       <td><span class="supportRewardPoints">${Number(item.points_awarded||0).toLocaleString('tr-TR')} Puan</span></td>
       <td><span class="badge ${statusBadge}">${esc(statusText)}</span></td>
       <td><span class="supportRewardCode">${esc(codeText)}</span></td>
-      <td>${redeemerText}</td>
+      <td>${redeemerText}${redeemerMeta}</td>
       <td>${esc(dateText(item.occurred_at || item.created_at))}</td>
       <td>${canCancel
         ? `<button class="smallBtn danger" onclick="cancelSupportRewardEvent('${encodeURIComponent(item.id)}')">🚫 İptal Et</button>`
