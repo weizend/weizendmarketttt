@@ -6057,7 +6057,8 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
     <section class="wz-profile-section" id="wzSp103Card" aria-label="Kick aboneliğim">
       <div class="wz-profile-section-title">⭐ Aboneliğim</div>
       <div class="wz-profile-info-row"><span>Abonelik</span><strong id="wzSp103Months">Kontrol ediliyor…</strong></div>
-      <div class="wz-profile-info-row" id="wzSp103RenewRow" style="display:none"><span id="wzSp103RenewLabel">Son Abonelik / Yenileme</span><strong id="wzSp103Renew">–</strong></div>
+      <div class="wz-profile-info-row" id="wzSp103GiftFromRow" style="display:none"><span>🎁 Hediye Eden</span><strong id="wzSp103GiftFrom">–</strong></div>
+       <div class="wz-profile-info-row" id="wzSp103RenewRow" style="display:none"><span id="wzSp103RenewLabel">Son Abonelik / Yenileme</span><strong id="wzSp103Renew">–</strong></div>
       <div id="wzSp103Countdown" class="wzsp103-countdown" hidden>
         <small id="wzSp103CountdownLabel">Bir sonraki yenilemeye kalan süre (tahmini)</small>
         <div class="wzsp103-timer" id="wzSp103Timer">–</div>
@@ -19325,7 +19326,7 @@ return;
   const hrs=Math.floor(ms%86400000/3600000),mins=Math.floor(ms%3600000/60000),secs=Math.floor(ms%60000/1000);
   set('wzSp103Timer',days+' gün '+String(hrs).padStart(2,'0')+' saat '+String(mins).padStart(2,'0')+' dk '+String(secs).padStart(2,'0')+' sn');
  }
- function reset(){active=false;isGiftMode=false;isAdminMode=false;nextAt=0;set('wzSp103Months','Yok');set('wzSp103Note','Doğrulanmış abonelik bulunamadı.');show('wzSp103RenewRow',false);show('wzSp103Countdown',false)}
+ function reset(){active=false;isGiftMode=false;isAdminMode=false;nextAt=0;set('wzSp103Months','Yok');set('wzSp103Note','Doğrulanmış abonelik bulunamadı.');show('wzSp103RenewRow',false);show('wzSp103GiftFromRow',false);set('wzSp103GiftFrom','–');show('wzSp103Countdown',false)}
  async function fetchProfile(){
   const token=localStorage.getItem('weizend_market_session_secure_v2')||'';
   if(!token){lastToken='';reset();return}
@@ -19342,6 +19343,10 @@ return;
    }return}
    active=true;const isGift=info.source==='verified_admin_gift',isManual=info.source==='admin_manual';isGiftMode=isGift;isAdminMode=isManual;
    set('wzSp103Months',isGift?(info.display||'Hediye • 1 AY'):String(info.months||1)+' AY');
+   const giftGiver=isGift&&typeof info.giftFrom==='string'?info.giftFrom.trim().replace(/^@+/,''):'';
+   const hasGiftGiver=Boolean(giftGiver)&&giftGiver.length<=80;
+   show('wzSp103GiftFromRow',hasGiftGiver);
+   set('wzSp103GiftFrom',hasGiftGiver?'@'+giftGiver:'–');
    set('wzSp103RenewLabel',isGift?'Gift Gönderilme Tarihi':isManual?'Abonelik Başlangıcı':'Son Abonelik / Yenileme');
    set('wzSp103CountdownLabel',isGift?'Hediye aboneliğin bitişine kalan süre (tahmini)':isManual?'Abonelik bitişine kalan süre':'Bir sonraki yenilemeye kalan süre (tahmini)');
    const date=info.lastRenewal?new Date(info.lastRenewal):null;
@@ -19353,7 +19358,7 @@ return;
    set('wzSp103Note',isGift
     ? (info.note||'Hediye abonelik yönetici tarafından eşleştirildi.')
     : (info.note||'Yenileme sayacı ödeme tarihinden tahmin edilir; kesin bitiş tarihi değildir.'));
-  }catch(err){set('wzSp103Months','Kontrol edilemedi');set('wzSp103Note','Abonelik servisine ulaşılamadı. Tekrar deneyebilirsiniz.');show('wzSp103Countdown',false)}
+  }catch(err){show('wzSp103GiftFromRow',false);set('wzSp103GiftFrom','–');set('wzSp103Months','Kontrol edilemedi');set('wzSp103Note','Abonelik servisine ulaşılamadı. Tekrar deneyebilirsiniz.');show('wzSp103Countdown',false)}
   finally{fetchInFlight=false}
  }
  function maybe(){if(document.body?.classList.contains('wz-view-profile'))fetchProfile()}
