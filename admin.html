@@ -101,6 +101,8 @@ html.wz77-admin-restoring #loginCard { display:none!important; }
 #adminArea .wz168-operation-feedback[data-kind="success"]{border-left-color:#2ba36a;color:#a9e9bf;}
 #adminArea .wz168-operation-feedback[data-kind="error"]{border-left-color:#e35555;color:#ffb2b2;}
 #adminArea .wz168-operation-feedback[data-kind="pending"]{border-left-color:#d9a23a;color:#f1d38d;}
+/* V31.1.69 — One result for each action; suppress only the old duplicated location. */
+#adminArea .status.wz169-legacy-duplicate-hidden{display:none!important;}
 
 </style>
 <meta name="robots" content="noindex,nofollow">
@@ -4970,8 +4972,24 @@ function wz168MessageKind(text,ok){
   if(!ok||/(?:❌|⚠️|hata|başarısız|engellendi|reddedildi|bulunamadı)/i.test(text))return 'error';
   return 'success';
 }
+/* V31.1.69 — If the original status is already directly below the clicked
+   button's toolbar, reuse it rather than painting a second message. */
+function wz169LegacyBesideButton(button,status){
+  if(!button?.isConnected||!status?.isConnected)return false;
+  const previous=status.previousElementSibling;
+  return !!(previous && (previous===button || previous.contains(button)));
+}
+function wz169DiscardSynthetic(button){
+  const synthetic=button?.wz168Notice;
+  if(synthetic?.classList?.contains('wz168-operation-feedback')){
+    synthetic.remove();
+    button.wz168Notice=null;
+  }
+}
 function wz168Place(c,raw,kind){
   if(!c?.button?.isConnected)return;
+  // Existing near-button status owns this message. Do not create an echo.
+  if(c.legacyStatusId && wz169LegacyBesideButton(c.button,document.getElementById(c.legacyStatusId)))return;
   const text=wz168NormalizeMessage(raw);
   if(!text)return;
   const button=c.button;
@@ -5006,9 +5024,28 @@ function wz168MirrorStatus(id,message,ok){
       Date.now()-wz168LastApiContext.at<wz168ResultWindowMs && wz168LastApiContext.context.button?.isConnected)
       c=wz168LastApiContext.context;
   }
-  if(!c)return;
+  const legacy=document.getElementById(id);
+  if(!c){
+    // Background/system messages can still use their original status box.
+    if(legacy)legacy.classList.remove('wz169-legacy-duplicate-hidden');
+    return;
+  }
   const clean=wz168NormalizeMessage(message);
-  wz168Place(c,clean,wz168MessageKind(clean,ok));
+  const kind=wz168MessageKind(clean,ok);
+  if(wz169LegacyBesideButton(c.button,legacy)){
+    // Example: Save Support Reward Settings has its own .status immediately
+    // after the Save button row. Keep the original green result box only.
+    wz169DiscardSynthetic(c.button);
+    if(legacy)legacy.classList.remove('wz169-legacy-duplicate-hidden');
+    c.legacyStatusId=id;
+    if(kind==='success'||kind==='error')c.final=true;
+    return;
+  }
+  // For older remote status boxes show the same result under its button only.
+  // The remote source is retained in DOM for existing workflows and hideStatus.
+  c.legacyStatusId=null;
+  wz168Place(c,clean,kind);
+  if(legacy)legacy.classList.add('wz169-legacy-duplicate-hidden');
 }
 function wz168ApiStart(path,options){
   const c=wz168RecentClick();
@@ -6002,7 +6039,7 @@ async function wz158SetGiftSlot(slot,person){
   const fresh=await api('/admin/gift/recipients?id='+encodeURIComponent(id));
   if(!fresh.r.ok||!fresh.d?.success)throw Error(fresh.d?.error||'Liste yeniden okunamadı');
   wz158ActiveGift={id,quantity:fresh.d.event.quantity,username:fresh.d.event.giverUsername,occurred_at:fresh.d.event.giftedAt,gift_recipients:fresh.d.recipients};
-  if(feedback)feedback.textContent='✅ @'+username+' kaydedildi.'+(d.revokedGiveaways?' Yanlış eski kayıt avantajı düzeltildi.':'');
+  if(feedback)feedback.textContent='✅ @'+username+' kaydedildi. Alıcı değiştiğinde bu Gift için süre 1 AY olarak başlar; orijinal Gift tarihi korunur.'+(d.revokedGiveaways?' Yanlış eski kayıt avantajı düzeltildi.':'');
   loadSupportRewardEvents().catch(()=>{});
  }catch(e){if(feedback)feedback.textContent='❌ '+String(e.message||e)}
  finally{wz156GiftAssignBusy=false;wz156GiftModalDraw()}
