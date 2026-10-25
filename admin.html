@@ -1043,8 +1043,7 @@ body.dmModalOpen{overflow:hidden}
 #section-supportrewards .supportRewardEventsTable th:nth-child(6){width:9%;}
 #section-supportrewards .supportRewardEventsTable th:nth-child(7){width:10%;}
 #section-supportrewards .supportRewardEventsTable th:nth-child(8){width:10%;}
-#section-supportrewards .supportRewardEventsTable th:nth-child(9){width:9%;}
-#section-supportrewards .supportRewardEventsTable th:nth-child(10){width:10%;}
+#section-supportrewards .supportRewardEventsTable th:nth-child(9){width:10%;}
 #section-supportrewards .supportRewardEventsTable .supportRewardUser{min-width:0;}
 #section-supportrewards .supportRewardEventsTable .supportRewardUser .muted{font-size:.67rem;}
 #section-supportrewards .supportRewardEventsTable .supportRewardSource,
@@ -1101,8 +1100,7 @@ body.dmModalOpen{overflow:hidden}
   #section-supportrewards .supportRewardEventsTable tbody td:nth-child(6)::before{content:'Durum';}
   #section-supportrewards .supportRewardEventsTable tbody td:nth-child(7)::before{content:'Hediye Kodu';}
   #section-supportrewards .supportRewardEventsTable tbody td:nth-child(8)::before{content:'Kullanan';}
-  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(9)::before{content:'Tarih';}
-  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(10)::before{content:'İşlem';}
+  #section-supportrewards .supportRewardEventsTable tbody td:nth-child(9)::before{content:'İşlem';}
   #section-supportrewards .supportRewardEventsTable tbody td[colspan]{grid-column:1/-1;}
   #section-supportrewards .supportRewardEventsTable tbody td[colspan]::before{content:none!important;}
 }
@@ -3265,12 +3263,11 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
                 <th>Durum</th>
                 <th>Hediye Kodu</th>
                 <th>Kullanan</th>
-                <th>Tarih</th>
                 <th>İşlem</th>
               </tr>
             </thead>
             <tbody id="supportRewardEventsBody">
-              <tr><td colspan="10" class="muted">Destek kayıtları henüz yüklenmedi.</td></tr>
+              <tr><td colspan="9" class="muted">Destek kayıtları henüz yüklenmedi.</td></tr>
             </tbody>
           </table>
         </div>
@@ -5719,7 +5716,7 @@ function renderSupportRewardEvents(){
   const previousScroll=wrap?.scrollTop||0;
   body.replaceChildren();
   if(!items.length){
-    body.innerHTML='<tr><td colspan="10" class="muted">Bu Kick kullanıcı adına ait destek kaydı bulunamadı.</td></tr>';
+    body.innerHTML='<tr><td colspan="9" class="muted">Bu Kick kullanıcı adına ait destek kaydı bulunamadı.</td></tr>';
     wz164UpdateSupportScrollHint(items.length);
     return;
   }
@@ -5761,8 +5758,14 @@ function renderSupportRewardEvents(){
     const remaining=Math.max(0,giftQty-recipients.length);
     const giftEligible=['pending_identity','code_issued','ignored_disabled'].includes(eventStatus);
     const rewardType=String(item.source_type||'');
+    const giftStartAt=(recipients[0]?.gifted_at||item.occurred_at||item.created_at||'');
+    const giftExpiresAt=(recipients[0]?.gift_expires_at||(
+      giftStartAt && Number.isFinite(Date.parse(giftStartAt))
+        ? new Date(Date.parse(giftStartAt)+30*24*60*60*1000).toISOString()
+        : ''
+    ));
     const giftRecipientHtml=rewardType==='gift_subscription'
-      ? `<button class="smallBtn wz156GiftBtn" type="button" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.gift_manage_id||item.id).replace(/'/g,'%27')}')">🎁 Alıcıları Yönet (${recipients.length}/${giftQty})</button>`
+      ? `<button class="smallBtn wz156GiftBtn" type="button" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.gift_manage_id||item.id).replace(/'/g,'%27')}')">🎁 Alıcıları Yönet (${recipients.length}/${giftQty})</button>${giftStartAt?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç: ${esc(dateText(giftStartAt))}</div>`:''}${giftExpiresAt?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Bitiş: ${esc(dateText(giftExpiresAt))}</div>`:''}`
       : ['subscription','subscription_renewal'].includes(rewardType)
       ? `<button class="smallBtn" type="button" onclick="wz158EditSubscriberMonths('${encodeURIComponent(userName)}','${encodeURIComponent(String(item.occurred_at||item.created_at||''))}',${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))})">✏️ Ayı Yönet · ${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))} AY</button>${item.subscriptionState?.startsAt?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç: ${esc(dateText(item.subscriptionState.startsAt))}</div>`:''}${item.subscriptionState?.expiresAt?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Bitiş: ${esc(dateText(item.subscriptionState.expiresAt))}</div>`:''}`
       : '<span class="muted">-</span>';
@@ -5776,7 +5779,6 @@ function renderSupportRewardEvents(){
       <td><span class="badge ${statusBadge}">${esc(statusText)}</span></td>
       <td><span class="supportRewardCode">${esc(codeText)}</span></td>
       <td>${redeemerText}${redeemerMeta}</td>
-      <td>${esc(dateText(item.occurred_at || item.created_at))}</td>
       <td>${canCancel
         ? `<button class="smallBtn danger" onclick="cancelSupportRewardEvent('${encodeURIComponent(item.id)}')">🚫 İptal Et</button>`
         : canDelete
@@ -5939,7 +5941,7 @@ async function loadSupportRewardEvents(){
   const seq=++wz156EventsSeq;
   wz156EventsPending++;
   const status=String(document.getElementById('supportRewardStatusFilter')?.value||'').trim();
-  if(!wz156EventsLoaded && body)body.innerHTML='<tr><td colspan="10" class="muted">⏳ Destek kayıtları yükleniyor...</td></tr>';
+  if(!wz156EventsLoaded && body)body.innerHTML='<tr><td colspan="9" class="muted">⏳ Destek kayıtları yükleniyor...</td></tr>';
   const count=document.getElementById('supportRewardEventsCount');
   if(count)count.textContent=wz156EventsLoaded?'⏳ Destekler güncelleniyor...':'⏳ Destekler otomatik yükleniyor...';
   try{
@@ -5954,7 +5956,7 @@ async function loadSupportRewardEvents(){
     wz156GiftModalDraw();
   }catch(error){
     if(seq!==wz156EventsSeq)return;
-    if(!wz156EventsLoaded && body)body.innerHTML=`<tr><td colspan="10" class="muted">❌ ${esc(error.message || error)} <button class="smallBtn" onclick="loadSupportRewardEvents()">Tekrar Dene</button></td></tr>`;
+    if(!wz156EventsLoaded && body)body.innerHTML=`<tr><td colspan="9" class="muted">❌ ${esc(error.message || error)} <button class="smallBtn" onclick="loadSupportRewardEvents()">Tekrar Dene</button></td></tr>`;
     if(count)count.textContent=wz156EventsLoaded?'⚠️ Son başarılı kayıtlar gösteriliyor.':'⚠️ Destek listesi yüklenemedi.';
     showStatus('supportRewardEventsStatus','⚠️ Destek listesi geçici olarak yenilenemedi: '+esc(error.message||error),false);
   }finally{
