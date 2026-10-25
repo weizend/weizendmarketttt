@@ -103,6 +103,8 @@ html.wz77-admin-restoring #loginCard { display:none!important; }
 #adminArea .wz168-operation-feedback[data-kind="pending"]{border-left-color:#d9a23a;color:#f1d38d;}
 /* V31.1.69 — One result for each action; suppress only the old duplicated location. */
 #adminArea .status.wz169-legacy-duplicate-hidden{display:none!important;}
+/* V31.1.71: Sekme gezinmesi bir API işlemi değildir; sekme satırına bildirim ekleme. */
+#adminArea .tabs > .wz168-operation-feedback{display:none!important;}
 
 </style>
 <meta name="robots" content="noindex,nofollow">
@@ -4956,11 +4958,20 @@ document.addEventListener('click',event=>{
   if(!(target instanceof Element))return;
   const button=target.closest('#adminArea button,#adminArea input[type="submit"]');
   if(!button||button.disabled)return;
+  // Sekme butonları yalnızca gezinme içindir. openTab() arka planda
+  // GET isteği başlatsa bile bu istek için işlem sonucu oluşturulmaz.
+  if(button.closest('#adminArea .tabs')){
+    wz168LastClick=null;
+    wz168LastApiContext=null;
+    const tabBar=button.closest('.tabs');
+    tabBar.querySelectorAll('.wz168-operation-feedback').forEach(el=>el.remove());
+    return;
+  }
   wz168LastClick={button,started:Date.now(),final:false};
 },true);
 function wz168RecentClick(){
   const c=wz168LastClick;
-  return c&&Date.now()-c.started<wz168ClickWindowMs&&c.button?.isConnected?c:null;
+  return c&&Date.now()-c.started<wz168ClickWindowMs&&c.button?.isConnected&&!c.button.closest('#adminArea .tabs')?c:null;
 }
 function wz168NormalizeMessage(raw){
   const el=document.createElement('span');
@@ -4988,6 +4999,11 @@ function wz169DiscardSynthetic(button){
 }
 function wz168Place(c,raw,kind){
   if(!c?.button?.isConnected)return;
+  // Asla sekme çubuğuna bilgi düğümü ekleme, önceki kalıntıyı da kaldır.
+  if(c.button.closest('#adminArea .tabs')){
+    wz169DiscardSynthetic(c.button);
+    return;
+  }
   // Existing near-button status owns this message. Do not create an echo.
   if(c.legacyStatusId && wz169LegacyBesideButton(c.button,document.getElementById(c.legacyStatusId)))return;
   const text=wz168NormalizeMessage(raw);
@@ -5107,6 +5123,8 @@ function wz70RememberAdminTab(name){try{sessionStorage.setItem(WZ70_ADMIN_TAB_KE
 function wz70RestoreAdminTab(){try{const tab=sessionStorage.getItem(WZ70_ADMIN_TAB_KEY);return WZ70_ADMIN_TABS.has(tab)?tab:'products'}catch(_){return 'products'}}
 function openTab(name){
   if(!WZ70_ADMIN_TABS.has(name))return;
+  // Önceki sürümden kalmış bildirim DOM düğümleri sekme geçişini bozmasın.
+  document.querySelectorAll('#adminArea .tabs .wz168-operation-feedback').forEach(el=>el.remove());
   wz70RememberAdminTab(name);
 
 
