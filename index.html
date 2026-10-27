@@ -534,6 +534,10 @@ body.wz-initializing *{
         .wz3144-notice[data-tone='error'] {color:#ffba74!important;}
         .wz3144-renew {display:none!important;}
         .wz3144-renew.is-visible {display:flex!important;}
+        /* V31.1.71: expired-code renewal must look active, not like a disabled dark button. */
+        .wz3144-renew.is-visible:not(:disabled) {background:#e31b1b!important;color:#fff!important;border:1px solid #ff6262!important;opacity:1!important;cursor:pointer!important;pointer-events:auto!important;box-shadow:0 0 0 1px rgba(227,27,27,.18),0 4px 14px rgba(227,27,27,.18)!important;}
+        .wz3144-renew.is-visible:not(:disabled):hover {background:#c21414!important;border-color:#ff7777!important;transform:translateY(-1px);}
+        .wz3144-renew.is-visible:disabled {background:#421b20!important;color:#c8aeb1!important;opacity:.7!important;cursor:wait!important;pointer-events:none!important;}
         .wz3144-remaining {display:block;font-size:.76rem;line-height:1.4;margin-top:6px;color:#aaa;text-align:center;}
         .wz3144-user {margin:0 0 5px!important;text-align:center;color:#ddd;font-size:.89rem;}
         .wz3144-success-toast {position:fixed;top:20px;left:50%;transform:translate(-50%,-15px);z-index:22000;background:#122a1f;border:1px solid #36b875;color:#fff;border-radius:12px;padding:14px 18px;font-size:.96rem;font-weight:850;box-shadow:0 12px 32px rgba(0,0,0,.45);max-width:calc(100vw - 32px);text-align:center;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;}
@@ -2932,6 +2936,10 @@ body.wz-view-market #filters{
 body.wz-view-market #urunGrid{
   display:grid!important;
 }
+.market-catalog-loading{grid-column:1/-1;min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:28px 16px;text-align:center;border:1px solid #343741;border-radius:14px;background:linear-gradient(145deg,#15161d,#0b0c11);color:#f6f7fb}
+.market-catalog-loading>span:last-child{font-size:.86rem;color:#b8bdca}
+.market-catalog-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.14);border-top-color:#e31b1b;border-radius:50%;animation:wzMarketCatalogSpin .75s linear infinite}
+@keyframes wzMarketCatalogSpin{to{transform:rotate(360deg)}}
 body.wz-view-market #tournamentMarketSection{
   display:none!important;
 }
@@ -6739,6 +6747,7 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
         let profileCheckInFlight = false;
         let authCheckInFlight = false;
         let marketInitialized = false;
+        let marketCatalogBootstrapping = false;
         // İlk kart çizimi Kick oturumu mevcutken misafir butonlarını göstermesin.
         // Bu sadece arayüz durumu; sunucu tarafındaki doğrulamalar değişmedi.
         let marketAuthenticated = (()=>{
@@ -6931,22 +6940,47 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
                 window.__WZ_MARKET_SHELL_HYDRATED__ === true &&
                 (window.__WZ_INITIAL_VIEW__ || 'market') === 'market';
 
-            if (!hydratedMarketShell) {
-                urunleriYukle(aktifKategori || 'Tümü');
-            } else {
-                marketGridNeedsRender = false;
-                syncProductSearchClear();
-            }
-
-            marketInitialized = true;
-
-            // Sunucudaki gerçek stokları tek sefer al. Değişiklik yoksa grid
-            // tekrar çizilmez; böylece refresh'te görseller ikinci kez yüklenmez.
-            syncCatalogStock().catch(error => console.warn('CATALOG SYNC ERROR:', error));
-
             setupMarketModalScrollLock();
             closeVerificationWaitModal(true);
-            initializeMarketAccount();
+
+            if (hydratedMarketShell) {
+                // Cached product cards already include the last known popularity order,
+                // so show them immediately and reconcile with the live catalog in background.
+                marketGridNeedsRender = false;
+                marketInitialized = true;
+                syncProductSearchClear();
+                syncCatalogStock().catch(error => console.warn('CATALOG SYNC ERROR:', error));
+                initializeMarketAccount();
+            } else if ((window.__WZ_INITIAL_VIEW__ || 'market') === 'market' && !window.__WZ_SHARED_PRODUCT_ID__) {
+                // On a cold Market visit, don't first paint a non-ranked list and then move
+                // the popular product after the API responds. Show a compact loader instead.
+                const initialGrid = document.getElementById('urunGrid');
+                if (initialGrid) {
+                    initialGrid.innerHTML = '<div class="market-catalog-loading" role="status" aria-live="polite"><span class="market-catalog-spinner" aria-hidden="true"></span><strong>Market ürünleri hazırlanıyor…</strong><span>Popüler ürünler ve güncel stoklar yükleniyor.</span></div>';
+                }
+                marketInitialized = false;
+                marketCatalogBootstrapping = true;
+                syncCatalogStock()
+                    .catch(error => console.warn('CATALOG SYNC ERROR:', error))
+                    .finally(() => {
+                        marketCatalogBootstrapping = false;
+                        if (!marketInitialized) {
+                            urunleriYukle(aktifKategori || 'Tümü');
+                            marketInitialized = true;
+                        } else if (marketGridNeedsRender) {
+                            urunleriYukle(aktifKategori || 'Tümü');
+                        }
+                    });
+                // Authentication/profile checks can proceed while catalog data loads;
+                // showAccount defers only the Market grid paint during this short bootstrap.
+                initializeMarketAccount();
+            } else {
+                // Other deep-linked views do not need to wait for the hidden Market grid.
+                urunleriYukle(aktifKategori || 'Tümü');
+                marketInitialized = true;
+                syncCatalogStock().catch(error => console.warn('CATALOG SYNC ERROR:', error));
+                initializeMarketAccount();
+            }
         });
 
         // Sayfaya/sekmesine geri dönmek artık otomatik profil, mesaj veya ödeme
@@ -7589,7 +7623,11 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
             startInboxBadgeWatcher();
             resumePendingTlPayment().catch(() => {});
 
-            if (!marketInitialized) {
+            if (marketCatalogBootstrapping) {
+                // Avoid painting a stale, unsorted catalog while the first live catalog
+                // response is still determining the popular product and stock order.
+                marketGridNeedsRender = true;
+            } else if (!marketInitialized) {
                 urunleriYukle('Tümü');
                 marketInitialized = true;
             } else if (!wasAuthenticated || previousAccountStatus !== currentAccountStatus) {
@@ -9736,13 +9774,20 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
         async function syncCatalogStock() {
             const beforeSignature = marketCatalogSignature();
 
-            const response = await fetch(`${MARKET_WORKER}/catalog?_=${Date.now()}`, {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' },
-                cache: 'no-store'
-            });
-
-            const data = await response.json();
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+            let response, data;
+            try {
+                response = await fetch(`${MARKET_WORKER}/catalog?_=${Date.now()}`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store',
+                    signal: controller.signal
+                });
+                data = await response.json();
+            } finally {
+                clearTimeout(timeout);
+            }
             if (!response.ok || !data?.success || !Array.isArray(data.products)) {
                 throw new Error(data?.error || `HTTP ${response.status}`);
             }
