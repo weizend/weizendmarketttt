@@ -1,11 +1,13 @@
-// WEİZEND V30.6.8 — Cloudflare Pages Functions (SADECE PAYLAŞIM)
-// /paylas/turnuva/:id => turnuvaya özel kapak + bilgiler
-// /paylas/davet/:id   => "Takıma Davetlisin" + özel davet görseli
-// İnsan ziyaretçi eski ?turnuva=id bağlantısına yönlenir.
-// Worker, D1, auth, kayıt, ödeme veya turnuva mantığına dokunmaz.
+// WEİZEND — Cloudflare Pages share previews.
+// Tournament/team-invite previews are rendered here. Giveaway/product/lobby
+// previews are delegated to the existing Worker share implementation so that
+// Pages does not shadow the Worker's /paylas/{cekilis,urun,lobi}/:id routes.
+// The original site-domain URL remains canonical; the Worker serves preview
+// image bytes directly from its workers.dev endpoint to avoid a Pages 404 loop.
 
 const SITE = 'https://www.weizend.com';
-const TOURNAMENT_API = 'https://weizend-botrix.weizendtv.workers.dev/tournaments';
+const WORKER_SHARE_API = 'https://weizend-botrix.weizendtv.workers.dev';
+const TOURNAMENT_API = WORKER_SHARE_API + '/tournaments';
 const ARENA_COVER = SITE + '/arena-paylasim.jpg';
 const INVITE_COVER = SITE + '/takim-davet-paylasim.jpg';
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,110}$/;
@@ -81,10 +83,56 @@ function previewHtml({ title, description, image, pageUrl, destination, label })
 export async function onRequestGet(context) {
   const kind = String(context.params.tip || '');
   const id = String(context.params.id || '');
-  if (!['turnuva', 'davet'].includes(kind) || !ID_PATTERN.test(id)) {
+  const supportedKinds = ['turnuva', 'davet', 'cekilis', 'urun', 'lobi'];
+  if (!supportedKinds.includes(kind) || !ID_PATTERN.test(id)) {
     return new Response('Sayfa bulunamadı.', { status: 404, headers: {'Content-Type':'text/plain; charset=utf-8'} });
   }
   const slug = encodeURIComponent(id);
+
+  // These three routes already have authoritative D1-backed handlers in the
+  // Worker. Delegate their HTML to it, but rewrite preview-image URLs to the
+  // Worker host: otherwise the same-domain Pages function would receive
+  // ?og_image=1 and return 404 instead of image bytes.
+  if (['cekilis', 'urun', 'lobi'].includes(kind)) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+      const upstream = await fetch(`${WORKER_SHARE_API}/paylas/${kind}/${slug}`, {
+        method: 'GET',
+        headers: { Accept: 'text/html' },
+        signal: controller.signal,
+        redirect: 'manual'
+      });
+      if (!upstream.ok) {
+        return new Response(upstream.status === 404 ? 'Paylaşım içeriği bulunamadı.' : 'Paylaşım önizlemesi şu anda alınamıyor.', {
+          status: upstream.status === 404 ? 404 : 502,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }
+        });
+      }
+      let html = await upstream.text();
+      const sourcePrefix = `${SITE}/paylas/${kind}/${slug}?og_image=1`;
+      const workerPrefix = `${WORKER_SHARE_API}/paylas/${kind}/${slug}?og_image=1`;
+      html = html.split(sourcePrefix).join(workerPrefix);
+      return new Response(html, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=120, s-maxage=600',
+          'X-Content-Type-Options': 'nosniff',
+          'X-Robots-Tag': 'noindex, follow',
+          'Referrer-Policy': 'strict-origin-when-cross-origin'
+        }
+      });
+    } catch (error) {
+      const timedOut = controller.signal.aborted;
+      return new Response(timedOut ? 'Paylaşım önizlemesi zaman aşımına uğradı.' : 'Paylaşım önizlemesi alınamadı.', {
+        status: 502,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
   const pageUrl = `${SITE}/paylas/${kind}/${slug}`;
   const destination = `${SITE}/?turnuva=${slug}`;
   let name = '';
