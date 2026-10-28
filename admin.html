@@ -6057,7 +6057,7 @@ async function wz158SetGiftSlot(slot,person){
   const fresh=await api('/admin/gift/recipients?id='+encodeURIComponent(id));
   if(!fresh.r.ok||!fresh.d?.success)throw Error(fresh.d?.error||'Liste yeniden okunamadı');
   wz158ActiveGift={id,quantity:fresh.d.event.quantity,username:fresh.d.event.giverUsername,occurred_at:fresh.d.event.giftedAt,gift_recipients:fresh.d.recipients};
-  if(feedback)feedback.textContent='✅ @'+username+' kaydedildi. Alıcı değiştiğinde bu Gift için süre 1 AY olarak başlar; orijinal Gift tarihi korunur.'+(d.revokedGiveaways?' Yanlış eski kayıt avantajı düzeltildi.':'');
+  if(feedback)feedback.textContent='✅ @'+username+' kaydedildi. Alıcı değişikliğinde yalnızca Gift’in kalan süresi aktarılır; bitiş tarihi korunur ve süresi dolmuş Gift devredilemez.'+(d.revokedGiveaways?' Yanlış eski kayıt avantajı düzeltildi.':'');
   loadSupportRewardEvents().catch(()=>{});
  }catch(e){if(feedback)feedback.textContent='❌ '+String(e.message||e)}
  finally{wz156GiftAssignBusy=false;wz156GiftModalDraw()}
@@ -9737,7 +9737,7 @@ function updateCreateTournamentEntryFields(){
   const hint = document.getElementById('tcEntryModeHint');
 
   if(feeBox) feeBox.style.display = mode === 'tl' ? '' : 'none';
-  if(close) close.required = mode === 'subscription';
+  if(close) close.required = false;
 
   if(hint){
     if(mode === 'tl'){
@@ -10117,7 +10117,8 @@ async function saveCreateTournamentTemplate(){
     ? Number(document.getElementById('tcFee')?.value || 0)
     : 0;
 
-  const comingSoon = document.getElementById('tcComingSoon')?.checked === true;
+  const registrationOpen = document.getElementById('tcRegistrationOpen')?.checked === true;
+  const comingSoon = registrationOpen ? false : document.getElementById('tcComingSoon')?.checked === true;
   const eventDate = comingSoon ? null : tournamentDateToIso('tcEventDate');
   const registrationOpensAt = comingSoon ? null : tournamentDateToIso('tcRegistrationOpensAt');
   const registrationClosesAt = comingSoon ? null : tournamentDateToIso('tcRegistrationClosesAt');
@@ -10145,7 +10146,6 @@ async function saveCreateTournamentTemplate(){
   const thirdPlaceEnabled = document.getElementById('tcThirdPlaceEnabled')?.checked === true;
 
   // Şablonda bu tercih saklanır; şablonun kendisi kullanıcı tarafında aktif olmaz.
-  const registrationOpen = document.getElementById('tcRegistrationOpen')?.checked === true;
 
   if(!name){
     showStatus('createTournamentStatus','❌ Şablon için turnuva adı gerekli.',false);
@@ -10259,7 +10259,8 @@ async function createTournament(){
   const feePerPlayerTl = entryMode === 'tl'
     ? Number(document.getElementById('tcFee')?.value || 0)
     : 0;
-  const comingSoon = document.getElementById('tcComingSoon')?.checked === true;
+  const registrationOpen = document.getElementById('tcRegistrationOpen')?.checked === true;
+  const comingSoon = registrationOpen ? false : document.getElementById('tcComingSoon')?.checked === true;
   const eventDate = comingSoon ? null : tournamentDateToIso('tcEventDate');
   const registrationOpensAt = comingSoon ? null : tournamentDateToIso('tcRegistrationOpensAt');
   const registrationClosesAt = comingSoon ? null : tournamentDateToIso('tcRegistrationClosesAt');
@@ -10282,7 +10283,6 @@ async function createTournament(){
   const predictionPrize = document.getElementById('tcPredictionPrize')?.value.trim() || '';
   const thirdPlaceEnabled = document.getElementById('tcThirdPlaceEnabled')?.checked === true;
   const active = document.getElementById('tcActive')?.checked !== false;
-  const registrationOpen = document.getElementById('tcRegistrationOpen')?.checked === true;
 
   if(!name){
     showStatus('createTournamentStatus','❌ Turnuva adı gerekli.',false);
@@ -10303,15 +10303,6 @@ async function createTournament(){
     return;
   }
   
-  if(!comingSoon && entryMode === 'subscription' && !registrationClosesAt){
-  showStatus(
-    'createTournamentStatus',
-    '❌ Abonelik / Gift turnuvasında kayıt kapanış tarihi zorunlu.',
-    false
-  );
-  return;
-}
-
   const templateSourceId = selectedCreateTemplateId || '';
   const baseId = createProductId(name);
   const id = templateSourceId
@@ -10881,6 +10872,19 @@ function wz41TrackConfigChanges(){
     const mark=()=>{if(wz41ConfigLoadedId)wz41ConfigDirty=true};
     input.addEventListener('input',mark);input.addEventListener('change',mark);
   }
+  const pair=(openId,soonId,refresh)=>{
+    const open=document.getElementById(openId),soon=document.getElementById(soonId);
+    if(!open||!soon)return;
+    open.addEventListener('change',()=>{
+      if(open.checked&&soon.checked){soon.checked=false;refresh();}
+    });
+    soon.addEventListener('change',()=>{
+      if(soon.checked&&open.checked)open.checked=false;
+      refresh();
+    });
+  };
+  pair('tcRegistrationOpen','tcComingSoon',updateCreateTournamentDateField);
+  pair('tRegistrationOpen','tComingSoon',updateTournamentDateField);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',wz41TrackConfigChanges,{once:true});
 else wz41TrackConfigChanges();
@@ -10945,7 +10949,7 @@ function wz41PaintTournamentConfig(id,t,rule,entryModeLock){
     document.getElementById('tRegistrationOpen').checked = !!t.registrationOpen;
     document.getElementById('tFee').value = t.feePerPlayerTl ?? 0;
     document.getElementById('tCapacity').value = t.capacity ?? 1;
-    document.getElementById('tComingSoon').checked = rule.comingSoon === true;
+    document.getElementById('tComingSoon').checked = rule.comingSoon === true && t.registrationOpen !== true;
     document.getElementById('tEventDate').value = rule.comingSoon === true
       ? ''
       : toLocalInputValue(t.eventDate);
@@ -11011,8 +11015,9 @@ function wz41PaintTournamentConfig(id,t,rule,entryModeLock){
         <span class="tournamentPill">${esc(tournamentEntryModeText(rule.entryMode || catalogItem.entryMode))}</span>
         <span class="tournamentPill">${esc(String(rule.bestOf || catalogItem.bestOf || 'BO1').toUpperCase())}</span>
         <span class="tournamentPill">${esc(rule.mapName || catalogItem.mapName || 'Harita açıklanmadı')}</span>
-        <span class="tournamentPill">Kayıt Açılışı: ${rule.comingSoon === true ? 'YAKINDA' : esc(dateText(rule.registrationOpensAt || catalogItem.registrationOpensAt))}</span>
-        <span class="tournamentPill">Başlangıç: ${rule.comingSoon === true ? 'YAKINDA' : esc(dateText(t.eventDate))}</span>
+        <span class="tournamentPill">Kayıt Açılışı: ${rule.comingSoon === true || !(rule.registrationOpensAt || catalogItem.registrationOpensAt) ? 'YAKINDA' : esc(dateText(rule.registrationOpensAt || catalogItem.registrationOpensAt))}</span>
+        <span class="tournamentPill">Kayıt Kapanışı: ${rule.comingSoon === true || !(rule.registrationClosesAt || catalogItem.registrationClosesAt) ? 'YAKINDA' : esc(dateText(rule.registrationClosesAt || catalogItem.registrationClosesAt))}</span>
+        <span class="tournamentPill">Başlangıç: ${rule.comingSoon === true || !t.eventDate ? 'YAKINDA' : esc(dateText(t.eventDate))}</span>
         <span class="tournamentPill ${isTemplate ? 'template' : ''}">${esc(tournamentLifecycleText(lifecycle,catalogItem))}</span>
       `;
     }
@@ -11181,7 +11186,7 @@ function updateTournamentEntryFields(){
   }
 
   if(close){
-    close.required = mode === 'subscription';
+    close.required = false;
   }
 
 
@@ -11264,7 +11269,7 @@ async function saveTournamentConfig(){
   const teamSize = Number(document.getElementById('tTeamSize')?.value || 1);
   const registrationOpen = document.getElementById('tRegistrationOpen')?.checked === true;
   const capacity = Number(document.getElementById('tCapacity')?.value || 0);
-  const comingSoon = document.getElementById('tComingSoon')?.checked === true;
+  const comingSoon = registrationOpen ? false : document.getElementById('tComingSoon')?.checked === true;
   const eventDate = comingSoon ? null : tournamentDateToIso('tEventDate');
   const registrationOpensAt = comingSoon ? null : tournamentDateToIso('tRegistrationOpensAt');
   const entryMode = document.getElementById('tEntryMode')?.value || 'free';
@@ -11312,15 +11317,6 @@ async function saveTournamentConfig(){
     return;
   }
   
-  if(!comingSoon && entryMode === 'subscription' && !registrationClosesAt){
-  showStatus(
-    'tournamentStatus',
-    '❌ Abonelik / Gift turnuvasında kayıt kapanış tarihi zorunlu.',
-    false
-  );
-  return;
-}
-
   wz41ConfigWriting=true;
   try{
     if(button){
