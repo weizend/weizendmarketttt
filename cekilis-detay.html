@@ -134,7 +134,7 @@ function show(append=false){if(!last)return;const c=last.campaign;$('content').h
   const meta=text('div','personMeta','');meta.append(text('time','',date(p.joinedAt)),percentage);
   row.append(text('b','',p.name),meta);list.append(row)});
  $('participation').textContent='Toplam '+last.totalParticipants.toLocaleString('tr-TR')+' katılımcı';
- $('participantSearchStatus').textContent=activeSearch?('Arama sonucu: '+matched.toLocaleString('tr-TR')+' eşleşme · '+shown.length.toLocaleString('tr-TR')+' tanesi yüklendi'):('Gösterilen '+shown.length.toLocaleString('tr-TR')+' / '+matched.toLocaleString('tr-TR')+' katılımcı');
+ const loadedCount=visibleParticipants.length;$('participantSearchStatus').textContent=activeSearch?('Arama sonucu: '+matched.toLocaleString('tr-TR')+' eşleşme · '+loadedCount.toLocaleString('tr-TR')+' tanesi yüklendi'):('Gösterilen '+loadedCount.toLocaleString('tr-TR')+' / '+matched.toLocaleString('tr-TR')+' katılımcı');
  $('page').textContent=last.page+' / '+last.totalPages;$('prev').disabled=last.page<=1;$('next').disabled=last.page>=last.totalPages;
  const box=$('winners');box.replaceChildren();box.className='';if(last.winners.length){last.winners.forEach(w=>box.append(text('div','winner','🏆 '+w.rank+'. '+w.username)))}else{box.className='notice';box.textContent=c.status==='drawn'?'Kazanan bilgileri henüz yayımlanmadı.':'ℹ️ Bu çekiliş henüz sonuçlanmadı. Çekiliş sonuçlandığında kazananları burada görebilirsin.'}
 }
