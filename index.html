@@ -11914,16 +11914,12 @@ return;
                     ? 'ÇOK YAKINDA'
                     : t.eventDate
                         ? tv2Date(t.eventDate)
-                        : 'Daha sonra duyurulacak';
+                        : 'YAKINDA';
 
             const closeText =
                 rule.registrationClosesAt
                     ? tv2Date(rule.registrationClosesAt)
-                    : (
-                        lifecycle === 'registration_open'
-                            ? 'Kayıtlar açık'
-                            : tv2LifecycleLabel(lifecycle,t)
-                    );
+                    : 'YAKINDA';
 
             return `
                 <article class="tv2-market-card">
@@ -12175,7 +12171,7 @@ return;
                         Katılım: <b>${tv2Esc(tv2EntryLabel(rule,t))}</b><br>
                         ${comingSoon
                             ? '<b>ÇOK YAKINDA</b>'
-                            : `Tarih: <b>${tv2Esc(t?.eventDate ? tv2Date(t.eventDate) : 'Daha sonra duyurulacak')}</b>`}
+                            : `Tarih: <b>${tv2Esc(t?.eventDate ? tv2Date(t.eventDate) : 'YAKINDA')}</b>`}
                     </div>
                 </div>
                 <div class="tv2-panel">
@@ -12467,7 +12463,7 @@ return;
                         Katılım: <b>${tv2Esc(tv2EntryLabel(rule,t))}</b><br>
                         ${comingSoon
     ? ''
-    : `Turnuva tarihi: <b>${tv2Esc(t.eventDate ? tv2Date(t.eventDate) : 'Daha sonra duyurulacak')}</b>`}
+    : `Turnuva tarihi: <b>${tv2Esc(t.eventDate ? tv2Date(t.eventDate) : 'YAKINDA')}</b>`}
                     </div>
                 </div>
                 ${comingSoon
@@ -12500,7 +12496,7 @@ return;
 
             <div class="tv2-muted" style="margin-top:9px;">
                 Kayıt bitişi:<br>
-                <b>${tv2Esc(rule.registrationClosesAt ? tv2Date(rule.registrationClosesAt) : 'Belirtilmedi')}</b>
+                <b>${tv2Esc(rule.registrationClosesAt ? tv2Date(rule.registrationClosesAt) : 'YAKINDA')}</b>
             </div>
 
             <div class="tv2-actions">
@@ -13383,7 +13379,7 @@ return;
                     <div class="tv2-muted">
                         1v1 Solo · Kontenjan ${Number(t.registeredCount || 0)} / ${Number(t.capacity || 0)}<br>
                         Katılım: <b>${tv2Esc(tv2EntryLabel(rule,t))}</b><br>
-                        ${rule.registrationClosesAt ? `Kayıt bitişi: <b>${tv2Esc(tv2Date(rule.registrationClosesAt))}</b>` : ''}
+                        Kayıt bitişi: <b>${tv2Esc(rule.registrationClosesAt ? tv2Date(rule.registrationClosesAt) : 'YAKINDA')}</b>
                     </div>
                 </div>
                 <div class="tv2-panel">
@@ -13847,7 +13843,7 @@ return;
                         ${teamSize <= 1 ? '1v1 Solo' : `${teamSize}v${teamSize} Takımlı`} · ${tv2Esc(rule.gameName || 'Oyun')}<br>
                         Katılım: <b>${tv2Esc(tv2EntryLabel(rule,t))}</b><br>
                         <span class="wz-v3040-entry-badge">${entryUX.label}</span><br>
-                        ${comingSoon ? '<b>🚀 ÇOK YAKINDA</b>' : `Turnuva tarihi: <b>${tv2Esc(t.eventDate ? tv2Date(t.eventDate) : 'Daha sonra duyurulacak')}</b>`}
+                        ${comingSoon ? '<b>🚀 ÇOK YAKINDA</b>' : `Turnuva tarihi: <b>${tv2Esc(t.eventDate ? tv2Date(t.eventDate) : 'YAKINDA')}</b>`}
                     </div>
                 </div>
                 <div class="tv2-panel">
@@ -15617,14 +15613,14 @@ return;
             key:'registration',
             cls:'is-active',
             title:'YAKINDA',
-            date:'Kayıt tarihi açıklanacak',
+            date:'YAKINDA',
             note:'Kayıtlar henüz açılmadı.'
           },
           {
             key:'start',
             cls:'is-pending',
             title:'TURNUVA BAŞLANGICI',
-            date:'Tarih ve saat açıklanacak'
+            date:'YAKINDA'
           }
         ]
       };
@@ -15823,11 +15819,11 @@ return;
     return encodeURI(u).replace(/[()'\"]/g,ch=>'%' + ch.charCodeAt(0).toString(16).toUpperCase());
   }
   function formatDate(value){
-    if(!value) return 'Tarih açıklanmadı';
+    if(!value) return 'YAKINDA';
     try{ const d=new Date(value); return Number.isNaN(d.getTime())?String(value):d.toLocaleString('tr-TR',{dateStyle:'medium',timeStyle:'short'}); }catch(_){ return String(value); }
   }
   function formatShortDate(value){
-    if(!value) return 'Tarih açıklanacak';
+    if(!value) return 'YAKINDA';
     try{ const d=new Date(value); return Number.isNaN(d.getTime())?String(value):d.toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'}); }catch(_){ return String(value); }
   }
   function formatShortTime(value){
