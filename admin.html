@@ -1184,6 +1184,16 @@ body.dmModalOpen{overflow:hidden}
 .activityMeta{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;color:#858585;font-size:.73rem}
 .activityMeta span{display:inline-flex;align-items:center;gap:4px}
 .activityMessage{margin-top:10px;padding:10px 11px;border-radius:10px;background:#111;border:1px solid #242424;color:#d4d4d4;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+/* V31.1.84 — Prevent subscriber/Gift controls from squeezing the activity name to a few pixels. */
+.activityItemTop{width:100%;min-width:0;}
+.activityItemTop > .activityUser{flex:1 1 0%;width:0;min-width:0;max-width:none;}
+.activityItemTop > .activityUser .activityUserName{display:block;width:100%;min-width:0;overflow-wrap:anywhere;word-break:normal;}
+.activityItemTop > :last-child{flex:0 0 auto;min-width:0;max-width:50%;margin-left:auto;}
+.activityItemTop > :last-child button{width:auto!important;max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;}
+@media(max-width:520px){
+  .activityItemTop{gap:10px;}
+  .activityItemTop > :last-child{max-width:48%;}
+}
 .activityRecipientsMeta{display:block!important;min-width:0;max-width:100%;line-height:1.45;overflow-wrap:anywhere;word-break:normal;white-space:normal}
 .activityEmpty{padding:28px 14px;border:1px dashed #333;border-radius:13px;text-align:center;color:#888;background:#090909}
 .activityRawDetails{margin-top:14px;border-top:1px solid #242424;padding-top:10px;color:#777}
