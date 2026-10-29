@@ -5143,6 +5143,64 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
  border-radius:11px;background:#19151d;color:#e8dde2;font-size:12px;line-height:1.65}
 #wzNewcomerGuide .wz-qs-gift-note strong{color:#fff;font-weight:900}
 </style>
+
+<style id="wz-v31173-tournament-mobile-cta-colors">
+/* Tournament cards: clear visual hierarchy for details versus active registration. */
+.wz-turn-card-actions.wz-turn-card-actions-registration{
+  display:flex!important;flex-wrap:nowrap!important;gap:8px!important;align-items:stretch!important;
+}
+.wz-turn-card-actions-registration > button{
+  flex:1 1 0!important;min-width:0!important;white-space:normal!important;
+  min-height:46px!important;line-height:1.2!important;padding:10px 11px!important;
+  border-radius:13px!important;font-weight:950!important;
+}
+/* Details always uses the WEİZEND red accent so it looks clickable. */
+.wz-turn-card-actions-registration > button:first-child{
+  background:linear-gradient(180deg,#ff4148,#c90f1b)!important;
+  color:#fff!important;border:1px solid #ff555c!important;
+  box-shadow:0 7px 18px rgba(226,18,28,.22)!important;
+}
+/* Open signup/team actions are green. */
+.wz-turn-card-actions-registration > button:not(:first-child):not(.wz-turn-register-disabled),
+.wz-turn-card-actions-registration .wz-turn-register-secondary:not(.wz-turn-register-disabled){
+  background:linear-gradient(180deg,#35d977,#119447)!important;
+  color:#fff!important;border:1px solid #48e58a!important;
+  box-shadow:0 7px 18px rgba(17,148,71,.22)!important;
+}
+/* Closed/full actions remain clearly disabled, regardless of their base button class. */
+.wz-turn-card-actions-registration > button.wz-turn-register-disabled{
+  background:linear-gradient(180deg,#545a63,#353a43)!important;
+  color:#c6cad1!important;border:1px solid #555b65!important;
+  opacity:.74!important;filter:saturate(.25)!important;cursor:not-allowed!important;
+  box-shadow:none!important;transform:none!important;
+}
+/* A registration modal launched from the detail window must cover it, not open behind it. */
+#tv2Modal{z-index:70000!important}
+.tv3-payment-expiry{
+  margin:10px 0;padding:10px 12px;border:1px solid rgba(239,55,68,.45);
+  border-radius:10px;background:rgba(239,55,68,.09);color:#ffd9dd;
+  font-size:.86rem;line-height:1.45;
+}
+.tv3-payment-expiry b{font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.tv3-payment-expiry.is-expired{border-color:rgba(255,180,65,.55);background:rgba(255,180,65,.09);color:#ffe7bd}
+@media(max-width:520px){
+  /* First row: full-width red Details button. Second row: equal green team actions. */
+  .wz-turn-card-actions.wz-turn-card-actions-registration{
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;align-items:stretch!important;
+  }
+  .wz-turn-card-actions-registration > button{
+    width:100%!important;min-width:0!important;flex:none!important;
+    min-height:48px!important;padding:10px 7px!important;font-size:.77rem!important;
+    overflow-wrap:anywhere!important;
+  }
+  .wz-turn-card-actions-registration > button:first-child{grid-column:1/-1!important}
+  /* Solo has only Details + Register: give both buttons a full row. */
+  .wz-turn-card-actions-registration > button:first-child:nth-last-child(2){grid-column:1/-1!important}
+  .wz-turn-card-actions-registration > button:nth-child(2):last-child{grid-column:1/-1!important}
+}
+</style>
+
 </head>
 <body>
 <script id="wz-v58-prepaint-view">
@@ -13320,6 +13378,7 @@ return;
                             : ''}
                     </div>
                     ${!paid ? `
+                        ${tv3SubscriptionExpiryHtml(subscriptionPayment, tv2State.tournamentId)}
                         <div class="tv2-actions">
                             <button class="tv2-btn" onclick="tv2OpenKickChannel()">⭐ KICK KANALINI AÇ</button>
                             <button class="tv2-btn secondary" onclick="tv2RefreshSubscription('${tv2Esc(subscriptionPayment.id)}',true)">🔄 ABONELİĞİ KONTROL ET</button>
@@ -13348,7 +13407,7 @@ return;
                             <option value="already_subscribed">Zaten aboneyim — 1 abonelik hediyesi göndereceğim</option>
                         </select>
                         <div class="tv2-muted" style="margin-top:6px;">
-                            Katılım işlemin kayıt kapanış tarihine kadar açık kalır. Gift alıcısı önemli değildir; gönderen doğrulanmış Kick hesabı ve adet kontrol edilir.
+                            Bu işlemi başlattıktan sonra katılım şartını 5 dakika içinde tamamla; süre dolarsa bekleyen kayıt iptal edilir. Gift alıcısı önemli değildir; gönderen doğrulanmış Kick hesabı ve adet kontrol edilir.
                         </div>
                     </div>
                 `
@@ -13392,6 +13451,7 @@ return;
             ${tv2ArenaRedirectHtml(t?.id || tv2State.tournamentId)}
         `;
         tv2RestorePendingTl();
+        tv3StartSubscriptionExpiryTimer();
     }
 
     async function tv2RegisterSolo() {
@@ -13694,26 +13754,106 @@ return;
         `;
     }
 
+    let tv3SubscriptionExpiryTimer = null;
+    const tv3SubscriptionExpiryInFlight = new Set();
+    const tv3SubscriptionExpiryRetryAt = new Map();
+
+    function tv3SubscriptionExpiryHtml(p = {}, tournamentId = '') {
+        const status = String(p?.status || '').toLowerCase();
+        const expiresAt = Date.parse(String(p?.expiresAt || ''));
+        if (status !== 'pending' || !p?.id || !Number.isFinite(expiresAt)) return '';
+        const initialSeconds = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+        const initialLabel = `${String(Math.floor(initialSeconds / 60)).padStart(2, '0')}:${String(initialSeconds % 60).padStart(2, '0')}`;
+        const initialMessage = initialSeconds > 0
+            ? '5 dakika içinde tamamlanmazsa bekleyen kayıt otomatik iptal edilir.'
+            : 'Süre doldu. Sunucu kayıt durumunu doğruluyor…';
+        return `<div class="tv3-payment-expiry" data-tv3-sub-expiry="1"
+            data-payment-id="${tv2Esc(p.id)}" data-tournament-id="${tv2Esc(tournamentId || tv2State.tournamentId || '')}"
+            data-expires-at="${expiresAt}" role="timer" aria-live="polite">
+            ⏳ Katılım şartını tamamlamak için kalan süre: <b>${initialLabel}</b><br>
+            <span>${initialMessage}</span>
+        </div>`;
+    }
+
+    function tv3StartSubscriptionExpiryTimer() {
+        if (tv3SubscriptionExpiryTimer) return;
+        const tick = () => {
+            const nodes = document.querySelectorAll('#tv2ModalBody [data-tv3-sub-expiry="1"]');
+            if (!nodes.length) {
+                clearInterval(tv3SubscriptionExpiryTimer);
+                tv3SubscriptionExpiryTimer = null;
+                return;
+            }
+            const now = Date.now();
+            for (const node of nodes) {
+                const expiry = Number(node.dataset.expiresAt || 0);
+                const left = expiry - now;
+                if (left > 0) {
+                    const total = Math.ceil(left / 1000);
+                    const mm = String(Math.floor(total / 60)).padStart(2, '0');
+                    const ss = String(total % 60).padStart(2, '0');
+                    const label = node.querySelector('b');
+                    if (label && label.textContent !== `${mm}:${ss}`) label.textContent = `${mm}:${ss}`;
+                    continue;
+                }
+                node.classList.add('is-expired');
+                const label = node.querySelector('b');
+                if (label) label.textContent = '00:00';
+                const paymentId = String(node.dataset.paymentId || '');
+                if (!paymentId || tv3SubscriptionExpiryInFlight.has(paymentId)) continue;
+                if (Date.now() < Number(tv3SubscriptionExpiryRetryAt.get(paymentId) || 0)) continue;
+                tv3SubscriptionExpiryRetryAt.set(paymentId, Date.now() + 15000);
+                tv3SubscriptionExpiryInFlight.add(paymentId);
+                const message = node.querySelector('span');
+                if (message) message.textContent = 'Süre doldu. Kayıt durumu sunucuda kontrol ediliyor…';
+                tv3RefreshSubscription(paymentId, false).then(result => {
+                    const resultStatus = String(result?.status || '').toLowerCase();
+                    if (resultStatus === 'expired' || resultStatus === 'cancelled' || resultStatus === 'paid') {
+                        tv3SubscriptionExpiryRetryAt.delete(paymentId);
+                    } else if (resultStatus === 'pending') {
+                        const currentNode = Array.from(document.querySelectorAll('#tv2ModalBody [data-tv3-sub-expiry="1"]'))
+                            .find(el => String(el.dataset.paymentId || '') === paymentId);
+                        const currentMessage = currentNode?.querySelector('span');
+                        if (currentMessage) currentMessage.textContent = 'Sunucu kaydı hâlâ bekliyor gösteriyor. Biraz sonra yeniden kontrol edilecek.';
+                    }
+                }).catch(error => {
+                    const currentNode = Array.from(document.querySelectorAll('#tv2ModalBody [data-tv3-sub-expiry="1"]'))
+                        .find(el => String(el.dataset.paymentId || '') === paymentId);
+                    const currentMessage = currentNode?.querySelector('span');
+                    if (currentMessage) currentMessage.textContent = 'Kontrol edilemedi. İnternet bağlantını kontrol edip “Kontrol Et” düğmesine bas.';
+                    console.warn('Turnuva abonelik süresi kontrolü:', error?.message || error);
+                }).finally(() => tv3SubscriptionExpiryInFlight.delete(paymentId));
+            }
+        };
+        tick();
+        tv3SubscriptionExpiryTimer = setInterval(tick, 1000);
+    }
+
     function tv3SubscriptionCard(p = {}) {
         if (!p?.id) return '';
         const directRequired = Number(p.requiredDirectSubs || 0);
         const directReceived = Number(p.receivedDirectSubs || 0);
         const giftsRequired = Number(p.requiredGifts || 0);
         const giftsReceived = Number(p.receivedGifts || 0);
-        const paid = String(p.status || '').toLowerCase() === 'paid';
+        const status = String(p.status || '').toLowerCase();
+        const paid = status === 'paid';
+        const expired = status === 'expired' || status === 'cancelled';
+        const pending = status === 'pending';
         const awaitingGift = giftsRequired > 0 && directRequired === 0;
         const awaitingLabel = awaitingGift ? '🎁 Hediye Abonelik Bekleniyor' : '⭐ Abonelik Bekleniyor';
         return `
             <div class="tv3-payment-card ${paid ? 'paid' : ''}">
                 <div class="tv3-payment-head">
-                    <b>${paid ? '✅ Abonelik Şartı Tamamlandı' : awaitingLabel}</b>
-                    <span class="tv3-chip ${paid ? 'ok' : 'warn'}">${tv2Esc(paid ? 'TAMAMLANDI' : 'BEKLİYOR')}</span>
+                    <b>${paid ? '✅ Abonelik Şartı Tamamlandı' : expired ? '⏰ Katılım Süresi Doldu' : awaitingLabel}</b>
+                    <span class="tv3-chip ${paid ? 'ok' : expired ? 'warn' : 'warn'}">${tv2Esc(paid ? 'TAMAMLANDI' : expired ? 'SÜRE DOLDU' : 'BEKLİYOR')}</span>
                 </div>
                 <div class="tv3-money-grid">
                     ${directRequired ? `<div><span>Normal Abonelik</span><b>${directReceived} / ${directRequired}</b></div>` : ''}
                     ${giftsRequired ? `<div><span>Gift</span><b>${giftsReceived} / ${giftsRequired}</b></div>` : ''}
                 </div>
-                ${!paid ? `
+                ${pending ? tv3SubscriptionExpiryHtml(p, tv2State.tournamentId) : ''}
+                ${expired ? '<div class="tv2-message error">5 dakikalık süre içinde katılım şartı tamamlanmadı. Bekleyen kayıt iptal edildi. Yeniden katılmak için tekrar kayıt ol.</div>' : ''}
+                ${pending ? `
                     <div class="tv2-actions">
                         <button class="tv2-btn" onclick="tv2OpenKickChannel(tv2State.me?.subscriptionPayments?.find(x=>String(x.id)==='${tv2Esc(p.id)}')||null)">${awaitingGift ? '🎁 HEDİYE ABONELİK SAYFASINI AÇ' : '⭐ KICK ABONELİK SAYFASINI AÇ'}</button>
                         <button class="tv2-btn secondary" onclick="tv3RefreshSubscription('${tv2Esc(p.id)}',true)">🔄 KONTROL ET</button>
@@ -13901,6 +14041,7 @@ return;
         const modalBody = document.getElementById('tv2ModalBody');
         const previousScroll = modalBody.scrollTop;
         modalBody.innerHTML = content;
+        tv3StartSubscriptionExpiryTimer();
         if (tv2State.form === 'create') tv2ShowCreateForm(true);
         if (tv2State.form === 'join') tv2ShowJoinForm(true);
         modalBody.scrollTop = previousScroll;
@@ -14512,14 +14653,31 @@ return;
         const oldLabel=btn?.tagName==='BUTTON'?btn.textContent:'';
         if(oldLabel){btn.disabled=true;btn.textContent='⏳ Abonelik kontrol ediliyor...';}
         try {
-            const d = await tv2AuthFetch(`/tournament/v3/subscription/status?id=${encodeURIComponent(paymentId)}&_=${Date.now()}`);
+            let d;
+            try {
+                d = await tv2AuthFetch(`/tournament/v3/subscription/status?id=${encodeURIComponent(paymentId)}&_=${Date.now()}`);
+            } catch (error) {
+                if (Number(error?.status || 0) !== 404) throw error;
+                d = await tv2AuthFetch(`/tournament/v2/subscription/status?id=${encodeURIComponent(paymentId)}&_=${Date.now()}`);
+            }
             const p = d.subscriptionPayment || d.payment || {};
-            if (String(p.status || '').toLowerCase() === 'paid') {
+            const paymentStatus = String(p.status || '').toLowerCase();
+            if (paymentStatus === 'expired' || paymentStatus === 'cancelled') {
+                if (notify) showStatusToast('⏰ 5 dakikalık süre doldu. Tamamlanmayan kayıt iptal edildi.', 4800);
+                await tv2ReloadMe();
+                await tv2LoadCatalog(false);
+                document.dispatchEvent(new CustomEvent('wz:tournament-expiry-refresh', {
+                    detail:{tournamentId:String(tv2State.tournamentId || '')}
+                }));
+                refreshInboxBadge().catch(()=>{});
+                return p;
+            }
+            if (paymentStatus === 'paid') {
                 showStatusToast('✅ Katılım için gerekli abonelik şartın doğrulandı.', 4200);
                 await tv2ReloadMe();
                 await tv2LoadCatalog(false);
                 refreshInboxBadge().catch(()=>{});
-                return;
+                return p;
             }
             if (notify) {
                 const directLeft = Number(p.remainingDirectSubs || 0);
@@ -14531,8 +14689,10 @@ return;
                         : `⭐ Abonelik kontrol edildi; şart henüz tamamlanmadı.`, 4200);
             }
             await tv2ReloadMe();
+            return p;
         } catch (error) {
             if (notify) showStatusToast(`⚠️ ${error.message || error}`, 4500);
+            else throw error;
         }finally{
             if(oldLabel&&btn.isConnected){btn.disabled=false;btn.textContent=oldLabel;}
         }
@@ -15520,12 +15680,14 @@ return;
     const capacity=Math.max(0,Number(t.capacity||0));
     const hasTeamVacancy=capacity<=0 || registered<capacity;
     const incompleteTeam=registered>ready;
+    const registrationOpen = registrationIsOpen(item) &&
+      (typeof tv2RegistrationClosed!=='function' || !tv2RegistrationClosed(item));
     return {
       teamMode,
-      createEnabled:teamMode && hasTeamVacancy && registrationIsOpen(item) &&
-        (typeof tv2RegistrationClosed!=='function' || !tv2RegistrationClosed(item)),
-      joinEnabled:teamMode && incompleteTeam &&
-        typeof tv3InviteJoinClosed==='function' && !tv3InviteJoinClosed(item)
+      createEnabled:teamMode && hasTeamVacancy && registrationOpen,
+      // Keep the invite-flow and list/detail CTA behavior consistent:
+      // once registration closes, both Team Up and Join Team are disabled.
+      joinEnabled:teamMode && registrationOpen
     };
   }
   function modeText(t){
@@ -16384,6 +16546,12 @@ return;
   document.addEventListener('wz:tournament-catalog-updated', e=>{
     if(e?.detail?.ok) wzV95LoadMyEntryStatuses();
   });
+  document.addEventListener('wz:tournament-expiry-refresh', e=>{
+    const id=String(e?.detail?.tournamentId||'');
+    if(!id) return;
+    state.details.delete(id);
+    if(document.body.classList.contains('wz-view-tournament')) render();
+  });
   document.addEventListener('DOMContentLoaded',()=>{
     setTimeout(()=>{ if(typeof tv2CatalogLoadedOnce!=='undefined' && tv2CatalogLoadedOnce) wzV95LoadMyEntryStatuses(); },400);
   });
@@ -16493,6 +16661,17 @@ return;
     const logo=tournamentLogoUrl(item);
     const cardPrizes=tournamentCardPrizes(item);
     const entryBadge=tournamentEntryBadge(item);
+    const teamMode=Number(t.teamSize||1)>1;
+    const actionOpen=!completed && registrationIsOpen(item) &&
+      (typeof tv2RegistrationClosed!=='function' || !tv2RegistrationClosed(item));
+    const capacity=Math.max(0,Number(t.capacity||0));
+    const used=Math.max(0,Number(t.registeredCount||0));
+    const hasCapacity=capacity<=0 || used<capacity;
+    const teamActions=wzV273TeamActions(item);
+    const soloRegisterEnabled=actionOpen && hasCapacity;
+    const createTeamEnabled=actionOpen && teamActions.createEnabled;
+    const joinTeamEnabled=actionOpen && teamActions.joinEnabled;
+    const disabledTitle='Kayıtlar açık değil veya ilgili kontenjan dolu.';
     return `<article class="wz-turn-card" data-wz-tournament-id="${esc(id)}">
       <div class="wz-turn-card-head"${cardHeadStyle}>
         <div class="wz-turn-card-row">
@@ -16538,8 +16717,17 @@ return;
         
         <div data-wz-entry-tournament="${esc(id)}">${wzV95RegistrationNotice(id)}</div>
         ${wzV272RosterWaiting(item)?`<div class="wz-v272-roster-note">⏳ Kontenjan dolu ancak eksik takımlar var. Eksik takım iptal edilirse boş yer açılabilir; daha sonra sayfayı yenileyip kontrol edebilirsin. Mevcut davet koduyla katılım, kayıt tarihi ve diğer şartlar uygunsa devam eder.</div>`:''}
-        <div class="wz-turn-card-actions">
-          <button type="button" class="wz-turn-mainbtn" onclick="wzTurnOpen('${esc(id)}')">Detayları Gör</button>
+        <div class="wz-turn-card-actions wz-turn-card-actions-registration">
+          <button type="button" class="wz-turn-ghostbtn" onclick="wzTurnOpen('${esc(id)}')">DETAYLARI GÖR</button>
+          ${teamMode ? `
+            <button type="button" class="wz-turn-mainbtn ${createTeamEnabled?'':'wz-turn-register-disabled'}"
+              onclick="wzTournamentRegistrationChoice('${esc(id)}','create')" ${createTeamEnabled?'':'disabled aria-disabled="true" title="${disabledTitle}"'}>👑 TAKIM KUR</button>
+            <button type="button" class="wz-turn-ghostbtn wz-turn-register-secondary ${joinTeamEnabled?'':'wz-turn-register-disabled'}"
+              onclick="wzTournamentRegistrationChoice('${esc(id)}','join')" ${joinTeamEnabled?'':'disabled aria-disabled="true" title="${disabledTitle}"'}>🔑 TAKIMA KATIL</button>
+          ` : `
+            <button type="button" class="wz-turn-mainbtn ${soloRegisterEnabled?'':'wz-turn-register-disabled'}"
+              onclick="wzTournamentRegistration('${esc(id)}')" ${soloRegisterEnabled?'':'disabled aria-disabled="true" title="${disabledTitle}"'}>🎮 KAYIT OL</button>
+          `}
         </div>
       </div>
     </article>`;
@@ -17972,6 +18160,7 @@ return;
 
   window.wzTournamentRegistration=function(id){
     try{
+      if(state.screen==='detail') window.wzTurnBack();
       if(typeof marketAuthenticated!=='undefined' && marketAuthenticated && typeof tv2Open==='function'){ tv2Open(id); return; }
       if(typeof tv2OpenPublic==='function'){ tv2OpenPublic(id); return; }
     }catch(_){ }
@@ -17985,6 +18174,7 @@ return;
     const allowed=wzV273TeamActions(item);
     if(!allowed.teamMode || !allowed[choice==='create'?'createEnabled':'joinEnabled']) return;
     try{
+      if(state.screen==='detail') window.wzTurnBack();
       if(typeof marketAuthenticated==='undefined' || !marketAuthenticated ||
          typeof tv2Open!=='function'){
         if(typeof tv2OpenPublic==='function') await tv2OpenPublic(id);
@@ -18003,8 +18193,10 @@ return;
         if(tv2RegistrationClosed(liveItem) || (cap>0 && count>=cap)) return;
         tv2ShowCreateForm();
       }else{
-        if(tv3InviteJoinClosed(liveItem) ||
-           Number(t.registeredCount||0)<=Number(t.completedCount||0)) return;
+        if(tv2RegistrationClosed(liveItem)){
+          if(typeof showStatusToast==='function') showStatusToast('🔒 Bu turnuvada kayıtlar kapandı.',3000);
+          return;
+        }
         tv2ShowJoinForm();
       }
     }catch(error){
