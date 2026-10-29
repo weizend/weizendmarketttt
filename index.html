@@ -5174,6 +5174,12 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
   opacity:.74!important;filter:saturate(.25)!important;cursor:not-allowed!important;
   box-shadow:none!important;transform:none!important;
 }
+/* Active registration actions are green in detail view too; disabled states remain gray. */
+.wz-turn-register.is-active:not([disabled]){
+  background:linear-gradient(180deg,#35d977,#119447)!important;
+  color:#fff!important;border:1px solid #48e58a!important;
+  box-shadow:0 7px 18px rgba(17,148,71,.22)!important;
+}
 /* A registration modal launched from the detail window must cover it, not open behind it. */
 #tv2Modal{z-index:70000!important}
 .tv3-payment-expiry{
@@ -12688,6 +12694,11 @@ return;
     }
 
     function tv2CancelInlineForm() {
+        // In solo mode the form is the destination, not an intermediate selection screen.
+        if (Number(tv2State.publicData?.tournament?.teamSize || 1) <= 1) {
+            tv2Close();
+            return;
+        }
         tv2State.form = '';
         tv2RenderModal();
     }
@@ -13864,7 +13875,7 @@ return;
         `;
     }
 
-    async function tv2Open(tournamentId) {
+    async function tv2Open(tournamentId, directSoloRegistration = false) {
         if (currentAccountStatus === 'blocked') {
             showStatusToast(`⛔ HESABIN KISITLANDI${currentBlockedReason ? ': ' + currentBlockedReason : ''}`, 5000);
             return;
@@ -13896,6 +13907,12 @@ return;
         document.getElementById('tv2Modal').style.display = 'flex';
         document.body.style.overflow = 'hidden';
         await tv2ReloadMe();
+        // Main-page / detail-page solo registration buttons open the actual form directly.
+        // Do not force the choice screen back into the solo flow.
+        if (directSoloRegistration && Number(item.tournament.teamSize || 1) <= 1 &&
+            tv2State.me && !tv2State.me.team && !tv2State.me.joinDraft) {
+            tv2ShowCreateForm();
+        }
     }
 
     async function tv3RefreshWithFeedback(btn){
@@ -13997,21 +14014,25 @@ return;
         `;
 
         if (!team && !joinDraft) {
-            content += `
-                <div class="tv2-panel">
-                    <h4>${teamSize <= 1 ? 'Turnuva Kaydı' : 'Takım İşlemleri'}</h4>
-                    <div class="tv2-muted">
-                        ${teamSize <= 1 ? entryUX.selectionSolo : entryUX.selectionTeam}
+            if (teamSize <= 1) {
+                // Solo tournaments have no action-selection layer; render only the real form host.
+                content += `<div id="tv2InlineForm"></div>`;
+            } else {
+                // Team tournaments retain the create/join choice and the option to switch it.
+                content += `
+                    <div class="tv2-panel">
+                        <h4>Takım İşlemleri</h4>
+                        <div class="tv2-muted">${entryUX.selectionTeam}</div>
+                        ${!tv2State.form ? `<div class="tv2-actions">
+                            <button class="tv2-btn ${createClosed?'secondary':''}" ${createClosed?'disabled':''} onclick="tv2ShowCreateForm()">👑 TAKIM KUR</button>
+                            <button class="tv2-btn ${inviteJoinClosed?'secondary':''}" ${inviteJoinClosed?'disabled':''} onclick="tv2ShowJoinForm()">🔑 TAKIMA KATIL</button>
+                        </div>` : `<div class="tv2-actions wz-v3039-choice-back">
+                            <button type="button" class="tv2-btn secondary" onclick="tv2CancelInlineForm()">← SEÇİMİ DEĞİŞTİR</button>
+                        </div>`}
+                        <div id="tv2InlineForm"></div>
                     </div>
-                    ${!tv2State.form ? `<div class="tv2-actions">
-                        <button class="tv2-btn ${createClosed?'secondary':''}" ${createClosed?'disabled':''} onclick="tv2ShowCreateForm()">${teamSize <= 1 ? '🎮 KAYIT OL' : '👑 TAKIM KUR'}</button>
-                        ${teamSize > 1 ? `<button class="tv2-btn ${inviteJoinClosed?'secondary':''}" ${inviteJoinClosed?'disabled':''} onclick="tv2ShowJoinForm()">🔑 TAKIMA KATIL</button>` : ''}
-                    </div>` : `<div class="tv2-actions wz-v3039-choice-back">
-                        <button type="button" class="tv2-btn secondary" onclick="tv2CancelInlineForm()">← SEÇİMİ DEĞİŞTİR</button>
-                    </div>`}
-                    <div id="tv2InlineForm"></div>
-                </div>
-            `;
+                `;
+            }
         }
 
         if (joinDraft && !team) {
@@ -17689,12 +17710,12 @@ return;
           ${renderTournamentTimeline(item)}
           ${teamActions.teamMode ? `
             <div class="wz-turn-registration-actions" role="group" aria-label="Takım katılım işlemleri">
-              <button id="wzTurnCreateTeamBtn" type="button" class="wz-turn-register ${teamActions.createEnabled?'':'is-disabled'}"
+              <button id="wzTurnCreateTeamBtn" type="button" class="wz-turn-register ${teamActions.createEnabled?'is-active':'is-disabled'}"
                 onclick="wzTournamentRegistrationChoice('${esc(id)}','create')" ${teamActions.createEnabled ? '' : 'disabled'}>👑 TAKIM KUR</button>
-              <button id="wzTurnJoinTeamBtn" type="button" class="wz-turn-register ${teamActions.joinEnabled?'':'is-disabled'}"
+              <button id="wzTurnJoinTeamBtn" type="button" class="wz-turn-register ${teamActions.joinEnabled?'is-active':'is-disabled'}"
                 onclick="wzTournamentRegistrationChoice('${esc(id)}','join')" ${teamActions.joinEnabled ? '' : 'disabled'}>🔑 TAKIMA KATIL</button>
             </div>` : `
-            <button id="wzTurnRegisterBtn" type="button" class="wz-turn-register ${registrationAction.enabled?'':'is-disabled'}"
+            <button id="wzTurnRegisterBtn" type="button" class="wz-turn-register ${registrationAction.enabled?'is-active':'is-disabled'}"
               onclick="wzTournamentRegistration('${esc(id)}')" ${registrationAction.enabled ? '' : 'disabled'}>${esc(registrationAction.label)}</button>`}
           <div class="wz-v3037-detail-guide"><details>
             <summary>❓ Kayıt, AFK maç, fikstür ve tahmin nasıl işliyor?</summary>
@@ -18158,11 +18179,14 @@ return;
     }
   };
 
-  window.wzTournamentRegistration=function(id){
+  window.wzTournamentRegistration=async function(id){
     try{
       if(state.screen==='detail') window.wzTurnBack();
-      if(typeof marketAuthenticated!=='undefined' && marketAuthenticated && typeof tv2Open==='function'){ tv2Open(id); return; }
-      if(typeof tv2OpenPublic==='function'){ tv2OpenPublic(id); return; }
+      if(typeof marketAuthenticated!=='undefined' && marketAuthenticated && typeof tv2Open==='function'){
+        await tv2Open(id, true);
+        return;
+      }
+      if(typeof tv2OpenPublic==='function'){ await tv2OpenPublic(id); return; }
     }catch(_){ }
   };
 
