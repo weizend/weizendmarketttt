@@ -10920,7 +10920,10 @@ function wz41ConfigNotice(state,message){
 // değerle doldurup kaydetmeye açmamak için zorunlu alanları kontrol et.
 function wz41CatalogConfig(id){
   const x=tournamentCatalogCache.find(x=>String(x?.id)===String(id));
-  if(!x || !Object.prototype.hasOwnProperty.call(x,'entryMode') ||
+  // Fast-path only when the catalog has a real server-issued config version.
+  // Older/cached Worker responses without it must fall back to v2/config.
+  if(!x || !String(x.configVersion ?? x.updatedAt ?? '').trim() ||
+     !Object.prototype.hasOwnProperty.call(x,'entryMode') ||
      !Object.prototype.hasOwnProperty.call(x,'feePerPlayerCents') ||
      !Object.prototype.hasOwnProperty.call(x,'registrationOpen') ||
      !Object.prototype.hasOwnProperty.call(x,'rulesText'))return null;
