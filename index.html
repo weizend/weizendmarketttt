@@ -5144,22 +5144,35 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
 #wzNewcomerGuide .wz-qs-gift-note strong{color:#fff;font-weight:900}
 </style>
 
-<style id="wz-v31172-tournament-registration-fixes">
-/* Registration CTAs are visible directly beside tournament details. */
+<style id="wz-v31173-tournament-mobile-cta-colors">
+/* Tournament cards: clear visual hierarchy for details versus active registration. */
 .wz-turn-card-actions.wz-turn-card-actions-registration{
-  display:flex!important;flex-wrap:wrap!important;gap:8px!important;align-items:stretch!important;
+  display:flex!important;flex-wrap:nowrap!important;gap:8px!important;align-items:stretch!important;
 }
 .wz-turn-card-actions-registration > button{
-  flex:1 1 145px!important;min-width:0!important;white-space:normal!important;
-  min-height:44px!important;line-height:1.2!important;padding:10px 12px!important;
+  flex:1 1 0!important;min-width:0!important;white-space:normal!important;
+  min-height:46px!important;line-height:1.2!important;padding:10px 11px!important;
+  border-radius:13px!important;font-weight:950!important;
 }
-.wz-turn-card-actions-registration .wz-turn-register-disabled{
-  opacity:.42!important;filter:saturate(.25)!important;cursor:not-allowed!important;
+/* Details always uses the WEİZEND red accent so it looks clickable. */
+.wz-turn-card-actions-registration > button:first-child{
+  background:linear-gradient(180deg,#ff4148,#c90f1b)!important;
+  color:#fff!important;border:1px solid #ff555c!important;
+  box-shadow:0 7px 18px rgba(226,18,28,.22)!important;
+}
+/* Open signup/team actions are green. */
+.wz-turn-card-actions-registration > button:not(:first-child):not(.wz-turn-register-disabled),
+.wz-turn-card-actions-registration .wz-turn-register-secondary:not(.wz-turn-register-disabled){
+  background:linear-gradient(180deg,#35d977,#119447)!important;
+  color:#fff!important;border:1px solid #48e58a!important;
+  box-shadow:0 7px 18px rgba(17,148,71,.22)!important;
+}
+/* Closed/full actions remain clearly disabled, regardless of their base button class. */
+.wz-turn-card-actions-registration > button.wz-turn-register-disabled{
+  background:linear-gradient(180deg,#545a63,#353a43)!important;
+  color:#c6cad1!important;border:1px solid #555b65!important;
+  opacity:.74!important;filter:saturate(.25)!important;cursor:not-allowed!important;
   box-shadow:none!important;transform:none!important;
-}
-.wz-turn-card-actions-registration .wz-turn-register-secondary{
-  background:#171b23!important;color:#d4d8e1!important;border:1px solid #303642!important;
-  box-shadow:none!important;
 }
 /* A registration modal launched from the detail window must cover it, not open behind it. */
 #tv2Modal{z-index:70000!important}
@@ -5171,9 +5184,20 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
 .tv3-payment-expiry b{font-variant-numeric:tabular-nums;letter-spacing:.04em}
 .tv3-payment-expiry.is-expired{border-color:rgba(255,180,65,.55);background:rgba(255,180,65,.09);color:#ffe7bd}
 @media(max-width:520px){
-  .wz-turn-card-actions.wz-turn-card-actions-registration{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
-  .wz-turn-card-actions-registration > button{width:100%!important;min-width:0!important;flex:auto!important;padding:10px 7px!important;font-size:.75rem!important}
-  .wz-turn-card-actions-registration > button:first-child:nth-last-child(2){grid-column:auto}
+  /* First row: full-width red Details button. Second row: equal green team actions. */
+  .wz-turn-card-actions.wz-turn-card-actions-registration{
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;align-items:stretch!important;
+  }
+  .wz-turn-card-actions-registration > button{
+    width:100%!important;min-width:0!important;flex:none!important;
+    min-height:48px!important;padding:10px 7px!important;font-size:.77rem!important;
+    overflow-wrap:anywhere!important;
+  }
+  .wz-turn-card-actions-registration > button:first-child{grid-column:1/-1!important}
+  /* Solo has only Details + Register: give both buttons a full row. */
+  .wz-turn-card-actions-registration > button:first-child:nth-last-child(2){grid-column:1/-1!important}
+  .wz-turn-card-actions-registration > button:nth-child(2):last-child{grid-column:1/-1!important}
 }
 </style>
 
