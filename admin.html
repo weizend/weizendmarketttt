@@ -14888,17 +14888,37 @@ function wzg66TickSound(progress=0){
 }
 function wzg66WinnerSound(){
  try{
-  wzg66EnableAudio();const ctx=wzg66AudioContext;if(!ctx||ctx.state!=='running')return;
-  // Short rising fanfare only after the server confirms the winner.
-  const now=ctx.currentTime,notes=[523.25,659.25,783.99,1046.5,1318.51],offsets=[0,.13,.26,.39,.54];
-  notes.forEach((hz,i)=>{
-   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=i===4?'sine':'triangle';
-   const start=now+offsets[i],end=start+(i===4?.48:.28);
-   osc.frequency.setValueAtTime(hz,start);gain.gain.setValueAtTime(.0001,start);
-   gain.gain.linearRampToValueAtTime(i===4?.19:.13,start+.025);
-   gain.gain.exponentialRampToValueAtTime(.0001,end);
-   osc.connect(gain);gain.connect(ctx.destination);osc.start(start);osc.stop(end+.02);
-  });
+  wzg66EnableAudio();const ctx=wzg66AudioContext;if(!ctx)return;
+  const play=()=>{
+   if(ctx.state!=='running')return;
+   // Clear, louder "diiin-dint" fanfare when the selected name lands on screen.
+   const now=ctx.currentTime;
+   const notes=[
+    {hz:440,at:0,dur:.58,vol:.20},
+    {hz:554.37,at:.30,dur:.40,vol:.19},
+    {hz:659.25,at:.55,dur:.62,vol:.21},
+    {hz:880,at:.82,dur:.88,vol:.23}
+   ];
+   notes.forEach((n,i)=>{
+    const start=now+n.at,end=start+n.dur;
+    const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=i===3?'sine':'triangle';
+    osc.frequency.setValueAtTime(n.hz,start);
+    gain.gain.setValueAtTime(.0001,start);
+    gain.gain.linearRampToValueAtTime(n.vol,start+.025);
+    gain.gain.setValueAtTime(n.vol*.82,Math.max(start+.03,end-.10));
+    gain.gain.exponentialRampToValueAtTime(.0001,end);
+    osc.connect(gain);gain.connect(ctx.destination);osc.start(start);osc.stop(end+.025);
+    // Soft bell overtone adds the bright last "tint" without external audio files.
+    if(i>=2){
+     const bell=ctx.createOscillator(),bg=ctx.createGain();bell.type='sine';
+     bell.frequency.setValueAtTime(n.hz*2.01,start);
+     bg.gain.setValueAtTime(.0001,start);bg.gain.linearRampToValueAtTime(.055,start+.015);
+     bg.gain.exponentialRampToValueAtTime(.0001,start+.26);
+     bell.connect(bg);bg.connect(ctx.destination);bell.start(start);bell.stop(start+.28);
+    }
+   });
+  };
+  if(ctx.state==='running')play();else void ctx.resume().then(play).catch(()=>{});
  }catch(_){/* Audio is optional. */}
 }
 function wzg66StopTimer(){if(wzg66.timer){clearTimeout(wzg66.timer);wzg66.timer=null}wzg66.spinning=false}
@@ -15013,8 +15033,8 @@ function wzg66Run(){
  wzg66.deadline=performance.now()+wzg66.duration*1000;
  let counter=0;
  const durationMs=wzg66.duration*1000;
- const landingWindow=Math.min(10000,Math.max(6000,durationMs*.28));
- const pickAt=Math.max(1200,durationMs-landingWindow-1200);
+ const landingWindow=Math.min(12000,Math.max(8000,durationMs*.35));
+ const pickAt=Math.max(1000,durationMs-landingWindow-1000);
  function startSecurePick(){
   if(wzg66.pickStarted)return wzg66.pickPromise;
   wzg66.pickStarted=true;
@@ -15053,8 +15073,8 @@ function wzg66Run(){
    return;
   }
   // Smooth monotonic slow-down; delays never drop again near the end.
-  const slow=Math.max(0,Math.min(1,(overall-.58)/.42));
-  const delay=Math.round(52+300*slow*slow);
+  const slow=Math.max(0,Math.min(1,(overall-.52)/.48));
+  const delay=Math.round(92+180*slow*slow);
   wzg66.timer=setTimeout(tick,delay);
  }
  wzg66.startSecurePick=startSecurePick;
@@ -15069,7 +15089,7 @@ function wzg66BeginLanding(candidate){
  wzg66.spinning=false;wzg66.landing=true;wzg66.candidate=candidate;
  const slots=wzg66.visualSlots&&wzg66.visualSlots.length?wzg66.visualSlots.slice():[candidate];
  let start=((Number(wzg66.spinPosition)||0)%slots.length+slots.length)%slots.length;
- const steps=Math.min(18,Math.max(12,slots.length-1));
+ const steps=22;
  const target=(start+steps)%slots.length;
  // A visual-only landing slot is aligned with the server-selected candidate.
  slots[target]=candidate;wzg66.visualSlots=slots;
@@ -15084,7 +15104,8 @@ function wzg66BeginLanding(candidate){
    wzg66.landing=false;wzg66.timer=null;wzg66ShowCandidate(candidate,false);return;
   }
   const p=step/steps;
-  const delay=Math.round(80+520*p*p);
+  // Each delay is longer than the preceding one; the last names remain readable.
+  const delay=Math.round(100+1150*Math.pow(p,3));
   wzg66.timer=setTimeout(landTick,delay);
  }
  landTick();
@@ -15099,6 +15120,7 @@ function wzg66ShowCandidate(p,resumed){
  wzg66$('wzg66Stage').classList.add('wzg66-winner-reveal');
  wzg66$('wzg66Countdown').textContent='🏆 KAZANAN ADAYI'+(resumed?' · Kurtarılan oturum':'');
  for(let i=0;i<5;i++)wzg66$('wzg66Five').children[i].textContent=i===2?wzg66VisibleName(p):'✦ ✦ ✦';
+ if(!resumed)wzg66WinnerSound();
  wzg66SetMessage('🎉 '+p.username+' · Sıradaki ödül: '+(wzg66.currentAward||wzg66.session?.currentAward||'?')+' · '+p.weight+' toplam hak');
  const box=wzg66$('wzg66After');box.replaceChildren();
  const approve=document.createElement('button');approve.className='primary';approve.textContent='✅ Tamamla';approve.onclick=()=>wzg66Confirm();
@@ -15108,7 +15130,7 @@ async function wzg66Confirm(){
  if(wzg66.busy||!wzg66.candidate)return;wzg66.busy=true;
  try{const d=await wzg66Request('/admin/giveaway/draw/confirm',{id:wzg66.id,uid:wzg66.candidate.uid});
   wzg66.candidate=null;wzg66.session.winners=d.winners;wzg66$('wzg93PrizeRow').hidden=!!d.finished;
-  wzg66WinnerSound();wzg66$('wzg66Stage').classList.add('wzg66-winner-reveal');
+  wzg66$('wzg66Stage').classList.add('wzg66-winner-reveal');
   if(!d.finished)wzg66$('wzg93Award').value='';
   wzg66$('wzg66Countdown').textContent='✅ KAZANAN ONAYLANDI';
   wzg66SetMessage('🏆 '+d.winners[d.winners.length-1].username+' · '+(wzg66.currentAward||'Ödül')+' · Sonuç kaydedildi');
@@ -15123,9 +15145,11 @@ async function wzg66Skip(){
  if(wzg66.busy||!wzg66.candidate)return;
  if(!confirm('Bu aday bu çekilişin kalan kura seçimlerinden çıkarılacak. Emin misin?'))return;
  wzg66.busy=true;
- try{await wzg66Request('/admin/giveaway/draw/skip',{id:wzg66.id,uid:wzg66.candidate.uid});
-  (wzg66.session.skippedUsernames||=[]).push(wzg66.candidate.username);wzg66.candidate=null;
-  wzg66SetMessage('Atlanan isim dışlandı; kura yeniden başlıyor.');wzg66Run();
+ try{const result=await wzg66Request('/admin/giveaway/draw/skip',{id:wzg66.id,uid:wzg66.candidate.uid});
+  const existing=wzg66.session.skippedUsernames||[];
+  wzg66.session.skippedUsernames=Array.from(new Set([...existing,wzg66.candidate.username,...(result.skippedUsernames||[])]));
+  wzg66.candidate=null;wzg66.landing=false;
+  wzg66SetMessage('⏭️ '+(result.skippedUsername||'Seçilen aday')+' listeden çıkarıldı. Aynı ödül için yeni aday seçiliyor…');wzg66Run();
  }catch(e){wzg66SetMessage('❌ '+e.message)}finally{wzg66.busy=false}
 }
 function wzg66FinishClick(finished){
