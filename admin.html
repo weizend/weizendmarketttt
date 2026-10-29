@@ -2709,7 +2709,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
             <button type="button" id="wzgcActEdit" class="secondary" onclick="wzgcToolbarAction('edit')">✏️ Düzenle</button>
             <button type="button" id="wzgcActRoster" class="secondary" onclick="wzgcToolbarAction('roster')">👥 Katılımcılar</button>
             <button type="button" id="wzgcActTemplate" class="secondary" onclick="wzgcToolbarAction('template')">📋 Şablona Ekle</button>
-            <button type="button" id="wzgcActDelete" class="secondary wzgc-delete-action" onclick="wzgcToolbarAction('delete')">🗑️ Sil</button>
+            <button type="button" id="wzgcActDelete" class="secondary wzgc-delete-action" onclick="wzgcToolbarAction('delete')">📁 Arşivle</button>
           </div>
           <p id="wzgcActionNote" class="wzgc-action-note" role="status"></p>
         </div>
@@ -2840,6 +2840,17 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
         <label class="wzg-show-archived"><input type="checkbox" id="wzgShowArchived" onchange="wzgLoad()"> 📁 Arşivlenen taslakları da göster</label>
         <div id="wzgList" class="wzg-list">Bu bölüm açıldığında taslaklar yüklenecek.</div>
       </div></details>
+      <details id="wzgcPublishedArchivePanel" class="wzgc-fold" ontoggle="if(this.open)wzgLoadPublishedArchive()">
+        <summary>🗄️ Yayınlanmış Çekiliş Arşivi</summary>
+        <div class="card">
+          <div class="wzg-row" style="align-items:center;justify-content:space-between">
+            <h2 style="margin:0">📦 Arşivlenen Çekilişler</h2>
+            <button type="button" class="secondary" onclick="wzgLoadPublishedArchive(true)">🔄 Arşivi Yenile</button>
+          </div>
+          <p class="muted">Silinen yayınlanmış çekilişler burada saklanır. Kalıcı silme işlemi katılımcı, kazanan, bilet ve kura geçmişi kayıtlarını geri alınamayacak şekilde temizler.</p>
+          <div id="wzgPublishedArchiveList" class="wzg-list">Arşiv bölümü açıldığında kayıtlar yüklenir.</div>
+        </div>
+      </details>
     </div>
 
     <!-- PRODUCTS -->
@@ -15424,7 +15435,7 @@ function wzgcUpdateToolbar(c){
  document.getElementById('wzgcActTemplate').disabled=false;
  const del=document.getElementById('wzgcActDelete');
  del.disabled=!['active','closed','drawn','cancelled'].includes(selected.status);
- del.title=selected.status==='drawing'?'Canlı kura sürerken kaldırılamaz.':selected.status==='drawn'?'Tamamlanan çekilişi listeden kaldırır; kazanan ve denetim kayıtları saklanır.':selected.status==='cancelled'?'İptal edilmiş çekilişi yönetim listesinden kaldırır; kayıtlar korunur.':'Çekilişi iptal edip yönetim ve katılımcı listelerinden kaldırır; ayrılan bilet hakları geri açılır. Geçmiş kayıtlar korunur.';
+ del.title=selected.status==='drawing'?'Canlı kura sürerken arşivlenemez.':selected.status==='drawn'?'Tamamlanan çekilişi arşive taşır; kazanan ve denetim kayıtları korunur.':'Çekilişi arşive taşır; aktif katılım kapatılır ve kayıt geçmişi korunur.';
  const note=document.getElementById('wzgcActionNote');
  note.textContent=pending?'📢 Başlangıç: '+wzg136DateLabel(announced.startAt,'start')+' • Bitiş: '+wzg136DateLabel(announced.endAt,'end')+' • İki tarih de kesinleşene kadar katılım kapalı.':future?'📅 Planlanan başlangıca kadar kayıtlar kapalı. “Şimdi Başlat” yalnızca onaylarsan erken açar.':running?'🟢 Katılımlar açık. Kurayı erken başlatmak katılımları kapatır.':finished?'🏆 Sonuçlandı. Görünen bilgiler düzenlenebilir; kaldırma işlemi geçmiş kayıtlarını korur.':selected.status==='cancelled'?'⛔ Çekiliş iptal edilmiş; listeden kaldırılabilir.':'🔒 Katılım kapalı; kura yönetimi ve kazananlar bu çekilişe özeldir.';
 }
@@ -15458,19 +15469,52 @@ async function wzgcToolbarAction(action){
    wzgcSaveTemplate('campaign',c.id,c.title);
  }else if(action==='delete'){
    if(!['active','closed','drawn','cancelled'].includes(c.status))return alert('Canlı kura sürerken çekiliş kaldırılamaz.');
-   const message=c.status==='drawn'
-     ? '“'+c.title+'” sonuçlanmış çekilişi yönetim ve kullanıcı listelerinden kaldırılsın mı? Kazananlar, katılımcılar ve denetim geçmişi sunucuda korunur.'
-     : c.status==='cancelled'
-     ? '“'+c.title+'” çekilişi listelerden kaldırılsın mı? Geçmiş kayıtları korunur.'
-     : '“'+c.title+'” çekilişi iptal edilip listelerden kaldırılsın mı? Ayrılan bilet hakları yeniden kullanılabilir olur. Katılımcı/kazanan geçmişi silinmez.';
+   if(c.status==='drawing')return alert('Canlı kura sürerken çekiliş arşivlenemez. Önce kurayı tamamla.');
+   const message='“'+c.title+'” çekilişi arşive taşınsın mı? Kullanıcıların çekiliş ekranından ve normal yönetim listesinden gizlenecek; katılımcı ve kazanan geçmişi Arşiv bölümünde korunacak. Aktif katılım kapatılır ve ayrılan bilet hakları yeniden kullanılabilir olur.';
    if(!confirm(message))return;
    try{
-     const out=await wzg2AdminCall('/admin/giveaway/delete',{id:c.id,confirmation:'LISTEDEN_KALDIR'});
-     alert('✅ '+(out.message||'Çekiliş listelerden kaldırıldı.'));
+     const out=await wzg2AdminCall('/admin/giveaway/archive',{id:c.id,confirmation:'ARSIVLE'});
+     alert('📁 '+(out.message||'Çekiliş arşive taşındı.'));
      if(wzg2EditCampaign?.id===c.id)wzg2CloseLiveEdit();
-     await Promise.all([wzg2AdminRefresh(),wzgLoad()]);
+     await Promise.all([wzg2AdminRefresh(),wzgLoad(),wzgLoadPublishedArchive(true)]);
    }catch(e){alert('❌ '+String(e?.message||e))}
  }
+}
+async function wzgLoadPublishedArchive(force=false){
+ const el=document.getElementById('wzgPublishedArchiveList');if(!el)return false;
+ if(force)el.textContent='Arşiv yenileniyor...';
+ else if(!el.querySelector('.wzg-item'))el.textContent='Arşiv yükleniyor...';
+ try{
+  const {r,d}=await api('/admin/giveaway/archive/list');
+  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
+  const campaigns=Array.isArray(d.campaigns)?d.campaigns:[];
+  el.replaceChildren();
+  if(!campaigns.length){el.textContent='📭 Yayınlanmış çekiliş arşivi boş.';return true;}
+  for(const c of campaigns){
+   const row=document.createElement('div');row.className='wzg-item';
+   const h=document.createElement('h3');h.textContent='📦 '+String(c.title||'Başlıksız çekiliş')+' — '+String(c.prize_title||'Ödülsüz');row.append(h);
+   const p=document.createElement('div');p.className='wzg-small';
+   const statusLabel=({active:'Katılıma açık olarak arşivlendi',closed:'Kapalı olarak arşivlendi',drawn:'Sonuçlanmış çekiliş',cancelled:'İptal edilmiş çekiliş',scheduled:'Planlanmış çekiliş'})[String(c.status||'')]||String(c.status||'Bilinmiyor');
+   const dt=c.archived_at?new Date(c.archived_at).toLocaleString('tr-TR'):'Tarih yok';
+   p.textContent=statusLabel+' • Arşiv: '+dt+' • Katılımcı: '+Number(c.participant_count||0)+' • Kazanan: '+Number(c.winner_count||0);row.append(p);
+   const actions=document.createElement('div');actions.className='wzg-row';
+   const del=document.createElement('button');del.type='button';del.className='danger';del.textContent='🗑️ Kalıcı Sil';
+   del.title='Çekilişi ve ilişkili kayıtlarını veritabanından geri alınamayacak şekilde sil';
+   del.addEventListener('click',async()=>{
+    if(del.disabled)return;
+    const typed=prompt('“'+String(c.title||'Bu çekiliş')+'” ve ilişkili tüm katılımcı, kazanan, bilet ve kura kayıtlarını KALICI olarak silmek için KALICI_SIL yaz. Bu işlem geri alınamaz.');
+    if(typed!=='KALICI_SIL')return;
+    del.disabled=true;del.textContent='⏳ Siliniyor...';
+    try{
+     const out=await wzg2AdminCall('/admin/giveaway/permanent-delete',{id:c.id,confirmation:'KALICI_SIL'});
+     alert('✅ '+(out.message||'Çekiliş kalıcı olarak silindi.'));
+     await Promise.all([wzgLoadPublishedArchive(true),wzg2AdminRefresh(),wzgLoad()]);
+    }catch(err){alert('❌ '+String(err?.message||err));del.disabled=false;del.textContent='🗑️ Kalıcı Sil';}
+   });
+   actions.append(del);row.append(actions);el.append(row);
+  }
+  return true;
+ }catch(e){el.textContent='⚠️ Arşiv yüklenemedi: '+String(e?.message||e);return false;}
 }
 function wzgcManageTemplates(){
  const panel=document.getElementById('wzgcCreatePanel');if(!panel)return;
@@ -15582,6 +15626,8 @@ async function wzgcRefreshAll(button){
  let error=false;
  try{
    const ok=await wzgcEnsureLoaded(true);
+   const archivePanel=document.getElementById('wzgcPublishedArchivePanel');
+   if(archivePanel?.open)await wzgLoadPublishedArchive(true);
    error=!ok||Object.values(wzgcLoadErrors).some(Boolean);
    if(error)wzgMessage('⚠️ Bazı kayıtlar alınamadı. Yukarıdaki hata mesajını kontrol et.');
  }catch(e){error=true;wzgMessage('❌ Yenileme hatası: '+String(e?.message||e));}
