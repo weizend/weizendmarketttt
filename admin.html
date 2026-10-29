@@ -14991,7 +14991,12 @@ function wzg66RenderWinners(){
  for(const w of winners){
   const row=document.createElement('div');row.className='wzg66-winner-row';
   const name=document.createElement('strong');name.textContent=String(w.rank||'—')+'. '+String(w.username||'Kullanıcı');
-  const award=document.createElement('span');award.textContent=String(w.award||'Ödül kaydedildi');
+  const award=document.createElement('span');
+  const chanceRaw=w.chancePercent;
+  const chance=chanceRaw!==null&&chanceRaw!==undefined&&Number.isFinite(Number(chanceRaw))
+    ?' · '+new Intl.NumberFormat('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(chanceRaw))+'%'
+    :'';
+  award.textContent=String(w.award||'Ödül kaydedildi')+chance;
   row.append(name,award);host.append(row);
  }
 }
@@ -15048,7 +15053,7 @@ function wzg66SetMessage(msg){wzg66$('wzg66Result').textContent=msg}
 async function wzg2OpenReel(id,title){
  wzg66Make();wzg66StopTimer();wzg66.id=id;wzg66.title=title;wzg66.candidate=null;wzg66.busy=true;
  wzg66$('wzg66Overlay').hidden=false;document.body.style.overflow='hidden';
- wzg66$('wzg66Title').textContent=title;wzg66$('wzg93PrizeRow').hidden=false;wzg66$('wzg66Start').hidden=false;wzg66$('wzg66Pre').hidden=false;wzg66$('wzg66Stage').hidden=true;wzg66$('wzg66After').hidden=true;
+ wzg66$('wzg66Title').textContent=title;wzg66$('wzg93PrizeRow').hidden=false;wzg66$('wzg66Start').hidden=false;wzg66$('wzg66Start').disabled=false;wzg66$('wzg66Pre').hidden=false;wzg66$('wzg66Stage').hidden=true;wzg66$('wzg66After').hidden=true;
  try{
   const [roster,session]=await Promise.all([
    wzg66Get('/admin/giveaway/participants?id='+encodeURIComponent(id)),wzg66Get('/admin/giveaway/draw/session?id='+encodeURIComponent(id))]);
@@ -15057,6 +15062,17 @@ async function wzg2OpenReel(id,title){
   wzg66$('wzg93Award').value=session.currentAward||'';wzg66$('wzg93PrizeRow').hidden=!!session.currentAward&&session.stage==='candidate';
   if(session.stage==='candidate'&&session.candidate){wzg66.candidate=session.candidate;wzg66ShowCandidate(session.candidate,true)}
   else if(roster.status==='drawn'||session.stage==='finished')wzg66Finished();
+  else if(roster.status==='drawing'&&session.stage==='ready'&&Array.isArray(session.winners)&&session.winners.length){
+   // Restore the post-confirm screen after closing the modal or refreshing the page.
+   wzg66StopTimer();wzg66.candidate=null;wzg66.landing=false;wzg66.spinning=false;
+   wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66Stage').hidden=false;wzg66$('wzg66Start').hidden=true;
+   wzg66$('wzg66After').hidden=false;wzg66$('wzg93PrizeRow').hidden=false;
+   wzg66$('wzg66Countdown').textContent='✅ KAZANANLAR KAYDEDİLDİ';
+   wzg66SetMessage('Kaydedilen kazananlar korundu. Yeni ödül seçip devam edebilir veya çekilişi bitirebilirsin.');
+   const box=wzg66$('wzg66After');box.replaceChildren();
+   const repeat=document.createElement('button');repeat.className='primary';repeat.textContent='🔄 Sonraki Kazananı Seç';repeat.onclick=()=>wzg93StartNext();box.append(repeat);
+   const end=document.createElement('button');end.className='finish';end.textContent='🏁 Çekilişi Bitir';end.onclick=()=>wzg66FinishClick();box.append(end);
+  }
   else if(roster.status==='drawing')wzg66$('wzg66Start').textContent='▶️ Kaldığın Yerden Başlat';
   else wzg66$('wzg66Start').textContent='🎬 Çekilişi Başlat';
   if(session.winners?.length){const past=document.createElement('p');past.textContent='🏆 Kesinleşen kazananlar: '+session.winners.map(w=>w.rank+'. '+w.username).join(' · ');wzg66$('wzg66Roster').prepend(past)}
@@ -15272,7 +15288,18 @@ function wzg66ShowCandidate(p,resumed){
  }
  if(centerIndex<0){
   const excluded=new Set([...(wzg66.session?.skippedUsernames||[]),...(wzg66.session?.winners||[]).map(w=>w.username)]);
-  const fallback=(wzg66.roster?.participants||[]).filter(x=>x.status==='eligible'&&!excluded.has(x.username));
+  const fallbackMembers=(wzg66.roster?.participants||[]).filter(x=>x.status==='eligible'&&!excluded.has(x.username));
+  const fallback=[];
+  const fallbackTotal=fallbackMembers.reduce((sum,x)=>sum+Math.max(1,Math.floor(Number(x.weight)||1)),0);
+  if(fallbackTotal<=40000){
+   for(const member of fallbackMembers)for(let k=0;k<Math.max(1,Math.floor(Number(member.weight)||1));k++)fallback.push(member);
+  }else{
+   for(let i=0;i<240;i++){
+    let n=Math.random()*fallbackTotal,chosen=fallbackMembers[fallbackMembers.length-1];
+    for(const member of fallbackMembers){n-=Math.max(1,Math.floor(Number(member.weight)||1));if(n<0){chosen=member;break}}
+    if(chosen)fallback.push(chosen);
+   }
+  }
   visibleSlots.splice(0,visibleSlots.length,...(fallback.length?fallback:[p]));centerIndex=Math.max(0,visibleSlots.findIndex(x=>String(x?.username||'')===String(p.username||'')));
  }
  const finalSlots=visibleSlots.length?visibleSlots:[p];
