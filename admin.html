@@ -14847,6 +14847,13 @@ function wzg66Make(){
  #wzg66Controls label{font-size:12px;color:#d4c7d1;font-weight:800}
  #wzg66Controls select,#wzg66Box select{background:#16151d;color:white;padding:9px;border-radius:10px;border:1px solid #514650;width:100%}
  #wzg66Start{width:100%!important;min-height:42px}
+ .wzg66-winners{border:1px solid #3c3340;border-radius:11px;background:#121119;padding:10px;margin-top:3px;text-align:left}
+ .wzg66-winners-title{font-size:12px;font-weight:950;color:#ffd477;letter-spacing:.35px}
+ .wzg66-winner-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:190px;overflow:auto}
+ .wzg66-winner-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px 8px;border:1px solid #2e2936;border-radius:8px;background:#1b1822;font-size:12px}
+ .wzg66-winner-row strong{overflow-wrap:anywhere;color:#f8f2ff}
+ .wzg66-winner-row span{font-size:11px;font-weight:850;color:#57e3a1;text-align:right;overflow-wrap:anywhere}
+ .wzg66-winner-empty{font-size:11px;color:#b6aabc;line-height:1.45}
  #wzg66Pre{height:100%;display:flex;flex-direction:column;min-height:0}
  #wzg66Stage[hidden],#wzg66Pre[hidden],#wzg66After[hidden]{display:none!important}
  #wzg66Stage{flex:1;min-width:0;border:1px solid #5b2941;background:#080811;border-radius:16px;padding:12px;text-align:center;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
@@ -14871,7 +14878,7 @@ function wzg66Make(){
   <aside id="wzg66Settings">
    <div id="wzg93PrizeRow" style="padding:11px;border:1px solid #84612e;border-radius:12px;background:#1e1914"><label for="wzg93Award" style="display:block;margin-bottom:6px;font-weight:900;color:#ffe1a3;font-size:12px">🎁 Sıradaki ödül</label><input id="wzg93Award" maxlength="90" placeholder="Örn: 825 VP veya 375 VP" style="width:100%;box-sizing:border-box;padding:10px;border-radius:9px;background:#121116;color:#fff;border:1px solid #786640"><small style="display:block;margin-top:6px;color:#c9bdc7;font-size:11px">Her kazanan turunda ödülü belirleyebilirsin.</small></div>
    <div id="wzg66Stats" class="wzg66-stats"></div>
-   <div id="wzg66Controls"><label for="wzg66Duration">İsimlerin akış süresi</label><select id="wzg66Duration"><option value="10">10 saniye</option><option value="30" selected>30 saniye</option><option value="60">60 saniye</option></select><button id="wzg66Start" class="primary" type="button">🎬 Kazananı Seç</button></div>
+   <div id="wzg66Controls"><label for="wzg66Duration">İsimlerin akış süresi</label><select id="wzg66Duration"><option value="10">10 saniye</option><option value="30" selected>30 saniye</option><option value="60">60 saniye</option></select><div id="wzg66WinnersCard" class="wzg66-winners"><div class="wzg66-winners-title">🏆 KAZANANLAR</div><div id="wzg66WinnersList" class="wzg66-winner-list"><div class="wzg66-winner-empty">Henüz kazanan onaylanmadı.</div></div></div><button id="wzg66Start" class="primary" type="button">🎬 Kazananı Seç</button></div>
    <div id="wzg66Hint">Kazananı güvenli kura sunucusu belirler. Onaylanan kişi havuzdan çıkar; çekiliş yalnızca sen “Çekilişi Bitir” dediğinde sona erer.</div>
   </aside>
   <main id="wzg66RightPanel">
@@ -14971,6 +14978,18 @@ function wzg66FillRoster(){
  }
  if(Number(wzg66.roster?.pendingCount||0)){const n=document.createElement('small');n.textContent='⏳ Henüz onaylanmamış '+wzg66.roster.pendingCount+' katılım kuraya dahil değil.';list.prepend(n)}
 }
+function wzg66RenderWinners(){
+ const host=wzg66$('wzg66WinnersList');if(!host)return;host.replaceChildren();
+ const winners=Array.isArray(wzg66.session?.winners)?wzg66.session.winners.slice():[];
+ winners.sort((a,b)=>Number(a.rank||0)-Number(b.rank||0));
+ if(!winners.length){const empty=document.createElement('div');empty.className='wzg66-winner-empty';empty.textContent='Henüz kazanan onaylanmadı.';host.append(empty);return}
+ for(const w of winners){
+  const row=document.createElement('div');row.className='wzg66-winner-row';
+  const name=document.createElement('strong');name.textContent=String(w.rank||'—')+'. '+String(w.username||'Kullanıcı');
+  const award=document.createElement('span');award.textContent=String(w.award||'Ödül kaydedildi');
+  row.append(name,award);host.append(row);
+ }
+}
 function wzg66VisibleName(p){if(!p)return '· · ·';return p.username+(p.subscriber?' ⭐':'')+(p.tickets?' 🎟️+'+p.tickets:'')}
 function wzg66Five(names,centerIndex,progress=0){const els=wzg66$('wzg66Five').children;const p=Math.max(0,Math.min(1,Number(progress)||0));for(let i=0;i<5;i++){const el=els[i];el.textContent=wzg66VisibleName(names[(centerIndex+i-2+names.length*100)%names.length]);el.style.setProperty('--wzg66-roll-duration',Math.round(85+460*p*p)+'ms');el.style.animation='none';void el.offsetWidth;el.style.animation='';}}
 function wzg66SetMessage(msg){wzg66$('wzg66Result').textContent=msg}
@@ -14981,7 +15000,7 @@ async function wzg2OpenReel(id,title){
  try{
   const [roster,session]=await Promise.all([
    wzg66Get('/admin/giveaway/participants?id='+encodeURIComponent(id)),wzg66Get('/admin/giveaway/draw/session?id='+encodeURIComponent(id))]);
-  wzg66.roster=roster;wzg66.session=session;wzg66.currentAward=session.currentAward||'';wzg66FillRoster();
+  wzg66.roster=roster;wzg66.session=session;wzg66.currentAward=session.currentAward||'';wzg66FillRoster();wzg66RenderWinners();
   wzg66$('wzg66Hint').textContent='Kura hakları: normal kullanıcı 1, geçerli abonelik hakkı olan kullanıcı '+(1+Number(roster.subscriberBonus||0))+' başlangıç hakkı, her bilet +1. Kazananı sunucu belirler; atlanan aday sonraki seçimlere girmez.';
   wzg66$('wzg93Award').value=session.currentAward||'';wzg66$('wzg93PrizeRow').hidden=!!session.currentAward&&session.stage==='candidate';
   if(session.stage==='candidate'&&session.candidate){wzg66.candidate=session.candidate;wzg66ShowCandidate(session.candidate,true)}
@@ -15120,7 +15139,7 @@ function wzg66BeginLanding(candidate){
  wzg66.spinning=false;wzg66.landing=true;wzg66.candidate=candidate;
  const slots=wzg66.visualSlots&&wzg66.visualSlots.length?wzg66.visualSlots.slice():[candidate];
  let start=((Number(wzg66.spinPosition)||0)%slots.length+slots.length)%slots.length;
- const steps=22;
+ const steps=30;
  const target=(start+steps)%slots.length;
  // A visual-only landing slot is aligned with the server-selected candidate.
  slots[target]=candidate;wzg66.visualSlots=slots;
@@ -15135,7 +15154,7 @@ function wzg66BeginLanding(candidate){
    wzg66.landing=false;wzg66.timer=null;wzg66ShowCandidate(candidate,false);return;
   }
   // The landing delay only increases. Last candidates remain readable, without re-acceleration.
-  const delay=Math.round(75+800*Math.pow(p,3));
+  const delay=Math.round(100+1400*Math.pow(p,3));
   wzg66.timer=setTimeout(landTick,delay);
  }
  landTick();
@@ -15149,7 +15168,18 @@ function wzg66ShowCandidate(p,resumed){
  wzg66StopTimer();wzg66.landing=false;wzg66$('wzg66Start').hidden=true;wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66Stage').hidden=false;wzg66$('wzg66After').hidden=false;
  wzg66$('wzg66Stage').classList.add('wzg66-winner-reveal');
  wzg66$('wzg66Countdown').textContent='🏆 KAZANAN ADAYI'+(resumed?' · Kurtarılan oturum':'');
- for(let i=0;i<5;i++)wzg66$('wzg66Five').children[i].textContent=i===2?wzg66VisibleName(p):'✦ ✦ ✦';
+ const visibleSlots=Array.isArray(wzg66.visualSlots)&&wzg66.visualSlots.length?wzg66.visualSlots.slice():[];
+ let centerIndex=visibleSlots.length?((Number(wzg66.spinPosition)||0)%visibleSlots.length+visibleSlots.length)%visibleSlots.length:-1;
+ if(centerIndex<0||String(visibleSlots[centerIndex]?.username||'')!==String(p.username||'')){
+  centerIndex=visibleSlots.findIndex(x=>String(x?.username||'')===String(p.username||''));
+ }
+ if(centerIndex<0){
+  const excluded=new Set([...(wzg66.session?.skippedUsernames||[]),...(wzg66.session?.winners||[]).map(w=>w.username)]);
+  const fallback=(wzg66.roster?.participants||[]).filter(x=>x.status==='eligible'&&!excluded.has(x.username));
+  visibleSlots.splice(0,visibleSlots.length,...(fallback.length?fallback:[p]));centerIndex=Math.max(0,visibleSlots.findIndex(x=>String(x?.username||'')===String(p.username||'')));
+ }
+ const finalSlots=visibleSlots.length?visibleSlots:[p];
+ for(let i=0;i<5;i++){const member=finalSlots[(centerIndex+i-2+finalSlots.length*100)%finalSlots.length];wzg66$('wzg66Five').children[i].textContent=i===2?wzg66VisibleName(p):wzg66VisibleName(member||p)}
  if(!resumed)wzg66WinnerSound();
  wzg66SetMessage('🎉 '+p.username+' · Sıradaki ödül: '+(wzg66.currentAward||wzg66.session?.currentAward||'?')+' · '+p.weight+' toplam hak');
  const box=wzg66$('wzg66After');box.replaceChildren();
@@ -15159,7 +15189,12 @@ function wzg66ShowCandidate(p,resumed){
 async function wzg66Confirm(){
  if(wzg66.busy||!wzg66.candidate)return;wzg66.busy=true;
  try{const d=await wzg66Request('/admin/giveaway/draw/confirm',{id:wzg66.id,uid:wzg66.candidate.uid});
-  wzg66.candidate=null;wzg66.session.winners=d.winners;wzg66.session.stage='ready';wzg66.session.status='drawing';
+  const priorWinners=Array.isArray(wzg66.session?.winners)?wzg66.session.winners:[];
+  const returnedWinners=Array.isArray(d.winners)?d.winners:[];
+  const lastRank=Number(returnedWinners[returnedWinners.length-1]?.rank||0);
+  wzg66.session.winners=returnedWinners.map(w=>({...w,award:String(w.award||priorWinners.find(old=>Number(old.rank)===Number(w.rank))?.award||(Number(w.rank)===lastRank?wzg66.currentAward:'')||'')}));
+  wzg66RenderWinners();
+  wzg66.candidate=null;wzg66.session.stage='ready';wzg66.session.status='drawing';
   wzg66$('wzg93PrizeRow').hidden=false;
   wzg66$('wzg66Countdown').textContent='✅ KAZANAN KAYDEDİLDİ';
   const latest=d.winners[d.winners.length-1];
