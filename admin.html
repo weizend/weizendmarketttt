@@ -14862,7 +14862,7 @@ function wzg66Make(){
  #wzg66Pre{height:100%;display:flex;flex-direction:column;min-height:0}
  #wzg66Stage[hidden],#wzg66Pre[hidden],#wzg66After[hidden]{display:none!important}
  #wzg66Stage{flex:1;min-width:0;border:1px solid #5b2941;background:#080811;border-radius:16px;padding:12px;text-align:center;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
- #wzg66Five{height:clamp(250px,48vh,400px);overflow:hidden;position:relative;width:100%;margin:auto}#wzg66Track{display:flex;flex-direction:column;gap:5px;will-change:transform}#wzg66Track .wzg66-name{flex:0 0 calc((clamp(250px,48vh,400px) - 20px)/5);box-sizing:border-box;animation:none}#wzg66Five::after{content:"";position:absolute;z-index:2;pointer-events:none;left:0;right:0;top:50%;transform:translateY(-50%);height:calc((clamp(250px,48vh,400px) - 20px)/5);border:1px solid #6f5332;border-radius:9px;background:linear-gradient(90deg,#e3a5420b,#f6d27a12,#e3a5420b)}#wzg66Stage.wzg66-winner-reveal #wzg66Five{height:auto;overflow:visible}#wzg66Stage.wzg66-winner-reveal #wzg66Five::after{display:none}#wzg66Stage.wzg66-winner-reveal #wzg66Track{transform:none!important;transition:none!important}
+ #wzg66Five{height:clamp(250px,48vh,400px);overflow:hidden;position:relative;width:100%;margin:auto}#wzg66Track{display:flex;flex-direction:column;gap:5px;will-change:transform}#wzg66Track .wzg66-name{flex:0 0 var(--wzg66-row-height,calc((clamp(250px,48vh,400px) - 20px)/5));height:var(--wzg66-row-height,calc((clamp(250px,48vh,400px) - 20px)/5));box-sizing:border-box;animation:none}#wzg66Five::after{content:"";position:absolute;z-index:2;pointer-events:none;left:0;right:0;top:var(--wzg66-center-position,50%);transform:translateY(-50%);height:var(--wzg66-row-height,calc((clamp(250px,48vh,400px) - 20px)/5));border:1px solid #6f5332;border-radius:9px;background:linear-gradient(90deg,#e3a5420b,#f6d27a12,#e3a5420b)}#wzg66Stage.wzg66-winner-reveal #wzg66Five{height:auto;overflow:visible}#wzg66Stage.wzg66-winner-reveal #wzg66Five::after{display:none}#wzg66Stage.wzg66-winner-reveal #wzg66Track{transform:none!important;transition:none!important}
  .wzg66-name{display:flex;align-items:center;justify-content:center;padding:8px 9px;border:1px solid #28202f;border-radius:9px;background:#141019;color:#ad9ca9;font-size:clamp(13px,1.4vw,18px);font-weight:850;overflow-wrap:anywhere;min-height:38px;line-height:1.15;animation:none}
  @keyframes wzg66NameDrop{from{transform:translateY(-16px);opacity:.42;filter:blur(1px)}to{transform:translateY(0);opacity:1;filter:blur(0)}}
  .wzg66-name.center{border:2px solid #ff435c;background:linear-gradient(90deg,#541526,#2e101e,#541526);font-size:clamp(20px,3.2vw,36px);color:#fff;box-shadow:0 0 24px #e71b4c33}
@@ -15000,27 +15000,34 @@ function wzg66ReelRow(person){
  const row=document.createElement('div');row.className='wzg66-name';row.textContent=wzg66VisibleName(person);return row;
 }
 function wzg66Five(names,centerIndex,progress=0,stepMs=110){
- const track=wzg66$('wzg66Track');if(!track||!Array.isArray(names)||!names.length)return;
+ const track=wzg66$('wzg66Track'),five=wzg66$('wzg66Five');if(!track||!five||!Array.isArray(names)||!names.length)return;
  const center=((Number(centerIndex)||0)%names.length+names.length)%names.length;
- // If a new server response arrives during the last visual frame, finish that
- // one-row move first instead of rebuilding names in a mismatched order.
+ // When there are only a few total chances, show every weighted chance exactly once.
+ // The reel therefore never invents extra visible duplicates just to fill five rows.
+ const visibleCount=Math.min(5,names.length),offset=Math.floor(visibleCount/2);
+ const rowHeight=window.innerWidth<=720?44:54,gap=5;
+ const visibleHeight=visibleCount*rowHeight+Math.max(0,visibleCount-1)*gap;
+ five.style.height=visibleHeight+'px';
+ five.style.setProperty('--wzg66-row-height',rowHeight+'px');
+ five.style.setProperty('--wzg66-visible-rows',String(visibleCount));
+ five.style.setProperty('--wzg66-center-position',(((offset*(rowHeight+gap)+rowHeight/2)/visibleHeight)*100)+'%');
+ // If a new response arrives during the last visual frame, finish that one-row move first.
  if(track._wzgStepCleanup){
   clearTimeout(track._wzgStepCleanup);track._wzgStepCleanup=null;
   track.style.transition='none';track.style.transform='translateY(0)';
-  if(track.children.length===6&&track.firstElementChild)track.firstElementChild.remove();
+  if(track.children.length===visibleCount+1&&track.firstElementChild)track.firstElementChild.remove();
   if(track.dataset.pendingCenterIndex!==undefined)track.dataset.centerIndex=track.dataset.pendingCenterIndex;
   delete track.dataset.pendingCenterIndex;
  }
- const initialized=track.dataset.centerIndex!==undefined&&track.children.length===5;
+ const initialized=track.dataset.centerIndex!==undefined&&track.children.length===visibleCount;
  const previous=Number(track.dataset.centerIndex);
  const isNext=initialized&&names.length>1&&center===(previous+1)%names.length;
  if(isNext){
   track.style.transition='none';track.style.transform='translateY(0)';
-  // Append exactly the next item entering from below; all visible names keep their order.
-  track.append(wzg66ReelRow(names[(center+2)%names.length]));
+  // Append the next weighted slot; existing rows retain their exact order.
+  track.append(wzg66ReelRow(names[(center+visibleCount-1-offset)%names.length]));
   const first=track.firstElementChild;
-  const gap=parseFloat(getComputedStyle(track).gap)||5;
-  const stepPx=(first?.getBoundingClientRect().height||43)+gap;
+  const stepPx=(first?.getBoundingClientRect().height||rowHeight)+gap;
   const dur=Math.max(40,Math.min(1600,Math.round(Number(stepMs)||110)-18));
   track.style.transition=`transform ${dur}ms cubic-bezier(.18,.68,.24,1)`;
   track.dataset.pendingCenterIndex=String(center);
@@ -15032,9 +15039,9 @@ function wzg66Five(names,centerIndex,progress=0,stepMs=110){
   },dur+3);
   return;
  }
- // New spin, resumed round, or non-sequential index: align all five rows to the same slot.
+ // New spin, resumed round, or non-sequential index: render only the available weighted slots.
  track.style.transition='none';track.style.transform='translateY(0)';track.replaceChildren();
- for(let i=0;i<5;i++)track.append(wzg66ReelRow(names[(center+i-2+names.length*100)%names.length]));
+ for(let i=0;i<visibleCount;i++)track.append(wzg66ReelRow(names[(center+i-offset+names.length*100)%names.length]));
  track.dataset.centerIndex=String(center);
 }
 function wzg66SetMessage(msg){wzg66$('wzg66Result').textContent=msg}
@@ -15185,11 +15192,19 @@ function wzg66BeginLanding(candidate){
  if(wzg66.timer){clearTimeout(wzg66.timer);wzg66.timer=null}
  wzg66.spinning=false;wzg66.landing=true;wzg66.candidate=candidate;
  const slots=wzg66.visualSlots&&wzg66.visualSlots.length?wzg66.visualSlots.slice():[candidate];
+ // Keep the weighted ticket strip intact: never overwrite another user's slot with the winner.
+ // Large-pool visual sampling may not contain the securely selected user; append one landing slot only then.
+ if(!slots.some(x=>String(x?.username||'')===String(candidate.username||'')))slots.push(candidate);
  let start=((Number(wzg66.spinPosition)||0)%slots.length+slots.length)%slots.length;
- const steps=30;
- const target=(start+steps)%slots.length;
- // A visual-only landing slot is aligned with the server-selected candidate.
- slots[target]=candidate;wzg66.visualSlots=slots;
+ const minimumSteps=42;
+ const candidatePositions=[];
+ for(let i=0;i<slots.length;i++)if(String(slots[i]?.username||'')===String(candidate.username||''))candidatePositions.push(i);
+ let steps=minimumSteps,target=(start+minimumSteps)%slots.length,best=Infinity;
+ for(const index of candidatePositions){
+  const extra=((index-((start+minimumSteps)%slots.length))+slots.length)%slots.length;
+  if(minimumSteps+extra<best){best=minimumSteps+extra;steps=best;target=index;}
+ }
+ wzg66.visualSlots=slots;
  wzg66$('wzg66Countdown').textContent='🏆 Son isimler yavaşlıyor…';
  let step=0;
  function landTick(){
@@ -15262,7 +15277,7 @@ function wzg66ShowCandidate(p,resumed){
  }
  const finalSlots=visibleSlots.length?visibleSlots:[p];
  wzg66Five(finalSlots,centerIndex,1,300);
- const reel=wzg66$('wzg66Track');if(reel)Array.from(reel.children).forEach((el,i)=>el.classList.toggle('center',i===2));
+ const reel=wzg66$('wzg66Track'),visibleCenter=Math.floor(Math.min(5,finalSlots.length)/2);if(reel)Array.from(reel.children).forEach((el,i)=>el.classList.toggle('center',i===visibleCenter));
  if(!resumed)wzg66WinnerSound();
  const selectedAward=String(wzg66.currentAward||wzg66.session?.currentAward||'Ödül');
  wzg66SetMessage('🎉 '+p.username+' · '+selectedAward+' için seçilen aday');
@@ -15283,7 +15298,7 @@ async function wzg66Confirm(){
   wzg66$('wzg93PrizeRow').hidden=false;
   wzg66$('wzg66Countdown').textContent='✅ KAZANAN KAYDEDİLDİ';
   const latest=d.winners[d.winners.length-1];
-  wzg66SetMessage('🏆 '+latest.username+' · '+(latest.award||wzg66.currentAward||'Ödül')+' · Kazanan kaydedildi. Çekiliş devam ediyor.');
+  wzg66SetMessage('🏆 '+latest.username+' · '+(latest.award||wzg66.currentAward||'Ödül'));
   wzg66.currentAward='';wzg66$('wzg93Award').value='';
   const box=wzg66$('wzg66After');box.hidden=false;box.replaceChildren();
   const repeat=document.createElement('button');repeat.className='primary';repeat.textContent='🔄 Sonraki Kazananı Seç';repeat.onclick=()=>wzg93StartNext();box.append(repeat);
