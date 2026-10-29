@@ -10710,6 +10710,7 @@ return;
             codeText='',
             policyText='',
             paymentKind='',
+            subscriptionPaymentId='',
             buttonText='ÖDEME SAYFASINI AÇ'
         }) {
             pendingExternalPaymentCode = String(codeText || '').trim();
@@ -10749,6 +10750,8 @@ return;
             const kickButton = document.getElementById('wzKickChatManualButton');
             if (kickButton) kickButton.style.display = 'none';
             modal.dataset.wzPaymentKind = String(paymentKind || (/bynogame/i.test(String(url)) ? 'tl' : 'direct'));
+            modal.dataset.wzSubscriptionPaymentId = String(subscriptionPaymentId || '');
+            modal.dataset.wzSubscriptionReturnReady = '0';
             openButton.innerText = buttonText;
             openButton.style.display = 'block';
             openButton.disabled = false;
@@ -10785,23 +10788,34 @@ return;
                     .then(() => showStatusToast('✅ Bağış kodu kopyalandı', 3600))
                     .catch(() => {});
             }
+            const modal = document.getElementById('redirectModal');
+            const kind = String(modal?.dataset.wzPaymentKind || '');
+            const isSubscription = ['direct','gift'].includes(kind) && !!modal?.dataset.wzSubscriptionPaymentId;
             const opened = wzOpenExternalPaymentWindow(url);
+            let externalOpened = !!opened;
 
             if (opened) {
-                if (timerEl) {
-                    timerEl.innerText = wzExternalPaymentIsMobileLike()
+                if (timerEl) timerEl.innerText = isSubscription
+                    ? 'Abonelik sayfası açıldı. İşlemi tamamlayıp bu pencereye geri dön.'
+                    : (wzExternalPaymentIsMobileLike()
                         ? 'Ödeme sayfası açıldı. Mobilde yeni sekme/tam ekran açılması tarayıcı davranışıdır.'
-                        : 'Ödeme sayfası küçük pencerede açıldı.';
-                }
-                if (openButton) openButton.innerText = 'ÖDEME SAYFASINI TEKRAR AÇ';
+                        : 'Ödeme sayfası küçük pencerede açıldı.');
+                if (openButton) openButton.innerText = isSubscription ? 'ABONELİK SAYFASINI TEKRAR AÇ' : 'ÖDEME SAYFASINI TEKRAR AÇ';
             } else {
                 // Popup hâlâ engelliyorsa normal yeni sekme fallback'i.
                 const fallback = window.open(url, '_blank', 'noopener');
+                externalOpened = !!fallback;
                 if (timerEl) {
                     timerEl.innerText = fallback
-                        ? 'Ödeme sayfası yeni sekmede açıldı.'
+                        ? (isSubscription ? 'Abonelik sayfası yeni sekmede açıldı. İşlemi bitirip buraya dön.' : 'Ödeme sayfası yeni sekmede açıldı.')
                         : 'Tarayıcı açılır pencereyi engelledi. Tarayıcı ayarlarından popuplara izin vermen gerekebilir.';
                 }
+                if (fallback && openButton) openButton.innerText = isSubscription ? 'ABONELİK SAYFASINI TEKRAR AÇ' : 'ÖDEME SAYFASINI TEKRAR AÇ';
+            }
+            if (isSubscription && externalOpened && modal) {
+                modal.dataset.wzSubscriptionReturnReady = '1';
+                const cancelButton = document.getElementById('redirectCancelButton');
+                if (cancelButton) cancelButton.innerText = 'ABONELİĞİ KONTROL ET';
             }
         }
 
@@ -11262,9 +11276,16 @@ return;
                 clearInterval(redirectTimer);
                 redirectTimer = null;
             }
-            // Ödeme sayfası açıldıysa kullanıcı kılavuzu kapatırken gerçek Kick /
-            // BynoGame sekmesini ASLA kapatma. Eski ürün-komut akışı korunur.
-            const wasPaymentGuide = document.getElementById('redirectModal')?.classList.contains('wz-payment-guide');
+            const modal = document.getElementById('redirectModal');
+            const wasPaymentGuide = modal?.classList.contains('wz-payment-guide');
+            const paymentKind = String(modal?.dataset.wzPaymentKind || '');
+            const subscriptionPaymentId = String(modal?.dataset.wzSubscriptionPaymentId || '');
+            const shouldCheckSubscription = wasPaymentGuide &&
+                ['direct','gift'].includes(paymentKind) &&
+                modal?.dataset.wzSubscriptionReturnReady === '1' &&
+                !!subscriptionPaymentId;
+
+            // Dış Kick sekmesini kapatma; yalnızca rehber penceresini gizle.
             if (!wasPaymentGuide && pendingKickWindow && !pendingKickWindow.closed) {
                 try { pendingKickWindow.close(); } catch (_) {}
             }
@@ -11272,10 +11293,12 @@ return;
             pendingExternalPaymentUrl = '';
             pendingExternalPaymentLabel = '';
             pendingExternalPaymentCode = '';
-            const modal = document.getElementById('redirectModal');
             if (modal) {
                 modal.classList.remove('wz-payment-guide');
                 delete modal.dataset.wzPaymentKind;
+                delete modal.dataset.wzSubscriptionPaymentId;
+                delete modal.dataset.wzSubscriptionReturnReady;
+                modal.style.display = 'none';
             }
 
             const kickButton = document.getElementById('wzKickChatManualButton');
@@ -11286,8 +11309,14 @@ return;
                 openButton.disabled = false;
                 openButton.innerText = 'ÖDEME SAYFASINI AÇ';
             }
+            const cancelButton = document.getElementById('redirectCancelButton');
+            if (cancelButton) cancelButton.innerText = 'Kapat';
 
-            document.getElementById('redirectModal').style.display = 'none';
+            if (shouldCheckSubscription) {
+                Promise.resolve().then(async () => {
+                    await tv2RefreshSubscription(subscriptionPaymentId, true);
+                }).catch(error => showStatusToast('❌ Abonelik kontrol edilemedi: '+(error?.message || error), 5000));
+            }
         }
 
         function kartIciResimDegistir(event, thumbElement, urunId, resimIndex, url) {
@@ -13188,7 +13217,8 @@ return;
         }
         wzShowExternalPaymentModal({
             url: TV2_KICK_CHANNEL_URL,
-            title, message, codeText:'', paymentKind:kind, buttonText
+            title, message, codeText:'', paymentKind:kind,
+            subscriptionPaymentId:String(p?.id || ''), buttonText
         });
     }
 
@@ -14125,23 +14155,59 @@ return;
         if(username && !consent) throw new Error('Instagram iletişim iznini onayla.');
         return {instagramUsername:username,instagramConsent:consent};
     }
-    async function wzV633SaveInstagram() {
+    function wzV633SetInstagramStatus(message, kind='') {
+        const status=document.getElementById('tv3MyInstagramStatus');
+        if(!status) return;
+        status.style.display='block';
+        status.className='tv2-message'+(kind==='success'?' success':kind==='error'?' error':'');
+        status.textContent=String(message||'');
+    }
+    async function wzV633SaveInstagram(button=null) {
         if(!wzV633InstagramRequired()) {
-            showStatusToast('Instagram iletişim bilgisi yalnızca yeni turnuvalar için kullanılır.',4500);
+            wzV633SetInstagramStatus('Bu turnuvada Instagram iletişim bilgisi güncelleme açık değil.','error');
+            showStatusToast('Instagram iletişim bilgisi yalnızca ilgili yeni turnuvalarda kullanılır.',4500);
             return;
         }
-        if(tv2State.busy) return;
-        const value=String(document.getElementById('tv3MyInstagram')?.value||'').trim();
-        const consent=document.getElementById('tv3MyInstagramConsent')?.checked===true;
-        if(!value || !consent){showStatusToast('Instagram adını gir ve iletişim iznini onayla.',4500);return;}
+        if(tv2State.busy) {
+            wzV633SetInstagramStatus('Başka bir turnuva işlemi sürüyor. Birkaç saniye sonra tekrar dene.');
+            showStatusToast('⏳ Başka bir turnuva işlemi sürüyor. Biraz sonra tekrar dene.',3500);
+            return;
+        }
+        const input=document.getElementById('tv3MyInstagram');
+        const consentInput=document.getElementById('tv3MyInstagramConsent');
+        const value=String(input?.value||'').trim();
+        const consent=consentInput?.checked===true;
+        if(!value) {
+            wzV633SetInstagramStatus('Önce Instagram kullanıcı adını yazmalısın.','error');
+            showStatusToast('📸 Instagram kullanıcı adını yazmalısın.',3500);
+            input?.focus();
+            return;
+        }
+        if(!consent) {
+            wzV633SetInstagramStatus('Kaydetmek için organizatörün bu bilgiyi görmesini kabul eden kutuyu işaretlemelisin.','error');
+            showStatusToast('☑️ Önce Instagram iletişim iznini onayla.',3500);
+            consentInput?.focus();
+            return;
+        }
+        const btn=button || document.querySelector('#tv2ModalBody button[onclick^="wzV633SaveInstagram"]');
+        const oldLabel=btn?.textContent||'📸 İletişim Bilgimi Güncelle';
         tv2State.busy=true;
+        if(btn){btn.disabled=true;btn.textContent='⏳ Kaydediliyor...';}
+        wzV633SetInstagramStatus('Instagram iletişim bilgin kaydediliyor...');
         try {
             const data=await tv2AuthFetch('/tournament/v3/contact/save',{method:'POST',headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({tournamentId:tv2State.tournamentId,instagramUsername:value,instagramConsent:true})});
-            showStatusToast('✅ Instagram iletişim hesabın kaydedildi: @'+data.instagramUsername,3600);
             await tv2ReloadMe();
-        } catch(error){showStatusToast('❌ '+(error.message||error),5000);}
-        finally{tv2State.busy=false;}
+            const saved='✅ Instagram iletişim hesabın kaydedildi: @'+String(data?.instagramUsername||value).replace(/^@/,'');
+            wzV633SetInstagramStatus(saved,'success');
+            showStatusToast(saved,3600);
+        } catch(error){
+            wzV633SetInstagramStatus('❌ Kaydedilemedi: '+(error.message||error),'error');
+            showStatusToast('❌ '+(error.message||error),5000);
+        } finally {
+            tv2State.busy=false;
+            if(btn?.isConnected){btn.disabled=false;btn.textContent=oldLabel;}
+        }
     }
 
     function tv2ShowCreateForm(keep = false) {
@@ -14552,7 +14618,8 @@ return;
                     <div class="tv2-muted" style="margin-bottom:8px">Kayıt sırasında verdiğin Instagram kullanıcı adını gerektiğinde değiştirebilirsin. Bilgi yalnızca turnuva yöneticisine görünür.</div>
                     <input id="tv3MyInstagram" class="tv2-input" type="text" maxlength="100" autocapitalize="none" spellcheck="false" placeholder="@instagramadim" value="${tv2Esc(me.instagramUsername||'')}">
                     <label class="tv2-terms" style="margin-top:9px"><input id="tv3MyInstagramConsent" type="checkbox"><span>Organizatörün bu hesabı turnuva iletişimi için görmesini kabul ediyorum.</span></label>
-                    <div class="tv2-actions"><button class="tv2-btn secondary" onclick="wzV633SaveInstagram()">📸 İletişim Bilgimi Güncelle</button></div>
+                    <div id="tv3MyInstagramStatus" class="tv2-message" role="status" style="display:none;margin-top:9px;"></div>
+                    <div class="tv2-actions"><button class="tv2-btn secondary" onclick="wzV633SaveInstagram(this)">📸 İletişim Bilgimi Güncelle</button></div>
                 </div>`:''}
                 ${!teamReady && team.freeTeamExpiresAt ? `<div class="wz619-deadline-note">⏳ <b>Takım tamamlama süresi:</b> <strong data-wz619-deadline="${tv2Esc(team.freeTeamExpiresAt)}">30:00</strong><br>Ücretsiz takımını 30 dakika içinde tamamlamalısın. Süre sonunda eksik kalırsa takım otomatik iptal edilerek kontenjan açılır. Bu süre sayfayı yenileyince sıfırlanmaz.</div>`:''}
                 ${inviteHtml}
