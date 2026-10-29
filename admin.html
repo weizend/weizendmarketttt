@@ -14818,7 +14818,7 @@ function wzg2ShowNextWinner(){
 
 <script id="wzg66LiveDraw">
 /* V31.0.66 — WEIZEND broadcast drawing. Fully backed by D1. */
-let wzg66={id:'',title:'',roster:null,session:null,duration:30,timer:null,deadline:0,spinning:false,busy:false,candidate:null};
+let wzg66={id:'',title:'',roster:null,session:null,duration:30,timer:null,deadline:0,spinning:false,landing:false,busy:false,candidate:null,pickStarted:false,pickPromise:null,pickError:null,visualSlots:[],spinPosition:0};
 function wzg66$(id){return document.getElementById(id)}
 function wzg66Make(){
  if(wzg66$('wzg66Overlay'))return;
@@ -14837,6 +14837,8 @@ function wzg66Make(){
  .wzg66-name{padding:11px 14px;border:1px solid #28202f;border-radius:10px;background:#141019;color:#ad9ca9;font-size:clamp(15px,2vw,21px);font-weight:850;overflow-wrap:anywhere}
  .wzg66-name.center{border:2px solid #ff435c;background:linear-gradient(90deg,#541526,#2e101e,#541526);font-size:clamp(24px,4.8vw,49px);color:#fff;box-shadow:0 0 38px #e71b4c44}
  #wzg66Countdown{font-size:18px;font-weight:900;color:#f6c978;margin:14px 0}#wzg66Result{font-size:clamp(17px,2.5vw,27px);font-weight:900;margin:17px auto;color:#ffecae;overflow-wrap:anywhere}
+#wzg66Stage.wzg66-winner-reveal #wzg66Five .wzg66-name.center{min-height:128px;font-size:clamp(34px,7.5vw,78px);line-height:1.08;padding:22px 16px;border:2px solid #ffd477;background:radial-gradient(ellipse at center,#6b4219 0%,#3d1b22 58%,#210e1b 100%);color:#fff5cc;text-shadow:0 0 24px #ffd47788,0 0 48px #ff375c55;box-shadow:0 0 42px #ffbd4540;animation:wzg66WinnerPulse 1.1s ease-in-out infinite alternate}
+@keyframes wzg66WinnerPulse{from{transform:scale(1);filter:brightness(1)}to{transform:scale(1.025);filter:brightness(1.22)}}
  #wzg66Hint{font-size:12px;line-height:1.65;color:#c1b9c7;text-align:center;margin-top:14px}
  #wzg93PrizeRow[hidden]{display:none!important}#wzg66Box select{background:#16151d;color:white;padding:10px;border-radius:11px;border:1px solid #514650}
  @media(max-width:600px){#wzg66Overlay{padding:8px}#wzg66Box{border-radius:14px;padding:17px 10px}#wzg66Five{min-height:290px}}
@@ -14868,16 +14870,36 @@ function wzg66EnableAudio(){
 function wzg66TickSound(progress=0){
  try{
   wzg66EnableAudio();const ctx=wzg66AudioContext;if(!ctx||ctx.state!=='running')return;
-  const p=Math.max(0,Math.min(1,Number(progress)||0));
-  const duration=.012+.006*p,now=ctx.currentTime;
-  const length=Math.max(1,Math.floor(ctx.sampleRate*duration));
+  const p=Math.max(0,Math.min(1,Number(progress)||0)),now=ctx.currentTime;
+  // A stronger, crisp mechanical click. Later ticks become slightly lower and softer.
+  const duration=.023-.006*p,length=Math.max(1,Math.floor(ctx.sampleRate*duration));
   const buffer=ctx.createBuffer(1,length,ctx.sampleRate),samples=buffer.getChannelData(0);
   for(let i=0;i<length;i++)samples[i]=(Math.random()*2-1);
   const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();
-  source.buffer=buffer;filter.type='bandpass';filter.frequency.setValueAtTime(2400-1100*p,now);filter.Q.value=1.35;
-  gain.gain.setValueAtTime(.0001,now);gain.gain.linearRampToValueAtTime(.045,now+.0015);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+  source.buffer=buffer;filter.type='bandpass';filter.frequency.setValueAtTime(2800-1500*p,now);filter.Q.value=1.65;
+  gain.gain.setValueAtTime(.0001,now);gain.gain.linearRampToValueAtTime(.145-.025*p,now+.0018);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
   source.connect(filter);filter.connect(gain);gain.connect(ctx.destination);source.start(now);source.stop(now+duration+.002);
+  // Tiny pitched transient makes the click audible on phone speakers as well.
+  const osc=ctx.createOscillator(),og=ctx.createGain();osc.type='square';
+  osc.frequency.setValueAtTime(1250-420*p,now);og.gain.setValueAtTime(.0001,now);
+  og.gain.linearRampToValueAtTime(.042,now+.001);og.gain.exponentialRampToValueAtTime(.0001,now+.018);
+  osc.connect(og);og.connect(ctx.destination);osc.start(now);osc.stop(now+.02);
  }catch(_){/* Silenced/unsupported audio never interrupts the draw. */}
+}
+function wzg66WinnerSound(){
+ try{
+  wzg66EnableAudio();const ctx=wzg66AudioContext;if(!ctx||ctx.state!=='running')return;
+  // Short rising fanfare only after the server confirms the winner.
+  const now=ctx.currentTime,notes=[523.25,659.25,783.99,1046.5,1318.51],offsets=[0,.13,.26,.39,.54];
+  notes.forEach((hz,i)=>{
+   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=i===4?'sine':'triangle';
+   const start=now+offsets[i],end=start+(i===4?.48:.28);
+   osc.frequency.setValueAtTime(hz,start);gain.gain.setValueAtTime(.0001,start);
+   gain.gain.linearRampToValueAtTime(i===4?.19:.13,start+.025);
+   gain.gain.exponentialRampToValueAtTime(.0001,end);
+   osc.connect(gain);gain.connect(ctx.destination);osc.start(start);osc.stop(end+.02);
+  });
+ }catch(_){/* Audio is optional. */}
 }
 function wzg66StopTimer(){if(wzg66.timer){clearTimeout(wzg66.timer);wzg66.timer=null}wzg66.spinning=false}
 async function wzg66Request(path,payload){return wzg2AdminCall(path,payload)}
@@ -14964,63 +14986,117 @@ async function wzg66Start(){
  finally{wzg66.busy=false}
 }
 function wzg66Run(){
- wzg66StopTimer();wzg66.candidate=null;wzg66.spinning=true;wzg66$('wzg66Stage').hidden=false;
+ wzg66StopTimer();wzg66.candidate=null;wzg66.landing=false;wzg66.pickStarted=false;wzg66.pickPromise=null;wzg66.pickError=null;
+ wzg66.spinning=true;wzg66$('wzg66Stage').classList.remove('wzg66-winner-reveal');wzg66$('wzg66Stage').hidden=false;
  wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66After').hidden=true;
  const excluded=new Set([...(wzg66.session?.skippedUsernames||[]),...(wzg66.session?.winners||[]).map(w=>w.username)]);
  const names=(wzg66.roster?.participants||[]).filter(p=>p.status==='eligible'&&!excluded.has(p.username));
  if(!names.length){wzg66SetMessage('Katılımcı kalmadı; yönetici kontrolü gerekli.');wzg66.spinning=false;return}
- // Every display slot is one server-reported chance unit. For small pools we
- // materialize a shuffled list, e.g. 9 normal + one subscriber = 13 slots.
- // A capped weighted sampler avoids allocating huge arrays for big giveaways.
+ // The animation is only a visual effect. A bounded strip prevents a huge ticket pool
+ // from consuming memory; the actual weighted winner is picked by the server.
  const total=names.reduce((sum,p)=>sum+Math.max(1,Math.floor(Number(p.weight)||1)),0);
  let slots=[];
  if(total<=40000){
   for(const p of names){for(let k=0;k<Math.max(1,Math.floor(Number(p.weight)||1));k++)slots.push(p)}
   for(let i=slots.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[slots[i],slots[j]]=[slots[j],slots[i]]}
+ }else{
+  // Weighted visual sample only; the secure server draw remains authoritative.
+  for(let i=0;i<240;i++){
+   let n=Math.random()*total,p=names[names.length-1];
+   for(const member of names){n-=Math.max(1,Math.floor(Number(member.weight)||1));if(n<0){p=member;break}}
+   slots.push(p);
+  }
  }
+ if(!slots.length)slots=names.slice();
  wzg66.visualSlots=slots;wzg66.visualParticipants=names;wzg66.visualWeightTotal=total;
  wzg66SetMessage('🎟️ '+names.length+' kişi · '+total+' isim sırası. Abone başlangıç hakkı '+(1+Number(wzg66.roster?.subscriberBonus||0))+', her bilet +1. Ekran yalnızca gösterimdir; kazananı güvenli sunucu belirler.');
  wzg66.deadline=performance.now()+wzg66.duration*1000;
  let counter=0;
+ const durationMs=wzg66.duration*1000;
+ const landingWindow=Math.min(10000,Math.max(6000,durationMs*.28));
+ const pickAt=Math.max(1200,durationMs-landingWindow-1200);
+ function startSecurePick(){
+  if(wzg66.pickStarted)return wzg66.pickPromise;
+  wzg66.pickStarted=true;
+  wzg66.pickPromise=wzg66Request('/admin/giveaway/draw/pick',{id:wzg66.id}).then(d=>{
+   if(!d?.candidate)throw Error('Sunucu kura adayı döndürmedi.');
+   wzg66.candidate=d.candidate;
+   // Stop the normal spin once the secure candidate is available, then decelerate
+   // directly into that name. No second fast animation and no sudden re-acceleration.
+   if(!wzg66$('wzg66Overlay')?.hidden&&!wzg66.landing)wzg66BeginLanding(d.candidate);
+   return d.candidate;
+  }).catch(e=>{
+   wzg66.pickError=e;
+   if(!wzg66.spinning&&!wzg66.landing)wzg66SetMessage('❌ '+e.message+' · Durumu yenileyip tekrar kontrol et.');
+   throw e;
+  });
+  // The timer handles/display-errors after the caller started the secure request.
+  wzg66.pickPromise.catch(()=>{});
+  return wzg66.pickPromise;
+ }
+ wzg66.startSecurePick=startSecurePick;
  function tick(){if(!wzg66.spinning)return;
   const left=Math.max(0,wzg66.deadline-performance.now());
   wzg66$('wzg66Countdown').textContent='🎲 '+total+' isim sırası · '+Math.ceil(left/1000)+' saniye';
-  if(slots.length){wzg66Five(slots,counter%slots.length);wzg66.spinPosition=counter%slots.length}
-  else {
-    let n=Math.floor(Math.random()*total),p=names[names.length-1];
-    for(const member of names){n-=Math.max(1,Math.floor(Number(member.weight)||1));if(n<0){p=member;break}}
-    for(let i=0;i<5;i++)wzg66$('wzg66Five').children[i].textContent=i===2?wzg66VisibleName(p):'✦';
-  }
-  wzg66TickSound(left>10000?0:Math.max(0,Math.min(1,1-left/10000)));
+  const pos=counter%slots.length;
+  wzg66Five(slots,pos);wzg66.spinPosition=pos;
+  const elapsed=durationMs-left,overall=Math.max(0,Math.min(1,elapsed/durationMs));
+  wzg66TickSound(overall);
+  if(!wzg66.pickStarted&&elapsed>=pickAt)startSecurePick();
   counter++;
-  if(left<=0){wzg66.spinning=false;wzg66Reveal();return}
-  const delay=left>10000?65:Math.round(65+450*(1-left/10000)**2);
-  wzg66.timer=setTimeout(tick,Math.max(20,delay));
+  if(left<=0){
+   wzg66.spinning=false;wzg66.timer=null;
+   wzg66$('wzg66Countdown').textContent='🔒 Son isim seçiliyor…';
+   if(!wzg66.pickStarted)startSecurePick();
+   // If the request is still in flight, its success callback starts the landing.
+   if(wzg66.candidate&&!wzg66.landing)wzg66BeginLanding(wzg66.candidate);
+   return;
+  }
+  // Smooth monotonic slow-down; delays never drop again near the end.
+  const slow=Math.max(0,Math.min(1,(overall-.58)/.42));
+  const delay=Math.round(52+300*slow*slow);
+  wzg66.timer=setTimeout(tick,delay);
  }
+ wzg66.startSecurePick=startSecurePick;
+ wzg66.pickAt=pickAt;
  tick();
 }
-async function wzg66Reveal(){
- if(wzg66.busy)return;wzg66.busy=true;
- wzg66$('wzg66Countdown').textContent='🔒 Güvenli sunucu kurası hesaplanıyor…';
- try{const d=await wzg66Request('/admin/giveaway/draw/pick',{id:wzg66.id});wzg66.candidate=d.candidate;
-  const slots=wzg66.visualSlots||[];const pickIndex=slots.findIndex(p=>p.username===d.candidate.username);
-  if(pickIndex>=0 && wzg66$('wzg66Overlay') && !wzg66$('wzg66Overlay').hidden){
-   let pos=Number(wzg66.spinPosition||0),steps=8+((pickIndex-(pos+8))%slots.length+slots.length)%slots.length;
-   // Bound landing animation so a large pool cannot delay winner announcement.
-   steps=Math.min(16,steps);
-   for(let i=0;i<steps;i++){
-    if(wzg66$('wzg66Overlay').hidden)break;
-    wzg66Five(slots,(pos+i)%slots.length);
-    wzg66TickSound(i/Math.max(1,steps-1));
-    await new Promise(resolve=>setTimeout(resolve,45+Math.round(270*Math.pow(i/Math.max(1,steps-1),2))));
-   }
-   wzg66Five(slots,pickIndex);
+function wzg66BeginLanding(candidate){
+ if(!candidate||wzg66.landing)return;
+ const overlay=wzg66$('wzg66Overlay');
+ if(!overlay||overlay.hidden){wzg66.spinning=false;wzg66StopTimer();return}
+ if(wzg66.timer){clearTimeout(wzg66.timer);wzg66.timer=null}
+ wzg66.spinning=false;wzg66.landing=true;wzg66.candidate=candidate;
+ const slots=wzg66.visualSlots&&wzg66.visualSlots.length?wzg66.visualSlots.slice():[candidate];
+ let start=((Number(wzg66.spinPosition)||0)%slots.length+slots.length)%slots.length;
+ const steps=Math.min(18,Math.max(12,slots.length-1));
+ const target=(start+steps)%slots.length;
+ // A visual-only landing slot is aligned with the server-selected candidate.
+ slots[target]=candidate;wzg66.visualSlots=slots;
+ wzg66$('wzg66Countdown').textContent='🏆 Son isimler yavaşlıyor…';
+ let step=0;
+ function landTick(){
+  if(!wzg66$('wzg66Overlay')||wzg66$('wzg66Overlay').hidden){wzg66.landing=false;wzg66.timer=null;return}
+  step++;
+  const pos=(start+step)%slots.length;wzg66.spinPosition=pos;wzg66Five(slots,pos);
+  wzg66TickSound(step/steps);
+  if(step>=steps){
+   wzg66.landing=false;wzg66.timer=null;wzg66ShowCandidate(candidate,false);return;
   }
-  wzg66ShowCandidate(d.candidate,false)}catch(e){wzg66SetMessage('❌ '+e.message+' · Yeniden denemek için ekranı kapatıp aç.');}
- finally{wzg66.busy=false}
+  const p=step/steps;
+  const delay=Math.round(80+520*p*p);
+  wzg66.timer=setTimeout(landTick,delay);
+ }
+ landTick();
+}
+function wzg66Reveal(){
+ // Backwards-compatible fallback: the secure pick starts once, then lands in one deceleration.
+ if(wzg66.candidate){wzg66BeginLanding(wzg66.candidate);return}
+ if(typeof wzg66.startSecurePick==='function')wzg66.startSecurePick();
 }
 function wzg66ShowCandidate(p,resumed){
- wzg66StopTimer();wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66Stage').hidden=false;wzg66$('wzg66After').hidden=false;
+ wzg66StopTimer();wzg66.landing=false;wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66Stage').hidden=false;wzg66$('wzg66After').hidden=false;
+ wzg66$('wzg66Stage').classList.add('wzg66-winner-reveal');
  wzg66$('wzg66Countdown').textContent='🏆 KAZANAN ADAYI'+(resumed?' · Kurtarılan oturum':'');
  for(let i=0;i<5;i++)wzg66$('wzg66Five').children[i].textContent=i===2?wzg66VisibleName(p):'✦ ✦ ✦';
  wzg66SetMessage('🎉 '+p.username+' · Sıradaki ödül: '+(wzg66.currentAward||wzg66.session?.currentAward||'?')+' · '+p.weight+' toplam hak');
@@ -15032,6 +15108,7 @@ async function wzg66Confirm(){
  if(wzg66.busy||!wzg66.candidate)return;wzg66.busy=true;
  try{const d=await wzg66Request('/admin/giveaway/draw/confirm',{id:wzg66.id,uid:wzg66.candidate.uid});
   wzg66.candidate=null;wzg66.session.winners=d.winners;wzg66$('wzg93PrizeRow').hidden=!!d.finished;
+  wzg66WinnerSound();wzg66$('wzg66Stage').classList.add('wzg66-winner-reveal');
   if(!d.finished)wzg66$('wzg93Award').value='';
   wzg66$('wzg66Countdown').textContent='✅ KAZANAN ONAYLANDI';
   wzg66SetMessage('🏆 '+d.winners[d.winners.length-1].username+' · '+(wzg66.currentAward||'Ödül')+' · Sonuç kaydedildi');
