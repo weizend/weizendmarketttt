@@ -14818,42 +14818,67 @@ function wzg2ShowNextWinner(){
 
 <script id="wzg66LiveDraw">
 /* V31.0.66 — WEIZEND broadcast drawing. Fully backed by D1. */
-let wzg66={id:'',title:'',roster:null,session:null,duration:30,timer:null,deadline:0,spinning:false,landing:false,busy:false,candidate:null,pickStarted:false,pickPromise:null,pickError:null,visualSlots:[],spinPosition:0};
+let wzg66={id:'',title:'',roster:null,session:null,duration:30,timer:null,deadline:0,spinning:false,landing:false,busy:false,candidate:null,pickStarted:false,pickPromise:null,pickError:null,retryTimer:null,nextPickRetryAt:0,visualSlots:[],spinPosition:0};
 function wzg66$(id){return document.getElementById(id)}
 function wzg66Make(){
  if(wzg66$('wzg66Overlay'))return;
  const css=document.createElement('style');css.id='wzg66Styles';css.textContent=`
- #wzg66Overlay[hidden]{display:none!important}#wzg66Overlay{position:fixed;inset:0;z-index:2147483000;background:#030307f5;color:#fff;overflow-y:auto;padding:24px 14px;display:flex;justify-content:center;align-items:flex-start}
- #wzg66Box{width:min(1100px,100%);border:1px solid #853443;border-radius:24px;background:radial-gradient(ellipse at top,#29111e,#0e0d13 60%);padding:clamp(16px,2.5vw,34px);box-shadow:0 25px 65px #0009;position:relative}
- #wzg66Box button{font-size:14px;font-weight:800;border-radius:12px;cursor:pointer;padding:11px 15px;border:1px solid #6a3340;background:#201820;color:#fff;min-width:0;width:auto}#wzg66Box button.primary{background:linear-gradient(110deg,#ed202c,#a90e2a);border-color:#fc4459}#wzg66Box button:disabled{opacity:.4;cursor:not-allowed}
- #wzg66Box h2{margin:8px 0 14px;color:white;font-size:clamp(23px,3vw,34px)}#wzg66Close{position:absolute;right:17px;top:15px}
- .wzg66-stats{display:flex;flex-wrap:wrap;gap:10px;margin:15px 0}.wzg66-stat{flex:1 1 170px;background:#17151f;border:1px solid #3c3340;border-radius:13px;padding:12px;color:#fff;font-size:14px;font-weight:850}.wzg66-stat strong{display:block;font-size:25px;margin-top:3px}
- #wzg66Roster{max-height:720px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #35313b;border-radius:14px;background:#0e0e15;padding:6px;margin:14px 0}
- .wzg66-line{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:10px 12px;border-bottom:1px solid #25232e;min-height:45px}.wzg66-line:last-child{border-bottom:0}.wzg66-line small{color:#b6aabc}.wzg66-line strong{overflow-wrap:anywhere;min-width:72px}.wzg66-line small{text-align:right}
- #wzg66Controls,#wzg66After{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:15px 0}
+ #wzg66Overlay[hidden]{display:none!important}
+ #wzg66Overlay{position:fixed;inset:0;z-index:2147483000;background:#030307f5;color:#fff;overflow:auto;padding:12px;display:flex;justify-content:center;align-items:center}
+ #wzg66Box{width:min(960px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;border:1px solid #853443;border-radius:18px;background:radial-gradient(ellipse at top,#29111e,#0e0d13 60%);padding:16px;box-shadow:0 20px 55px #0009;position:relative}
+ #wzg66Box button{font-size:13px;font-weight:800;border-radius:10px;cursor:pointer;padding:10px 12px;border:1px solid #6a3340;background:#201820;color:#fff;min-width:0;width:auto}
+ #wzg66Box button.primary{background:linear-gradient(110deg,#ed202c,#a90e2a);border-color:#fc4459}
+ #wzg66Box button.finish{background:linear-gradient(110deg,#168d59,#0c6841);border-color:#30cc87;color:#fff}
+ #wzg66Box button:disabled{opacity:.4;cursor:not-allowed}
+ #wzg66Box h2{margin:5px 0 12px;color:white;font-size:clamp(20px,2.4vw,28px)}
+ #wzg66Close{position:absolute;right:12px;top:12px}
+ #wzg66Layout{display:grid;grid-template-columns:minmax(245px,.78fr) minmax(0,1.35fr);gap:14px;align-items:stretch}
+ #wzg66Settings{display:flex;flex-direction:column;gap:10px;min-width:0}
+ #wzg66RightPanel{min-width:0;min-height:390px;display:flex;flex-direction:column}
+ #wzg66Settings #wzg93PrizeRow{margin:0!important;padding:11px!important}
+ #wzg66Settings #wzg93Award{font-size:14px}
+ .wzg66-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:0}
+ .wzg66-stat{min-width:0;background:#17151f;border:1px solid #3c3340;border-radius:11px;padding:9px;color:#fff;font-size:11px;font-weight:850;overflow-wrap:anywhere}
+ .wzg66-stat strong{display:block;font-size:22px;margin-top:3px}
+ #wzg66Roster{max-height:calc(100vh - 230px);min-height:270px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #35313b;border-radius:12px;background:#0e0e15;padding:6px;margin:9px 0 0}
+ .wzg66-line{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:9px 10px;border-bottom:1px solid #25232e;min-height:42px}
+ .wzg66-line:last-child{border-bottom:0}.wzg66-line strong{overflow-wrap:anywhere;min-width:72px;font-size:13px}.wzg66-line small{color:#b6aabc;text-align:right;font-size:11px}
+ #wzg66Controls{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:0}
+ #wzg66Controls label{font-size:12px;color:#d4c7d1;font-weight:800}
+ #wzg66Controls select,#wzg66Box select{background:#16151d;color:white;padding:9px;border-radius:10px;border:1px solid #514650;width:100%}
+ #wzg66Start{width:100%!important;min-height:42px}
+ #wzg66Pre{height:100%;display:flex;flex-direction:column;min-height:0}
  #wzg66Stage[hidden],#wzg66Pre[hidden],#wzg66After[hidden]{display:none!important}
- #wzg66Stage{border:1px solid #5b2941;background:#080811;border-radius:24px;padding:20px;text-align:center;overflow:hidden}
- #wzg66Five{display:grid;grid-template-rows:repeat(5,minmax(36px,1fr));gap:6px;min-height:330px;align-items:center;max-width:770px;margin:auto}
- .wzg66-name{padding:11px 14px;border:1px solid #28202f;border-radius:10px;background:#141019;color:#ad9ca9;font-size:clamp(15px,2vw,21px);font-weight:850;overflow-wrap:anywhere}
- .wzg66-name.center{border:2px solid #ff435c;background:linear-gradient(90deg,#541526,#2e101e,#541526);font-size:clamp(24px,4.8vw,49px);color:#fff;box-shadow:0 0 38px #e71b4c44}
- #wzg66Countdown{font-size:18px;font-weight:900;color:#f6c978;margin:14px 0}#wzg66Result{font-size:clamp(17px,2.5vw,27px);font-weight:900;margin:17px auto;color:#ffecae;overflow-wrap:anywhere}
-#wzg66Stage.wzg66-winner-reveal #wzg66Five .wzg66-name.center{min-height:128px;font-size:clamp(34px,7.5vw,78px);line-height:1.08;padding:22px 16px;border:2px solid #ffd477;background:radial-gradient(ellipse at center,#6b4219 0%,#3d1b22 58%,#210e1b 100%);color:#fff5cc;text-shadow:0 0 24px #ffd47788,0 0 48px #ff375c55;box-shadow:0 0 42px #ffbd4540;animation:wzg66WinnerPulse 1.1s ease-in-out infinite alternate}
-@keyframes wzg66WinnerPulse{from{transform:scale(1);filter:brightness(1)}to{transform:scale(1.025);filter:brightness(1.22)}}
- #wzg66Hint{font-size:12px;line-height:1.65;color:#c1b9c7;text-align:center;margin-top:14px}
- #wzg93PrizeRow[hidden]{display:none!important}#wzg66Box select{background:#16151d;color:white;padding:10px;border-radius:11px;border:1px solid #514650}
- @media(max-width:600px){#wzg66Overlay{padding:8px}#wzg66Box{border-radius:14px;padding:17px 10px}#wzg66Five{min-height:290px}}
+ #wzg66Stage{flex:1;min-width:0;border:1px solid #5b2941;background:#080811;border-radius:16px;padding:12px;text-align:center;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
+ #wzg66Five{display:grid;grid-template-rows:repeat(5,minmax(38px,1fr));gap:5px;min-height:clamp(250px,48vh,400px);align-items:center;width:100%;margin:auto}
+ .wzg66-name{display:flex;align-items:center;justify-content:center;padding:8px 9px;border:1px solid #28202f;border-radius:9px;background:#141019;color:#ad9ca9;font-size:clamp(13px,1.4vw,18px);font-weight:850;overflow-wrap:anywhere;min-height:38px;line-height:1.15;animation:wzg66NameDrop var(--wzg66-roll-duration,120ms) cubic-bezier(.12,.7,.2,1)}
+ @keyframes wzg66NameDrop{from{transform:translateY(-16px);opacity:.42;filter:blur(1px)}to{transform:translateY(0);opacity:1;filter:blur(0)}}
+ .wzg66-name.center{border:2px solid #ff435c;background:linear-gradient(90deg,#541526,#2e101e,#541526);font-size:clamp(20px,3.2vw,36px);color:#fff;box-shadow:0 0 24px #e71b4c33}
+ #wzg66Countdown{font-size:14px;font-weight:900;color:#f6c978;margin:7px 0 10px}
+ #wzg66Result{font-size:clamp(14px,1.8vw,21px);font-weight:900;margin:10px auto;color:#ffecae;overflow-wrap:anywhere;line-height:1.35}
+ #wzg66Stage.wzg66-winner-reveal #wzg66Five .wzg66-name.center{min-height:105px;font-size:clamp(28px,4.5vw,52px);line-height:1.08;padding:17px 10px;border:2px solid #ffd477;background:radial-gradient(ellipse at center,#6b4219 0%,#3d1b22 58%,#210e1b 100%);color:#fff5cc;text-shadow:0 0 24px #ffd47788,0 0 48px #ff375c55;box-shadow:0 0 34px #ffbd4540;animation:wzg66WinnerPulse 1.1s ease-in-out infinite alternate}
+ @keyframes wzg66WinnerPulse{from{transform:scale(1);filter:brightness(1)}to{transform:scale(1.02);filter:brightness(1.2)}}
+ #wzg66After{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+ #wzg66Hint{font-size:11px;line-height:1.5;color:#c1b9c7;margin-top:auto;padding-top:5px}
+ #wzg93PrizeRow[hidden]{display:none!important}
+ @media(max-width:720px){#wzg66Overlay{align-items:flex-start;padding:6px}#wzg66Box{width:100%;max-height:none;overflow:visible;border-radius:13px;padding:12px}#wzg66Layout{grid-template-columns:minmax(0,1fr);gap:11px}#wzg66RightPanel{min-height:330px}#wzg66Roster{max-height:260px;min-height:160px}#wzg66Five{min-height:260px}#wzg66Hint{margin-top:2px}}
  `;document.head.append(css);
  const root=document.createElement('div');root.id='wzg66Overlay';root.hidden=true;
  root.innerHTML=`<section id="wzg66Box" role="dialog" aria-modal="true" aria-labelledby="wzg66Title">
- <button id="wzg66Close" type="button">✕ Kapat</button><div style="color:#ff6c7e;letter-spacing:2px;font-weight:950">🎥 WEİZEND CANLI KURA</div>
- <h2 id="wzg66Title">Çekiliş</h2><div id="wzg93PrizeRow" style="margin:12px 0;padding:13px;border:1px solid #84612e;border-radius:12px;background:#1e1914"><label for="wzg93Award" style="display:block;margin-bottom:6px;font-weight:900;color:#ffe1a3">🎁 Sıradaki kurada verilecek ödül</label><input id="wzg93Award" maxlength="90" placeholder="Örn: 825 VP veya 375 VP" style="width:100%;padding:11px;border-radius:9px;background:#121116;color:#fff;border:1px solid #786640"><small style="display:block;margin-top:7px">Ödülü isimler dönmeden önce seç. Her kura turunda değiştirilebilir.</small></div><div id="wzg66Stats" class="wzg66-stats"></div>
- <section id="wzg66Pre"><div style="font-weight:900">👥 Katılımcı Listesi <small style="color:#baaeb7">(15 kişiden sonrası kaydırılabilir)</small></div><div id="wzg66Roster"></div>
- <div id="wzg66Controls"><label for="wzg66Duration">İsimlerin akış süresi</label><select id="wzg66Duration"><option value="10">10 saniye</option><option value="30" selected>30 saniye</option><option value="60">60 saniye</option></select>
- <button id="wzg66Start" class="primary" type="button">🎬 Çekilişi Başlat</button></div></section>
- <section id="wzg66Stage" hidden><div id="wzg66Countdown">Hazır</div><div id="wzg66Five">
- <div class="wzg66-name">· · ·</div><div class="wzg66-name">· · ·</div><div class="wzg66-name center">HAZIR</div><div class="wzg66-name">· · ·</div><div class="wzg66-name">· · ·</div></div>
- <div id="wzg66Result" role="status"></div><div id="wzg66After" hidden></div></section>
- <div id="wzg66Hint">Yalnızca Admin erişebilir. Kura hakları: normal kullanıcı 1 başlangıç hakkı, doğrulanmış/atanmış geçerli abone için seçilen toplam başlangıç hakkı; her bilet +1. İsim akışı sonuç seçmez, sunucu güvenli ağırlıklı kura yapar. Atlanan aday bu çekilişin sonraki seçimlerine girmez.</div></section>`;
+ <button id="wzg66Close" type="button">✕ Kapat</button><div style="color:#ff6c7e;letter-spacing:1.5px;font-weight:950;font-size:12px">🎥 WEİZEND CANLI KURA</div>
+ <h2 id="wzg66Title">Çekiliş</h2>
+ <div id="wzg66Layout">
+  <aside id="wzg66Settings">
+   <div id="wzg93PrizeRow" style="padding:11px;border:1px solid #84612e;border-radius:12px;background:#1e1914"><label for="wzg93Award" style="display:block;margin-bottom:6px;font-weight:900;color:#ffe1a3;font-size:12px">🎁 Sıradaki ödül</label><input id="wzg93Award" maxlength="90" placeholder="Örn: 825 VP veya 375 VP" style="width:100%;box-sizing:border-box;padding:10px;border-radius:9px;background:#121116;color:#fff;border:1px solid #786640"><small style="display:block;margin-top:6px;color:#c9bdc7;font-size:11px">Her kazanan turunda ödülü belirleyebilirsin.</small></div>
+   <div id="wzg66Stats" class="wzg66-stats"></div>
+   <div id="wzg66Controls"><label for="wzg66Duration">İsimlerin akış süresi</label><select id="wzg66Duration"><option value="10">10 saniye</option><option value="30" selected>30 saniye</option><option value="60">60 saniye</option></select><button id="wzg66Start" class="primary" type="button">🎬 Kazananı Seç</button></div>
+   <div id="wzg66Hint">Kazananı güvenli kura sunucusu belirler. Onaylanan kişi havuzdan çıkar; çekiliş yalnızca sen “Çekilişi Bitir” dediğinde sona erer.</div>
+  </aside>
+  <main id="wzg66RightPanel">
+   <section id="wzg66Pre"><div style="font-weight:900">👥 Katılımcılar <small style="color:#baaeb7">· isimler sağda akar</small></div><div id="wzg66Roster"></div></section>
+   <section id="wzg66Stage" hidden><div id="wzg66Countdown">Hazır</div><div id="wzg66Five"><div class="wzg66-name">· · ·</div><div class="wzg66-name">· · ·</div><div class="wzg66-name center">HAZIR</div><div class="wzg66-name">· · ·</div><div class="wzg66-name">· · ·</div></div><div id="wzg66Result" role="status"></div><div id="wzg66After" hidden></div></section>
+  </main>
+ </div></section>`;
  document.body.append(root);
  wzg66$('wzg66Close').onclick=()=>{if(wzg66.busy)return alert('İşlem tamamlanana kadar bekle.');wzg66StopTimer();root.hidden=true;document.body.style.overflow=''};
  wzg66$('wzg66Start').onclick=()=>wzg66Start();
@@ -14921,7 +14946,7 @@ function wzg66WinnerSound(){
   if(ctx.state==='running')play();else void ctx.resume().then(play).catch(()=>{});
  }catch(_){/* Audio is optional. */}
 }
-function wzg66StopTimer(){if(wzg66.timer){clearTimeout(wzg66.timer);wzg66.timer=null}wzg66.spinning=false}
+function wzg66StopTimer(){if(wzg66.timer){clearTimeout(wzg66.timer);wzg66.timer=null}if(wzg66.retryTimer){clearTimeout(wzg66.retryTimer);wzg66.retryTimer=null}wzg66.spinning=false}
 async function wzg66Request(path,payload){return wzg2AdminCall(path,payload)}
 async function wzg66Get(path){const {r,d}=await api(path);if(!r.ok||!d?.success)throw Error(d?.error||'API hatası');return d}
 function wzg66Badge(p){
@@ -14947,12 +14972,12 @@ function wzg66FillRoster(){
  if(Number(wzg66.roster?.pendingCount||0)){const n=document.createElement('small');n.textContent='⏳ Henüz onaylanmamış '+wzg66.roster.pendingCount+' katılım kuraya dahil değil.';list.prepend(n)}
 }
 function wzg66VisibleName(p){if(!p)return '· · ·';return p.username+(p.subscriber?' ⭐':'')+(p.tickets?' 🎟️+'+p.tickets:'')}
-function wzg66Five(names,centerIndex){const els=wzg66$('wzg66Five').children;for(let i=0;i<5;i++)els[i].textContent=wzg66VisibleName(names[(centerIndex+i-2+names.length*100)%names.length]);}
+function wzg66Five(names,centerIndex,progress=0){const els=wzg66$('wzg66Five').children;const p=Math.max(0,Math.min(1,Number(progress)||0));for(let i=0;i<5;i++){const el=els[i];el.textContent=wzg66VisibleName(names[(centerIndex+i-2+names.length*100)%names.length]);el.style.setProperty('--wzg66-roll-duration',Math.round(85+460*p*p)+'ms');el.style.animation='none';void el.offsetWidth;el.style.animation='';}}
 function wzg66SetMessage(msg){wzg66$('wzg66Result').textContent=msg}
 async function wzg2OpenReel(id,title){
  wzg66Make();wzg66StopTimer();wzg66.id=id;wzg66.title=title;wzg66.candidate=null;wzg66.busy=true;
  wzg66$('wzg66Overlay').hidden=false;document.body.style.overflow='hidden';
- wzg66$('wzg66Title').textContent=title;wzg66$('wzg93PrizeRow').hidden=false;wzg66$('wzg66Pre').hidden=false;wzg66$('wzg66Stage').hidden=true;wzg66$('wzg66After').hidden=true;
+ wzg66$('wzg66Title').textContent=title;wzg66$('wzg93PrizeRow').hidden=false;wzg66$('wzg66Start').hidden=false;wzg66$('wzg66Pre').hidden=false;wzg66$('wzg66Stage').hidden=true;wzg66$('wzg66After').hidden=true;
  try{
   const [roster,session]=await Promise.all([
    wzg66Get('/admin/giveaway/participants?id='+encodeURIComponent(id)),wzg66Get('/admin/giveaway/draw/session?id='+encodeURIComponent(id))]);
@@ -14979,7 +15004,7 @@ async function wzg93StartNext(){
  try{await wzg93LockAward();
    wzg66.roster=await wzg66Get('/admin/giveaway/participants?id='+encodeURIComponent(wzg66.id));
    wzg66FillRoster();
-   wzg66$('wzg93PrizeRow').hidden=true;wzg66Run()}
+   wzg66$('wzg93PrizeRow').hidden=true;wzg66$('wzg66Start').hidden=true;wzg66Run()}
  catch(e){alert('Ödül seçilemedi: '+e.message)}finally{wzg66.busy=false}
 }
 async function wzg66Start(){
@@ -15000,18 +15025,18 @@ async function wzg66Start(){
   wzg66.roster=await wzg66Get('/admin/giveaway/participants?id='+encodeURIComponent(wzg66.id));
   wzg66FillRoster();
   await wzg93LockAward();wzg66$('wzg93PrizeRow').hidden=true;
-  wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66Stage').hidden=false;wzg66$('wzg66After').hidden=true;
+  wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66Stage').hidden=false;wzg66$('wzg66After').hidden=true;wzg66$('wzg66Start').hidden=true;
   wzg66SetMessage('İsimler rastgele akıyor…');wzg66Run();
  }catch(e){alert('Çekiliş başlatılamadı: '+e.message);wzg66$('wzg66Start').disabled=false}
  finally{wzg66.busy=false}
 }
 function wzg66Run(){
- wzg66StopTimer();wzg66.candidate=null;wzg66.landing=false;wzg66.pickStarted=false;wzg66.pickPromise=null;wzg66.pickError=null;
+ wzg66StopTimer();if(wzg66.retryTimer){clearTimeout(wzg66.retryTimer);wzg66.retryTimer=null}wzg66.candidate=null;wzg66.landing=false;wzg66.pickStarted=false;wzg66.pickPromise=null;wzg66.pickError=null;wzg66.nextPickRetryAt=0;
  wzg66.spinning=true;wzg66$('wzg66Stage').classList.remove('wzg66-winner-reveal');wzg66$('wzg66Stage').hidden=false;
  wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66After').hidden=true;
  const excluded=new Set([...(wzg66.session?.skippedUsernames||[]),...(wzg66.session?.winners||[]).map(w=>w.username)]);
  const names=(wzg66.roster?.participants||[]).filter(p=>p.status==='eligible'&&!excluded.has(p.username));
- if(!names.length){wzg66SetMessage('Katılımcı kalmadı; yönetici kontrolü gerekli.');wzg66.spinning=false;return}
+ if(!names.length){wzg66SetMessage('Katılımcı kalmadı. İstersen şimdi çekilişi bitirebilirsin.');wzg66.spinning=false;const box=wzg66$('wzg66After');box.hidden=false;box.replaceChildren();const finish=document.createElement('button');finish.className='finish';finish.textContent='🏁 Çekilişi Bitir';finish.onclick=()=>wzg66FinishClick();box.append(finish);return}
  // The animation is only a visual effect. A bounded strip prevents a huge ticket pool
  // from consuming memory; the actual weighted winner is picked by the server.
  const total=names.reduce((sum,p)=>sum+Math.max(1,Math.floor(Number(p.weight)||1)),0);
@@ -15037,20 +15062,26 @@ function wzg66Run(){
  const pickAt=Math.max(1000,durationMs-landingWindow-1000);
  function startSecurePick(){
   if(wzg66.pickStarted)return wzg66.pickPromise;
+  if(performance.now()<Number(wzg66.nextPickRetryAt||0))return null;
   wzg66.pickStarted=true;
   wzg66.pickPromise=wzg66Request('/admin/giveaway/draw/pick',{id:wzg66.id}).then(d=>{
    if(!d?.candidate)throw Error('Sunucu kura adayı döndürmedi.');
-   wzg66.candidate=d.candidate;
-   // Stop the normal spin once the secure candidate is available, then decelerate
-   // directly into that name. No second fast animation and no sudden re-acceleration.
+   wzg66.candidate=d.candidate;wzg66.pickError=null;
+   if(wzg66.retryTimer){clearTimeout(wzg66.retryTimer);wzg66.retryTimer=null}
+   // Only one monotonic landing pass: no second fast spin after the secure pick.
    if(!wzg66$('wzg66Overlay')?.hidden&&!wzg66.landing)wzg66BeginLanding(d.candidate);
    return d.candidate;
   }).catch(e=>{
-   wzg66.pickError=e;
-   if(!wzg66.spinning&&!wzg66.landing)wzg66SetMessage('❌ '+e.message+' · Durumu yenileyip tekrar kontrol et.');
+   wzg66.pickError=e;wzg66.pickStarted=false;wzg66.pickPromise=null;
+   wzg66.nextPickRetryAt=performance.now()+900;
+   if(wzg66.spinning)wzg66SetMessage('🔄 Bağlantı gecikti; güvenli kura tekrar deneniyor…');
+   else if(!wzg66.landing&&!wzg66$('wzg66Overlay')?.hidden){
+    wzg66SetMessage('🔄 Güvenli kura yanıtı gecikti; tekrar deneniyor…');
+    if(wzg66.retryTimer)clearTimeout(wzg66.retryTimer);
+    wzg66.retryTimer=setTimeout(()=>{wzg66.retryTimer=null;if(!wzg66.candidate&&!wzg66.landing&&!wzg66.busy&&!wzg66$('wzg66Overlay')?.hidden){wzg66.nextPickRetryAt=0;startSecurePick()}},950);
+   }
    throw e;
   });
-  // The timer handles/display-errors after the caller started the secure request.
   wzg66.pickPromise.catch(()=>{});
   return wzg66.pickPromise;
  }
@@ -15059,15 +15090,15 @@ function wzg66Run(){
   const left=Math.max(0,wzg66.deadline-performance.now());
   wzg66$('wzg66Countdown').textContent='🎲 '+total+' isim sırası · '+Math.ceil(left/1000)+' saniye';
   const pos=counter%slots.length;
-  wzg66Five(slots,pos);wzg66.spinPosition=pos;
   const elapsed=durationMs-left,overall=Math.max(0,Math.min(1,elapsed/durationMs));
+  wzg66Five(slots,pos,overall);wzg66.spinPosition=pos;
   wzg66TickSound(overall);
-  if(!wzg66.pickStarted&&elapsed>=pickAt)startSecurePick();
+  if(!wzg66.pickStarted&&elapsed>=pickAt&&performance.now()>=Number(wzg66.nextPickRetryAt||0))startSecurePick();
   counter++;
   if(left<=0){
    wzg66.spinning=false;wzg66.timer=null;
    wzg66$('wzg66Countdown').textContent='🔒 Son isim seçiliyor…';
-   if(!wzg66.pickStarted)startSecurePick();
+   if(!wzg66.pickStarted){wzg66.nextPickRetryAt=0;startSecurePick()}
    // If the request is still in flight, its success callback starts the landing.
    if(wzg66.candidate&&!wzg66.landing)wzg66BeginLanding(wzg66.candidate);
    return;
@@ -15098,14 +15129,13 @@ function wzg66BeginLanding(candidate){
  function landTick(){
   if(!wzg66$('wzg66Overlay')||wzg66$('wzg66Overlay').hidden){wzg66.landing=false;wzg66.timer=null;return}
   step++;
-  const pos=(start+step)%slots.length;wzg66.spinPosition=pos;wzg66Five(slots,pos);
-  wzg66TickSound(step/steps);
+  const pos=(start+step)%slots.length;wzg66.spinPosition=pos;const p=step/steps;wzg66Five(slots,pos,p);
+  wzg66TickSound(p);
   if(step>=steps){
    wzg66.landing=false;wzg66.timer=null;wzg66ShowCandidate(candidate,false);return;
   }
-  const p=step/steps;
-  // Each delay is longer than the preceding one; the last names remain readable.
-  const delay=Math.round(100+1150*Math.pow(p,3));
+  // The landing delay only increases. Last candidates remain readable, without re-acceleration.
+  const delay=Math.round(75+800*Math.pow(p,3));
   wzg66.timer=setTimeout(landTick,delay);
  }
  landTick();
@@ -15116,7 +15146,7 @@ function wzg66Reveal(){
  if(typeof wzg66.startSecurePick==='function')wzg66.startSecurePick();
 }
 function wzg66ShowCandidate(p,resumed){
- wzg66StopTimer();wzg66.landing=false;wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66Stage').hidden=false;wzg66$('wzg66After').hidden=false;
+ wzg66StopTimer();wzg66.landing=false;wzg66$('wzg66Start').hidden=true;wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66Stage').hidden=false;wzg66$('wzg66After').hidden=false;
  wzg66$('wzg66Stage').classList.add('wzg66-winner-reveal');
  wzg66$('wzg66Countdown').textContent='🏆 KAZANAN ADAYI'+(resumed?' · Kurtarılan oturum':'');
  for(let i=0;i<5;i++)wzg66$('wzg66Five').children[i].textContent=i===2?wzg66VisibleName(p):'✦ ✦ ✦';
@@ -15129,14 +15159,15 @@ function wzg66ShowCandidate(p,resumed){
 async function wzg66Confirm(){
  if(wzg66.busy||!wzg66.candidate)return;wzg66.busy=true;
  try{const d=await wzg66Request('/admin/giveaway/draw/confirm',{id:wzg66.id,uid:wzg66.candidate.uid});
-  wzg66.candidate=null;wzg66.session.winners=d.winners;wzg66$('wzg93PrizeRow').hidden=!!d.finished;
-  wzg66$('wzg66Stage').classList.add('wzg66-winner-reveal');
-  if(!d.finished)wzg66$('wzg93Award').value='';
-  wzg66$('wzg66Countdown').textContent='✅ KAZANAN ONAYLANDI';
-  wzg66SetMessage('🏆 '+d.winners[d.winners.length-1].username+' · '+(wzg66.currentAward||'Ödül')+' · Sonuç kaydedildi');
-  const box=wzg66$('wzg66After');box.replaceChildren();
-  if(!d.finished){const repeat=document.createElement('button');repeat.className='primary';repeat.textContent='🔄 Tekrar Başlat';repeat.onclick=()=>{wzg66$('wzg93PrizeRow').hidden=false;wzg93StartNext()};box.append(repeat)}
-  const end=document.createElement('button');end.textContent='🏁 Bitir';end.onclick=()=>wzg66FinishClick(d.finished);box.append(end);
+  wzg66.candidate=null;wzg66.session.winners=d.winners;wzg66.session.stage='ready';wzg66.session.status='drawing';
+  wzg66$('wzg93PrizeRow').hidden=false;
+  wzg66$('wzg66Countdown').textContent='✅ KAZANAN KAYDEDİLDİ';
+  const latest=d.winners[d.winners.length-1];
+  wzg66SetMessage('🏆 '+latest.username+' · '+(latest.award||wzg66.currentAward||'Ödül')+' · Kazanan kaydedildi. Çekiliş devam ediyor.');
+  wzg66.currentAward='';wzg66$('wzg93Award').value='';
+  const box=wzg66$('wzg66After');box.hidden=false;box.replaceChildren();
+  const repeat=document.createElement('button');repeat.className='primary';repeat.textContent='🔄 Sonraki Kazananı Seç';repeat.onclick=()=>wzg93StartNext();box.append(repeat);
+  const end=document.createElement('button');end.className='finish';end.textContent='🏁 Çekilişi Bitir';end.onclick=()=>wzg66FinishClick();box.append(end);
   await wzg2AdminRefresh();
  }catch(e){wzg66SetMessage('❌ '+e.message+' · Durumu yenileyerek kontrol et.');}
  finally{wzg66.busy=false}
@@ -15152,17 +15183,27 @@ async function wzg66Skip(){
   wzg66SetMessage('⏭️ '+(result.skippedUsername||'Seçilen aday')+' listeden çıkarıldı. Aynı ödül için yeni aday seçiliyor…');wzg66Run();
  }catch(e){wzg66SetMessage('❌ '+e.message)}finally{wzg66.busy=false}
 }
-function wzg66FinishClick(finished){
- if(!finished){alert('İlan edilen kazanan sayısı henüz tamamlanmadı. Tekrar Başlat ile devam etmen gerekiyor.');return}
- wzg66StopTimer();wzg66$('wzg66Overlay').hidden=true;document.body.style.overflow='';
- wzg2AdminRefresh();
+async function wzg66FinishClick(){
+ if(wzg66.busy)return;
+ if(wzg66.candidate||wzg66.spinning||wzg66.landing)return alert('Önce seçili adayı Tamamla veya Atla; ardından çekilişi bitirebilirsin.');
+ const count=Number(wzg66.session?.winners?.length||0);
+ if(!confirm('Çekilişi şimdi bitirmek istiyor musun? Kaydedilen '+count+' kazanan korunacak ve yeni kazanan seçimi kapanacak.'))return;
+ wzg66.busy=true;
+ try{
+  const d=await wzg66Request('/admin/giveaway/draw/finish',{id:wzg66.id,confirmation:'CEKILISI_BITIR'});
+  wzg66.session.stage='finished';wzg66.session.status='drawn';wzg66.session.winners=d.winners||wzg66.session.winners||[];
+  if(wzg66.roster)wzg66.roster.status='drawn';
+  wzg66.currentAward='';wzg66Finished();await wzg2AdminRefresh();
+ }catch(e){wzg66SetMessage('❌ Çekiliş bitirilemedi: '+e.message)}
+ finally{wzg66.busy=false}
 }
 function wzg66Finished(){
  wzg66$('wzg66Stage').hidden=false;wzg66$('wzg66Pre').hidden=true;
+ wzg66$('wzg93PrizeRow').hidden=true;wzg66$('wzg66Start').hidden=true;
  wzg66$('wzg66Countdown').textContent='🏆 ÇEKİLİŞ TAMAMLANDI';
- wzg66SetMessage((wzg66.session?.winners||[]).map(w=>w.rank+'. '+w.username).join(' · ')||'Sonuçlar kaydedildi');
+ wzg66SetMessage((wzg66.session?.winners||[]).map(w=>w.rank+'. '+w.username+(w.award?' · '+w.award:'')).join(' · ')||'Sonuçlar kaydedildi');
  const box=wzg66$('wzg66After');box.hidden=false;box.replaceChildren();
- const b=document.createElement('button');b.textContent='🏁 Bitir';b.onclick=()=>wzg66FinishClick(true);box.append(b);
+ const b=document.createElement('button');b.className='primary';b.textContent='✅ Kapat';b.onclick=()=>{wzg66StopTimer();wzg66$('wzg66Overlay').hidden=true;document.body.style.overflow='';wzg2AdminRefresh()};box.append(b);
 }
 
 async function wzg66RosterPreview(id,title){
