@@ -136,7 +136,12 @@ function show(append=false){if(!last)return;const c=last.campaign;$('content').h
  $('participation').textContent='Toplam '+last.totalParticipants.toLocaleString('tr-TR')+' katılımcı';
  const loadedCount=visibleParticipants.length;$('participantSearchStatus').textContent=activeSearch?('Arama sonucu: '+matched.toLocaleString('tr-TR')+' eşleşme · '+loadedCount.toLocaleString('tr-TR')+' tanesi yüklendi'):('Gösterilen '+loadedCount.toLocaleString('tr-TR')+' / '+matched.toLocaleString('tr-TR')+' katılımcı');
  $('page').textContent=last.page+' / '+last.totalPages;$('prev').disabled=last.page<=1;$('next').disabled=last.page>=last.totalPages;
- const box=$('winners');box.replaceChildren();box.className='';if(last.winners.length){last.winners.forEach(w=>box.append(text('div','winner','🏆 '+w.rank+'. '+w.username)))}else{box.className='notice';box.textContent=c.status==='drawn'?'Kazanan bilgileri henüz yayımlanmadı.':'ℹ️ Bu çekiliş henüz sonuçlanmadı. Çekiliş sonuçlandığında kazananları burada görebilirsin.'}
+ const box=$('winners');box.replaceChildren();box.className='';if(last.winners.length){last.winners.forEach(w=>{
+  const raw=w.chancePercent,hasChance=raw!==null&&raw!==undefined&&Number.isFinite(Number(raw));
+  const chance=hasChance?new Intl.NumberFormat('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(raw))+'%':'Bu eski sonuç için yüzde kaydı yok';
+  const award=String(w.award||c.prizeTitle||'Ödül');
+  box.append(text('div','winner','🏆 '+w.rank+'. '+w.username+' · Ödül: '+award+' · Seçim anındaki şansı: '+chance));
+ })}else{box.className='notice';box.textContent=c.status==='drawn'?'Kazanan bilgileri henüz yayımlanmadı.':'ℹ️ Bu çekiliş henüz sonuçlanmadı. Çekiliş sonuçlandığında kazananları burada görebilirsin.'}
 }
 let wzgDetailRequest=0,wzgDetailController=null;
 async function load(p,options={}){
