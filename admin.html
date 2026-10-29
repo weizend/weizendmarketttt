@@ -72,7 +72,9 @@ html.wz77-admin-restoring #loginCard { display:none!important; }
 .wz156GiftHead{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .wz156GiftHead h3{margin:0}
 .wz156GiftRecipientsList{display:grid;gap:8px;margin:14px 0;max-height:38dvh;overflow:auto}
-.wz156GiftRecipient{background:#20232b;border:1px solid #343944;border-radius:10px;padding:10px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.wz156GiftRecipient{background:#20232b;border:1px solid #343944;border-radius:10px;padding:10px;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}
+.wz156GiftRecipient>strong,.wz156GiftRecipient>small,.wz156GiftRecipient>div{display:block;min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:normal}
+.wz156GiftDialog{box-sizing:border-box;min-width:0;width:min(560px,calc(100vw - 28px))}
 .wz156GiftForm{display:flex;gap:9px;margin-top:9px;flex-wrap:wrap}
 .wz156GiftForm input{flex:1 1 190px;min-width:0}
 .wz156GiftForm button{flex:0 0 auto}
@@ -1182,6 +1184,7 @@ body.dmModalOpen{overflow:hidden}
 .activityMeta{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;color:#858585;font-size:.73rem}
 .activityMeta span{display:inline-flex;align-items:center;gap:4px}
 .activityMessage{margin-top:10px;padding:10px 11px;border-radius:10px;background:#111;border:1px solid #242424;color:#d4d4d4;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+.activityRecipientsMeta{display:block!important;min-width:0;max-width:100%;line-height:1.45;overflow-wrap:anywhere;word-break:normal;white-space:normal}
 .activityEmpty{padding:28px 14px;border:1px dashed #333;border-radius:13px;text-align:center;color:#888;background:#090909}
 .activityRawDetails{margin-top:14px;border-top:1px solid #242424;padding-top:10px;color:#777}
 .activityRawDetails summary{cursor:pointer;font-weight:800;color:#aaa;user-select:none}
@@ -3301,18 +3304,6 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
         </div>
         <div id="wz164SupportScrollHint" class="wz164SupportScrollHint muted" hidden aria-live="polite"></div>
         <div id="supportRewardEventsStatus" class="status"></div>
-      <!-- V31.1.56: One Gift management modal per support record; no stacked recipient buttons. -->
-      <div id="wz156GiftModal" class="wz156GiftOverlay" hidden onclick="if(event.target===this)wz156CloseGiftRecipients()">
-        <div class="wz156GiftDialog" role="dialog" aria-modal="true" aria-labelledby="wz156GiftTitle">
-          <div class="wz156GiftHead"><h3 id="wz156GiftTitle">🎁 Gift Alıcıları</h3><button type="button" class="smallBtn" onclick="wz156CloseGiftRecipients()" aria-label="Pencereyi kapat">✕ Kapat</button></div>
-          <p class="muted" id="wz156GiftSubtitle"></p>
-          <div id="wz156GiftRecipientsList" class="wz156GiftRecipientsList"></div>
-          <label for="wz156GiftUsername" style="display:block;margin-top:14px">Yeni alıcının Kick adı (hesap doğrulaması şart değil)</label>
-          <div class="wz156GiftForm"><input id="wz156GiftUsername" type="text" maxlength="40" autocomplete="off" placeholder="Kick kullanıcı adı" aria-label="Alıcı Kick kullanıcı adı"><button id="wz156GiftAssignButton" type="button" class="smallBtn" onclick="wz156AssignGiftFromModal()">+1 Gift Ata</button></div>
-          <p id="wz156GiftFeedback" class="muted" role="status" aria-live="polite"></p>
-          <p class="muted" style="font-size:12px">Abonelik Gift tarihinden başlar. Her alıcı için "Ayı Yönet" ile 1–120 ay belirleyebilirsin; isim değişikliği ayrı "Adı Düzenle" butonundadır. Süresi biten abonelik çekilişte önceden kazanılmış avantajı silmez.</p>
-        </div>
-      </div>
 
       </div>
 
@@ -5990,8 +5981,7 @@ async function wz156OpenGiftRecipients(encodedId){
  const id=decodeURIComponent(encodedId||'');if(!id)return;
  wz156GiftOpenId=id;wz158GiftPage=1;
  const overlay=document.getElementById('wz156GiftModal');if(!overlay){alert('Gift yönetim penceresi bulunamadı. Admin sayfasını yenile.');return;}
- // Keeping the dialog under <body> prevents any card/tab overflow or stacking context from hiding it.
- if(overlay.parentElement!==document.body)document.body.appendChild(overlay);
+ // V31.1.83: Modal markup stays directly under <body>; avoid moving DOM nodes during click.
  overlay.hidden=false;
  const feedback=document.getElementById('wz156GiftFeedback');if(feedback)feedback.textContent='⏳ Alıcılar yükleniyor...';
  try{
@@ -13666,7 +13656,7 @@ function renderSimpleRecentActivity(kind,data){
             ${id ? `<span>#${esc(id)}</span>` : ''}
           </div>` : ''}
           ${kind === 'giftSubscriptions' && Array.isArray(item?.recipients) && item.recipients.length
-            ? `<div class="activityMeta" style="margin-top:7px;color:#79dfa2" title="${esc(item.recipients.map(x=>'@'+String(x).replace(/^@+/, '')).join(', '))}">🎁 Abonelik alanlar: ${esc(wz165GiftRecipientsSummary(item.recipients))}</div>`
+            ? `<div class="activityMeta activityRecipientsMeta" style="margin-top:7px;color:#79dfa2" title="${esc(item.recipients.map(x=>'@'+String(x).replace(/^@+/, '')).join(', '))}">🎁 Abonelik alanlar: ${esc(wz165GiftRecipientsSummary(item.recipients))}</div>`
             : ''}
         </div>
       `;
@@ -15549,6 +15539,22 @@ async function wz3103Check(encodedId){
 }
 
 </script>
+
+
+
+  <!-- Gift alıcı yönetimi modalı: section/card içinde değil, doğrudan body altında. -->
+  <!-- V31.1.83: Gift recipient modal is a body-level node to keep activity cards stable. -->
+  <div id="wz156GiftModal" class="wz156GiftOverlay" hidden onclick="if(event.target===this)wz156CloseGiftRecipients()">
+    <div class="wz156GiftDialog" role="dialog" aria-modal="true" aria-labelledby="wz156GiftTitle">
+      <div class="wz156GiftHead"><h3 id="wz156GiftTitle">🎁 Gift Alıcıları</h3><button type="button" class="smallBtn" onclick="wz156CloseGiftRecipients()" aria-label="Pencereyi kapat">✕ Kapat</button></div>
+      <p class="muted" id="wz156GiftSubtitle"></p>
+      <div id="wz156GiftRecipientsList" class="wz156GiftRecipientsList"></div>
+      <label for="wz156GiftUsername" style="display:block;margin-top:14px">Yeni alıcının Kick adı (hesap doğrulaması şart değil)</label>
+      <div class="wz156GiftForm"><input id="wz156GiftUsername" type="text" maxlength="40" autocomplete="off" placeholder="Kick kullanıcı adı" aria-label="Alıcı Kick kullanıcı adı"><button id="wz156GiftAssignButton" type="button" class="smallBtn" onclick="wz156AssignGiftFromModal()">+1 Gift Ata</button></div>
+      <p id="wz156GiftFeedback" class="muted" role="status" aria-live="polite"></p>
+      <p class="muted" style="font-size:12px">Abonelik Gift tarihinden başlar. Her alıcı için "Ayı Yönet" ile 1–120 ay belirleyebilirsin; isim değişikliği ayrı "Adı Düzenle" butonundadır. Süresi biten abonelik çekilişte önceden kazanılmış avantajı silmez.</p>
+    </div>
+  </div>
 
 </body>
 </html>
