@@ -4777,6 +4777,11 @@ async function handleAdminChoice(choice){
         true
       );
     }
+    return;
+  }
+
+  if(ctx.type === 'giftPointsDelivery'){
+    await resolveGiftPointsDelivery(ctx,choice);
   }
 }
 
@@ -5627,7 +5632,7 @@ function renderGiftCodes(items){
             ? '<span class="muted">MissXss doğrulaması bekleniyor</span>'
             : ''}
           ${status === 'processing' && rewardType === 'points'
-            ? `<button class="smallBtn" title="BotRix geçmişinde puanın gerçekten eklendiğini doğruladıysan işlemi tamamla" onclick="confirmGiftPoints('${encodeURIComponent(item.id)}',${Number(item.points_amount || 0)})">✅ Puan eklendi: onayla</button>`
+            ? `<button class="smallBtn" title="BotRix sohbetini kontrol et: puan gittiyse Evet, gitmediyse Hayır" onclick="confirmGiftPoints('${encodeURIComponent(item.id)}',${Number(item.points_amount || 0)},'${encodeURIComponent(item.redeemed_by_username || '')}')">❓ Puan gönderildi mi?</button>`
             : ''}
           ${status === 'processing'
             ? ''
@@ -5638,41 +5643,41 @@ function renderGiftCodes(items){
   }
 }
 
-async function confirmGiftPoints(encodedId,pointsAmount=0){
+function confirmGiftPoints(encodedId,pointsAmount=0,encodedUsername=''){
   const id=decodeURIComponent(encodedId || '');
   if(!id) return;
-
   const amount=Math.trunc(Number(pointsAmount || 0));
-  const answer=prompt(
-    `BotRix geçmişinde ${amount.toLocaleString('tr-TR')} puanın GERÇEKTEN eklendiğini kontrol et.\n\n` +
-    'BotRix üzerinde görünen GÜNCEL TOPLAM BAKİYEYİ yaz:',
-    ''
-  );
+  const username=decodeURIComponent(encodedUsername || '') || 'kullanıcı';
+  openAdminChoiceModal({
+    type:'giftPointsDelivery',id,amount,username,
+    title:'Puan gönderildi mi?',
+    text:`${username} kullanıcısına ${amount.toLocaleString('tr-TR')} puan gönderimini BotRix/Kick sohbetinden kontrol et.\n\nEvet: Kod kullanıldı olarak işaretlenir; bakiye değiştirilmez.\nHayır: MissXss botu !puanver komutunu yeniden gönderir. Sonra tekrar kontrol edebilirsin.`,
+    primaryLabel:'Evet — kodu kullanıldı yap',
+    secondaryLabel:'Hayır — puanı yeniden gönder',
+    primaryClass:'secondary',
+    secondaryClass:'danger'
+  });
+}
 
-  if(answer===null) return;
-  const pointsAfter=Math.trunc(Number(String(answer).replace(/\./g,'').replace(/,/g,'')));
-  if(!Number.isSafeInteger(pointsAfter) || pointsAfter<0){
-    alert('Geçerli güncel toplam bakiye girmelisin. Örnek: 305000');
-    return;
-  }
-
-  if(!confirm(
-    `Onaylıyor musun?\n\nHediye: ${amount.toLocaleString('tr-TR')} Puan\n` +
-    `BotRix güncel bakiye: ${pointsAfter.toLocaleString('tr-TR')} Puan\n\n` +
-    'Bu işlem tekrar !puanver göndermez; yalnızca mevcut bekleyen teslimatı tamamlar.'
-  )) return;
-
+async function resolveGiftPointsDelivery(ctx,choice){
+  const id=String(ctx?.id || '').trim();
+  if(!id) return;
+  const isRetry=choice==='secondary';
   try{
-    const {r,d}=await api('/admin/gift-codes/confirm-points',{
+    const path=isRetry?'/admin/gift-codes/retry-points':'/admin/gift-codes/mark-points-delivered';
+    const {r,d}=await api(path,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({id,confirmed:true,pointsAfter})
+      body:JSON.stringify({id,confirmed:true})
     });
     if(!r.ok || !d?.success) throw new Error(d?.error || `HTTP ${r.status}`);
-
     await loadGiftCodes();
     if(typeof loadAdminOrders==='function') await loadAdminOrders().catch(()=>{});
-    showStatus('giftCodeStatus','✅ Puan hediye kodu teslim edildi olarak tamamlandı. Kullanıcı bakiyesi ve mesaj kaydı güncellendi.',true);
+    if(isRetry){
+      showStatus('giftCodeStatus',`🔄 ${esc(d.message || 'MissXss komutu yeniden gönderildi. BotRix sohbetini kontrol et; puan hâlâ gitmediyse aynı butondan tekrar Hayır seçebilirsin.')}`,true);
+    }else{
+      showStatus('giftCodeStatus','✅ Hediye kodu kullanıldı olarak işaretlendi. Site bakiyesi değiştirilmedi; yalnızca teslimat durumu tamamlandı.',true);
+    }
   }catch(error){
     showStatus('giftCodeStatus','❌ '+esc(error.message || error),false);
   }
