@@ -13410,18 +13410,7 @@ return;
             `;
         } else if (!closed) {
             const subscriptionChoice = entryMode === 'subscription'
-                ? `
-                    <div class="tv2-field">
-                        <label>Kick Abonelik Durumun</label>
-                        <select id="tv2SoloSubscriptionState" class="tv2-input">
-                            <option value="not_subscribed">Abone değilim — 1 normal abonelik yapacağım</option>
-                            <option value="already_subscribed">Zaten aboneyim — 1 abonelik hediyesi göndereceğim</option>
-                        </select>
-                        <div class="tv2-muted" style="margin-top:6px;">
-                            Bu işlemi başlattıktan sonra katılım şartını 5 dakika içinde tamamla; süre dolarsa bekleyen kayıt iptal edilir. Gift alıcısı önemli değildir; gönderen doğrulanmış Kick hesabı ve adet kontrol edilir.
-                        </div>
-                    </div>
-                `
+                ? tv3SubscriptionChoiceHtml('tv2SoloSubscriptionState')
                 : '';
 
             action = `
@@ -13463,6 +13452,9 @@ return;
         `;
         tv2RestorePendingTl();
         tv3StartSubscriptionExpiryTimer();
+        if (entryMode === 'subscription' && !membership && !closed) {
+            tv3LoadOwnSubscriptionStatus('tv2SoloSubscriptionState');
+        }
     }
 
     async function tv2RegisterSolo() {
@@ -13691,29 +13683,67 @@ return;
     }
 
     function tv3SubscriptionChoiceHtml(selectId) {
+        const safeId = tv2Esc(selectId);
         return `
             <div class="tv2-field">
                 <label>Kick Abonelik Durumun</label>
-                <select id="${tv2Esc(selectId)}" class="tv2-input" onchange="tv3SubscriptionChoiceChanged(this)">
-                    <option value="">Seçiniz</option>
-                    <option value="not_subscribed">Abone değilim — normal abonelik yapacağım</option>
-                    <option value="already_subscribed">Aboneyim — 1 hediye abonelik göndereceğim</option>
+                <div id="${safeId}Status" class="tv2-message" role="status" style="margin-bottom:8px;">
+                    ⏳ Site hesabındaki abonelik durumu kontrol ediliyor...
+                </div>
+                <select id="${safeId}" class="tv2-input" style="display:none" onchange="tv3SubscriptionChoiceChanged(this)">
+                    <option value="">Durum seçilmedi</option>
+                    <option value="not_subscribed">Aktif aboneliğim yok — normal abonelik yapacağım</option>
+                    <option value="already_subscribed">Aktif aboneliğim var — 1 abonelik hediyesi göndereceğim</option>
                 </select>
-                <div class="tv2-muted tv3-subscription-choice-note" style="margin-top:6px;">
-                    Seçimine göre kendi Kick hesabındaki ilgili işlem doğrulanır.
+                <div class="tv2-muted tv3-subscription-choice-note" style="display:none;margin-top:6px;">
+                    Otomatik kontrol tamamlanamadıysa lütfen durumunu seç.
                 </div>
             </div>
         `;
     }
 
+    async function tv3LoadOwnSubscriptionStatus(selectId) {
+        const select = document.getElementById(selectId);
+        const status = document.getElementById(`${selectId}Status`);
+        if (!select || !status) return;
+        const note = select.parentElement?.querySelector('.tv3-subscription-choice-note');
+        try {
+            const data = await tv2AuthFetch(`/tournament/v3/subscription/self-status?_=${Date.now()}`);
+            if (!data?.success || !['not_subscribed','already_subscribed'].includes(data.selfSubscriptionState)) {
+                throw new Error(data?.error || 'Abonelik durumu okunamadı.');
+            }
+            select.value = data.selfSubscriptionState;
+            select.style.display = 'none';
+            if (note) note.style.display = 'none';
+            if (data.active === true) {
+                status.className = 'tv2-message success';
+                status.innerHTML = '<b>✅ Site hesabında aktif aboneliğin var.</b><br>Kayıt için kendi Kick hesabından <b>1 adet abonelik hediyesi</b> göndermelisin.';
+            } else {
+                status.className = 'tv2-message';
+                status.innerHTML = '<b>⭐ Site hesabında aktif aboneliğin görünmüyor.</b><br>Turnuva kaydı için kendi Kick hesabından <b>normal abonelik</b> başlatmalısın. Bu seçenek için hediye abonelik yeterli değildir.';
+            }
+        } catch (error) {
+            // Keep the current registration flow usable when the status service is unavailable.
+            select.value = '';
+            select.style.display = '';
+            if (note) note.style.display = '';
+            status.className = 'tv2-message';
+            status.textContent = '⚠️ Abonelik durumu otomatik kontrol edilemedi. Lütfen aşağıdan durumunu seç.';
+        }
+    }
+
     function tv3SubscriptionChoiceChanged(select) {
         const note = select?.parentElement?.querySelector('.tv3-subscription-choice-note');
-        if (!note) return;
-        note.textContent = select.value === 'not_subscribed'
-            ? 'Kendi hesabından normal abone olmalısın. Hediye gönderimi bu şart için sayılmaz.'
-            : select.value === 'already_subscribed'
-                ? 'Zaten abonesin: kendi hesabından 1 hediye abonelik göndermelisin.'
-                : 'Seçimine göre kendi Kick hesabındaki ilgili işlem doğrulanır.';
+        const status = document.getElementById(`${select?.id || ''}Status`);
+        if (status) {
+            status.className = 'tv2-message';
+            status.textContent = select.value === 'not_subscribed'
+                ? '⭐ Aktif aboneliğin yok: kendi Kick hesabından normal abonelik başlatmalısın.'
+                : select.value === 'already_subscribed'
+                    ? '✅ Aktif aboneliğin var: kendi Kick hesabından 1 abonelik hediyesi göndermelisin.'
+                    : 'Abonelik durumunu seç.';
+        }
+        if (note) note.textContent = 'Kontrol sırasında sunucu, site hesabındaki güncel abonelik durumunu esas alır.';
     }
 
     function tv3PaymentAmounts(payment = {}) {
@@ -14065,6 +14095,9 @@ return;
         tv3StartSubscriptionExpiryTimer();
         if (tv2State.form === 'create') tv2ShowCreateForm(true);
         if (tv2State.form === 'join') tv2ShowJoinForm(true);
+        if (joinDraft && !team && tv3EntryMode() === 'subscription') {
+            tv3LoadOwnSubscriptionStatus('tv3JoinSubscriptionState');
+        }
         modalBody.scrollTop = previousScroll;
     }
 
@@ -14168,6 +14201,7 @@ return;
                 </div>
             </div>
         `;
+        if (mode === 'subscription') tv3LoadOwnSubscriptionStatus('tv3CreateSubscriptionState');
     }
 
     async function tv2SubmitCreate() {
