@@ -19680,8 +19680,8 @@ return;
 @media(max-width:400px){.wzsp103-note-actions{gap:8px}.wzsp103-cta{font-size:.75rem;padding:8px 10px}}
 </style>
 
-<!-- V31.1.91: eager Profile subscription request + automatic retry -->
-<script id="wzsp103-profile-script-v31191">
+<!-- V31.1.92: Profile subscription retry + visibility-safe refresh -->
+<script id="wzsp103-profile-script-v31192">
 (()=>{
  let lastFetch=0,fetchInFlight=false,nextAt=0,active=false,isGiftMode=false,isAdminMode=false,lastToken='',wasProfileVisible=false,retryAt=0;
  const el=id=>document.getElementById(id),set=(id,v)=>{const x=el(id);if(x)x.textContent=v};
@@ -19767,7 +19767,7 @@ return;
     if(info.status==='checking'){
      set('wzSp103Months',info.display||'Kontrol ediliyor...');
      set('wzSp103Note',info.note||'Abonelik listen kontrol ediliyor.');
-     showCta(null);retryAt=Date.now()+15000;return;
+     showCta(null);retryAt=Date.now()+(Math.max(5,Number(info.retryAfterSeconds)||15)*1000);return;
     }
     retryAt=0;
     if(['kick_subscription_expired','subscription_expired','gift_expired','manual_expired'].includes(String(info.status||''))){
@@ -19776,6 +19776,7 @@ return;
     if(info.status==='unavailable'||info.status==='unverified_account'){
      set('wzSp103Months',info.display||'Kontrol edilemedi');
      set('wzSp103Note',info.note||'Abonelik durumu kontrol edilemedi.');
+     retryAt=Number(info.retryAfterSeconds)>0?Date.now()+Math.max(5,Number(info.retryAfterSeconds))*1000:0;
      return;
     }
     set('wzSp103Note',info.note||'Henüz doğrulanmış aboneliğin bulunmuyor.');
@@ -19807,15 +19808,20 @@ return;
   }
   finally{fetchInFlight=false}
  }
- function maybe(){const visible=document.body?.classList.contains('wz-view-profile')===true;if(visible&&!wasProfileVisible){wasProfileVisible=true;fetchProfile(true)}else if(!visible){wasProfileVisible=false}}
+ function profileVisible(){
+  if(document.body?.classList.contains('wz-view-profile')===true)return true;
+  const card=el('wzSp103Card');
+  return !!(card&&card.getClientRects&&card.getClientRects().length);
+ }
+ function maybe(){const visible=profileVisible();if(visible&&!wasProfileVisible){wasProfileVisible=true;fetchProfile(true)}else if(!visible){wasProfileVisible=false}}
  function begin(){
   // Fetch once at page initialization as well as on Profile view transitions.
   // This avoids missing the first request when the Profile class was restored
   // before this script's MutationObserver was installed.
   maybe();fetchProfile(true);
   const ob=new MutationObserver(maybe);ob.observe(document.body,{attributes:true,attributeFilter:['class']});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){maybe();if(document.body.classList.contains('wz-view-profile')&&!fetchInFlight)fetchProfile(true)}});
-  setInterval(()=>{if(!document.hidden&&document.body.classList.contains('wz-view-profile')){
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){maybe();if(profileVisible()&&!fetchInFlight)fetchProfile(true)}});
+  setInterval(()=>{if(!document.hidden&&profileVisible()){
    count();maybe();
    // Keep subscription details current when a gift/subscription arrives while the profile is open.
    if(!fetchInFlight&&retryAt>0&&Date.now()>=retryAt){retryAt=0;fetchProfile(true)}
