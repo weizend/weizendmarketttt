@@ -19680,8 +19680,8 @@ return;
 @media(max-width:400px){.wzsp103-note-actions{gap:8px}.wzsp103-cta{font-size:.75rem;padding:8px 10px}}
 </style>
 
-<!-- V31.1.90: bounded Profile subscription request + automatic retry -->
-<script id="wzsp103-profile-script-v31190">
+<!-- V31.1.91: eager Profile subscription request + automatic retry -->
+<script id="wzsp103-profile-script-v31191">
 (()=>{
  let lastFetch=0,fetchInFlight=false,nextAt=0,active=false,isGiftMode=false,isAdminMode=false,lastToken='',wasProfileVisible=false,retryAt=0;
  const el=id=>document.getElementById(id),set=(id,v)=>{const x=el(id);if(x)x.textContent=v};
@@ -19798,13 +19798,23 @@ return;
    set('wzSp103Note',isGift
     ? (info.note||'Hediye abonelik yönetici tarafından eşleştirildi.')
     : (info.note||'Yenileme sayacı ödeme tarihinden tahmin edilir; kesin bitiş tarihi değildir.'));
-  }catch(err){retryAt=Date.now()+20000;showCta(null);show('wzSp103HistoryRow',false);show('wzSp103GiftFromRow',false);set('wzSp103GiftFrom','–');set('wzSp103Months','Kontrol edilemedi');set('wzSp103Note','Abonelik servisine geçici olarak ulaşılamadı. Otomatik tekrar denenecek.');show('wzSp103Countdown',false)}
+  }catch(err){
+   retryAt=Date.now()+15000;showCta(null);show('wzSp103HistoryRow',false);show('wzSp103GiftFromRow',false);set('wzSp103GiftFrom','–');
+   set('wzSp103Months','Kontrol edilemedi');
+   const reason=String(err?.name==='TimeoutError'?'İstek zaman aşımına uğradı':(err?.message||'Bağlantı hatası')).slice(0,100);
+   set('wzSp103Note','Abonelik bilgisi alınamadı: '+reason+'. Otomatik tekrar denenecek.');
+   show('wzSp103Countdown',false);console.error('WEIZEND_PROFILE_SUBSCRIPTION_FETCH',err);
+  }
   finally{fetchInFlight=false}
  }
  function maybe(){const visible=document.body?.classList.contains('wz-view-profile')===true;if(visible&&!wasProfileVisible){wasProfileVisible=true;fetchProfile(true)}else if(!visible){wasProfileVisible=false}}
  function begin(){
-  maybe();const ob=new MutationObserver(maybe);ob.observe(document.body,{attributes:true,attributeFilter:['class']});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)maybe()});
+  // Fetch once at page initialization as well as on Profile view transitions.
+  // This avoids missing the first request when the Profile class was restored
+  // before this script's MutationObserver was installed.
+  maybe();fetchProfile(true);
+  const ob=new MutationObserver(maybe);ob.observe(document.body,{attributes:true,attributeFilter:['class']});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){maybe();if(document.body.classList.contains('wz-view-profile')&&!fetchInFlight)fetchProfile(true)}});
   setInterval(()=>{if(!document.hidden&&document.body.classList.contains('wz-view-profile')){
    count();maybe();
    // Keep subscription details current when a gift/subscription arrives while the profile is open.
