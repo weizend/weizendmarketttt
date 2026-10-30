@@ -2834,23 +2834,6 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
         <div id="wzg2Entries" class="wzg-list"></div>
         </details>
       </div>
-      <details id="wzgcDraftsPanel" class="wzgc-fold"><summary>📁 Kayıtlı Taslaklar ve Arşiv</summary>
-      <div class="card">
-        <h2>📋 Taslaklar (Yayınlanmamış)</h2>
-        <label class="wzg-show-archived"><input type="checkbox" id="wzgShowArchived" onchange="wzgLoad()"> 📁 Arşivlenen taslakları da göster</label>
-        <div id="wzgList" class="wzg-list">Bu bölüm açıldığında taslaklar yüklenecek.</div>
-      </div></details>
-      <details id="wzgcPublishedArchivePanel" class="wzgc-fold" ontoggle="if(this.open)wzgLoadPublishedArchive()">
-        <summary>🗄️ Yayınlanmış Çekiliş Arşivi</summary>
-        <div class="card">
-          <div class="wzg-row" style="align-items:center;justify-content:space-between">
-            <h2 style="margin:0">📦 Arşivlenen Çekilişler</h2>
-            <button type="button" class="secondary" onclick="wzgLoadPublishedArchive(true)">🔄 Arşivi Yenile</button>
-          </div>
-          <p class="muted">Silinen yayınlanmış çekilişler burada saklanır. Kalıcı silme işlemi katılımcı, kazanan, bilet ve kura geçmişi kayıtlarını geri alınamayacak şekilde temizler.</p>
-          <div id="wzgPublishedArchiveList" class="wzg-list">Arşiv bölümü açıldığında kayıtlar yüklenir.</div>
-        </div>
-      </details>
     </div>
 
     <!-- PRODUCTS -->
@@ -14295,11 +14278,12 @@ function wzgEdit(id){
 async function wzgLoad(){
   const el=document.getElementById('wzgList');
   if(wzgPending)return;
-  if(!wzgCache.length && !el.querySelector('.wzg-item'))el.textContent='Taslaklar yükleniyor...';
+  if(el&&!wzgCache.length && !el.querySelector('.wzg-item'))el.textContent='Taslaklar yükleniyor...';
   try{
     const {r,d}=await api('/admin/giveaway-drafts');
     if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
     wzgCache=d.drafts||[];
+    if(!el)return true;
     const showArchived=!!document.getElementById('wzgShowArchived')?.checked;
     const visible=wzgCache.filter(b=>!Number(b.published)&&(b.status==='draft'||(showArchived&&b.status==='archived')));
     el.innerHTML='';
@@ -15396,6 +15380,9 @@ wzg2OpenReel=async function(id,title){wzg66Make();wzg66$('wzg66Start').hidden=fa
 /* V31.1.04 | Dedicated giveaway control center; all records stay server-side. */
 let wzgcTemplatesCache=[];
 let wzgcToolbarCampaign=null;
+function wzgcIsArchivedCampaign(c){
+ try{const cfg=typeof c?.conditions_json==='string'?JSON.parse(c.conditions_json||'{}'):(c?.conditions_json||{});return cfg?.adminArchived===true||cfg?.adminArchived===1||cfg?.adminArchived==='true'}catch(_){return false}
+}
 function wzgcUpdateToolbar(c){
  const bar=document.getElementById('wzgcDirectActions');if(!bar)return;
  if(wzgcCreating){wzgcToolbarCampaign=null;bar.hidden=true;return;}
@@ -15416,6 +15403,21 @@ function wzgcUpdateToolbar(c){
    return;
  }
  const selected=wzgcToolbarCampaign,now=Date.now();
+ const archived=wzgcIsArchivedCampaign(selected);
+ const del=document.getElementById('wzgcActDelete');
+ if(archived){
+   document.getElementById('wzgcActStart').textContent='📦 Arşivde';
+   document.getElementById('wzgcActStart').disabled=true;
+   document.getElementById('wzgcActEdit').disabled=true;
+   document.getElementById('wzgcActRoster').disabled=false;
+   document.getElementById('wzgcActTemplate').disabled=true;
+   del.textContent='🗑️ Kalıcı Sil';
+   del.disabled=selected.status==='drawing';
+   del.title='Arşivlenen kaydı ve ilişkili katılımcı, kazanan, bilet ve kura geçmişini kalıcı olarak siler.';
+   document.getElementById('wzgcActionNote').textContent='📦 Arşiv işareti yalnızca yönetim içindir; çekiliş kullanıcıların çekiliş sayfasında görünmeye devam eder. Kalıcı Sil, kaydı herkesin ekranından kaldırır ve veritabanından siler.';
+   return;
+ }
+ del.textContent='📁 Arşivle';
  const announced=wzg136AdminDates(selected),start=Date.parse(announced.startAt),end=Date.parse(announced.endAt),pending=announced.pending;
  const future=!pending&&selected.status==='active'&&start>now;
  const running=!pending&&selected.status==='active'&&start<=now&&end>now;
@@ -15433,7 +15435,6 @@ function wzgcUpdateToolbar(c){
  roster.disabled=selected.status==='cancelled';
  roster.title=roster.disabled?'İptal edilen çekiliş için katılımcı yönetimi kapalı.':'Sadece seçilen çekilişin katılımcılarını göster.';
  document.getElementById('wzgcActTemplate').disabled=false;
- const del=document.getElementById('wzgcActDelete');
  del.disabled=!['active','closed','drawn','cancelled'].includes(selected.status);
  del.title=selected.status==='drawing'?'Canlı kura sürerken arşivlenemez.':selected.status==='drawn'?'Tamamlanan çekilişi arşive taşır; kazanan ve denetim kayıtları korunur.':'Çekilişi arşive taşır; aktif katılım kapatılır ve kayıt geçmişi korunur.';
  const note=document.getElementById('wzgcActionNote');
@@ -15468,16 +15469,26 @@ async function wzgcToolbarAction(action){
  }else if(action==='template'){
    wzgcSaveTemplate('campaign',c.id,c.title);
  }else if(action==='delete'){
-   if(!['active','closed','drawn','cancelled'].includes(c.status))return alert('Canlı kura sürerken çekiliş kaldırılamaz.');
-   if(c.status==='drawing')return alert('Canlı kura sürerken çekiliş arşivlenemez. Önce kurayı tamamla.');
-   const message='“'+c.title+'” çekilişi arşive taşınsın mı? Kullanıcıların çekiliş ekranından ve normal yönetim listesinden gizlenecek; katılımcı ve kazanan geçmişi Arşiv bölümünde korunacak. Aktif katılım kapatılır ve ayrılan bilet hakları yeniden kullanılabilir olur.';
-   if(!confirm(message))return;
+   if(c.status==='drawing')return alert('Canlı kura sürerken bu işlem yapılamaz. Önce kurayı tamamla.');
+   if(wzgcIsArchivedCampaign(c)){
+     const typed=prompt('“'+String(c.title||'Bu çekiliş')+'” ve ilişkili katılımcı, kazanan, bilet ve kura geçmişini KALICI olarak silmek için KALICI_SIL yaz. Bu işlem geri alınamaz.');
+     if(typed!=='KALICI_SIL')return;
+     try{
+       const out=await wzg2AdminCall('/admin/giveaway/permanent-delete',{id:c.id,confirmation:'KALICI_SIL'});
+       alert('✅ '+(out.message||'Çekiliş kalıcı olarak silindi.'));
+       wzg78State.campaignId='';
+       await Promise.all([wzg2AdminRefresh(),wzgLoad()]);
+     }catch(e){alert('❌ '+String(e?.message||e))}
+     return;
+   }
+   if(!['active','closed','drawn','cancelled'].includes(c.status))return alert('Bu çekiliş arşivlenemez.');
+   if(!confirm('“'+c.title+'” çekilişi arşivlensin mi?\\n\\nÇekiliş kullanıcıların gördüğü çekiliş sayfasında görünmeye devam edecek. Katılım durumu, biletler, katılımcılar ve kazananlar değişmeyecek. Kalıcı olarak kaldırmak için sonradan aynı kaydı seçip Kalıcı Sil butonunu kullanabilirsin.'))return;
    try{
      const out=await wzg2AdminCall('/admin/giveaway/archive',{id:c.id,confirmation:'ARSIVLE'});
-     alert('📁 '+(out.message||'Çekiliş arşive taşındı.'));
-     if(wzg2EditCampaign?.id===c.id)wzg2CloseLiveEdit();
-     await Promise.all([wzg2AdminRefresh(),wzgLoad(),wzgLoadPublishedArchive(true)]);
+     alert('📦 '+(out.message||'Çekiliş arşivlendi; kullanıcı sayfasında görünmeye devam ediyor.'));
+     await Promise.all([wzg2AdminRefresh(),wzgLoad()]);
    }catch(e){alert('❌ '+String(e?.message||e))}
+
  }
 }
 async function wzgLoadPublishedArchive(force=false){
@@ -15652,7 +15663,7 @@ function wzgcSyncCampaigns(campaigns){
  const picker=document.getElementById('wzgcCampaign');if(!picker)return false;
  wzgcLastCampaigns=campaigns||[];
  const previousId=wzg78State.campaignId,previousDraft=wzgcSelectedDraftId;
- const eligible=(campaigns||[]).filter(c=>c.status!=='cancelled'&&c.status!=='hidden');
+ const eligible=(campaigns||[]).filter(c=>(c.status!=='cancelled'&&c.status!=='hidden')||wzgcIsArchivedCampaign(c));
  const rank=c=>c.status==='active'?0:c.status==='closed'||c.status==='drawing'?1:2;
  const ordered=[...eligible].sort((a,b)=>rank(a)-rank(b)||String(b.created_at||'').localeCompare(String(a.created_at||'')));
  const drafts=(wzgCache||[]).filter(b=>!Number(b.published)&&b.status==='draft');
@@ -15661,7 +15672,7 @@ function wzgcSyncCampaigns(campaigns){
  placeholder.textContent=wzgcCreating?'— Yeni çekiliş oluşturuluyor —':'— Çekiliş / taslak seç —';
  options.append(placeholder);
  for(const c of ordered){const o=document.createElement('option');o.value=c.id;
-  o.textContent=(c.status==='active'?(wzg136AdminDates(c).pending?'📢 ':Date.parse(c.start_at)>Date.now()?'📅 ':'🟢 '):c.status==='closed'?'⏳ ':c.status==='drawing'?'🎥 ':'🏆 ')+c.title+' — '+c.prize_title;options.append(o);
+  o.textContent=(wzgcIsArchivedCampaign(c)?'📦 ARŞİV · ':c.status==='active'?(wzg136AdminDates(c).pending?'📢 ':Date.parse(c.start_at)>Date.now()?'📅 ':'🟢 '):c.status==='closed'?'⏳ ':c.status==='drawing'?'🎥 ':c.status==='cancelled'?'⛔ ':'🏆 ')+c.title+' — '+c.prize_title;options.append(o);
  }
  for(const b of drafts){const o=document.createElement('option');o.value='draft:'+b.id;
   o.textContent='📝 TASLAK · '+b.title+' — '+b.prize_title;options.append(o);
@@ -15680,7 +15691,7 @@ function wzgcSyncCampaigns(campaigns){
  const changed=previousId!==wzg78State.campaignId||previousDraft!==wzgcSelectedDraftId;
  if(changed)wzgcUpdateToolbar(null);
  const info=document.getElementById('wzgcSelectedInfo');
- if(info)info.textContent=candidate?'🎯 Seçili: '+candidate.record.title+' • '+(candidate.kind==='draft'?'📝 Taslak':wzg69Status[candidate.record.status]||candidate.record.status):wzgcCreating?'➕ Yeni çekiliş hazırlanıyor. Henüz mevcut bir çekiliş seçilmedi.':'Yönetmek için çekiliş veya taslak seç.';
+ if(info)info.textContent=candidate?'🎯 Seçili: '+candidate.record.title+' • '+(candidate.kind==='draft'?'📝 Taslak':wzgcIsArchivedCampaign(candidate.record)?'📦 ARŞİV':wzg69Status[candidate.record.status]||candidate.record.status):wzgcCreating?'➕ Yeni çekiliş hazırlanıyor. Henüz mevcut bir çekiliş seçilmedi.':'Yönetmek için çekiliş veya taslak seç.';
  return changed;
 }
 function wzgcSelect(value){
