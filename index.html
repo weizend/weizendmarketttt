@@ -19670,7 +19670,7 @@ return;
 
 <script id="wzsp103-profile-script">
 (()=>{
- let lastFetch=0,fetchInFlight=false,nextAt=0,active=false,isGiftMode=false,isAdminMode=false,lastToken='';
+ let lastFetch=0,fetchInFlight=false,nextAt=0,active=false,isGiftMode=false,isAdminMode=false,lastToken='',wasProfileVisible=false;
  const el=id=>document.getElementById(id),set=(id,v)=>{const x=el(id);if(x)x.textContent=v};
  const show=(id,yes)=>{const x=el(id);if(x){x.hidden=!yes;x.style.display=yes?'':'none'}};
  function count(){
@@ -19685,11 +19685,11 @@ return;
   set('wzSp103Timer',days+' gün '+String(hrs).padStart(2,'0')+' saat '+String(mins).padStart(2,'0')+' dk '+String(secs).padStart(2,'0')+' sn');
  }
  function reset(){active=false;isGiftMode=false;isAdminMode=false;nextAt=0;set('wzSp103Months','Yok');set('wzSp103Note','Doğrulanmış abonelik bulunamadı.');show('wzSp103RenewRow',false);show('wzSp103GiftFromRow',false);set('wzSp103GiftFrom','–');show('wzSp103Countdown',false)}
- async function fetchProfile(){
+ async function fetchProfile(force=false){
   const token=localStorage.getItem('weizend_market_session_secure_v2')||'';
   if(!token){lastToken='';reset();return}
   if(fetchInFlight)return;
-  if(Date.now()-lastFetch<120000 && token===lastToken)return;
+  if(!force&&Date.now()-lastFetch<120000 && token===lastToken)return;
   fetchInFlight=true;lastFetch=Date.now();lastToken=token;
   try{
    const response=await fetch('https://www.weizend.com/api/subscription/my',{headers:{Authorization:'Bearer '+token,Accept:'application/json'},cache:'no-store'});
@@ -19699,7 +19699,7 @@ return;
     set('wzSp103Months',info.display||'Kontrol edilemedi');
     set('wzSp103Note',info.note||'Abonelik durumu kontrol edilemedi.');
    }return}
-   active=true;const isGift=info.source==='verified_admin_gift',isManual=info.source==='admin_manual';isGiftMode=isGift;isAdminMode=isManual;
+   active=true;const source=String(info.source||'').toLowerCase();const isGift=info.isGift===true||['verified_admin_gift','kick_verified_gift','gift','kick_gift'].includes(source),isManual=source==='admin_manual';isGiftMode=isGift;isAdminMode=isManual;
    set('wzSp103Months',isGift?(info.display||'Hediye • 1 AY'):String(info.months||1)+' AY');
    const giftGiver=isGift&&typeof info.giftFrom==='string'?info.giftFrom.trim().replace(/^@+/,''):'';
    const hasGiftGiver=Boolean(giftGiver)&&giftGiver.length<=80;
@@ -19719,7 +19719,7 @@ return;
   }catch(err){show('wzSp103GiftFromRow',false);set('wzSp103GiftFrom','–');set('wzSp103Months','Kontrol edilemedi');set('wzSp103Note','Abonelik servisine ulaşılamadı. Tekrar deneyebilirsiniz.');show('wzSp103Countdown',false)}
   finally{fetchInFlight=false}
  }
- function maybe(){if(document.body?.classList.contains('wz-view-profile'))fetchProfile()}
+ function maybe(){const visible=document.body?.classList.contains('wz-view-profile')===true;if(visible&&!wasProfileVisible){wasProfileVisible=true;fetchProfile(true)}else if(!visible){wasProfileVisible=false}}
  function begin(){
   maybe();const ob=new MutationObserver(maybe);ob.observe(document.body,{attributes:true,attributeFilter:['class']});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)maybe()});
