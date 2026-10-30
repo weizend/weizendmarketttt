@@ -19798,7 +19798,11 @@ return;
  function begin(){
   maybe();const ob=new MutationObserver(maybe);ob.observe(document.body,{attributes:true,attributeFilter:['class']});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)maybe()});
-  setInterval(()=>{if(!document.hidden&&document.body.classList.contains('wz-view-profile')){count();maybe()}},1000);
+  setInterval(()=>{if(!document.hidden&&document.body.classList.contains('wz-view-profile')){
+   count();maybe();
+   // Keep subscription details current when a gift/subscription arrives while the profile is open.
+   if(!fetchInFlight&&Date.now()-lastFetch>=120000)fetchProfile(true);
+  }},1000);
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',begin,{once:true});else begin();
 })();
