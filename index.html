@@ -6139,7 +6139,7 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
       <div class="wzsp103-note-actions">
         <p id="wzSp103Note" class="wzsp103-note">Abonelik durumu kontrol ediliyor.</p>
         <div id="wzSp103CtaRow" class="wzsp103-cta-row" hidden>
-          <a id="wzSp103Cta" class="wzsp103-cta" href="https://kick.com/weizend" target="_blank" rel="noopener noreferrer">Abone Ol</a>
+          <a id="wzSp103Cta" class="wzsp103-cta" href="https://kick.com/weizend/subscribe" target="_blank" rel="noopener noreferrer">Abone Ol</a>
         </div>
       </div>
     </section>
@@ -19685,12 +19685,37 @@ return;
  let lastFetch=0,fetchInFlight=false,nextAt=0,active=false,isGiftMode=false,isAdminMode=false,lastToken='',wasProfileVisible=false;
  const el=id=>document.getElementById(id),set=(id,v)=>{const x=el(id);if(x)x.textContent=v};
  const show=(id,yes)=>{const x=el(id);if(x){x.hidden=!yes;x.style.display=yes?'':'none'}};
+ const KICK_SUBSCRIBE_URL='https://kick.com/weizend/subscribe';
+ function openKickSubscribe(event){
+  if(event){event.preventDefault();event.stopPropagation()}
+  const ua=String(navigator.userAgent||'');
+  const isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(ua)||
+   (/Macintosh/i.test(ua)&&Number(navigator.maxTouchPoints||0)>1);
+  if(isMobile){
+   // Mobil cihazlarda Kick abonelik sayfasını ayrı sekmede aç.
+   window.open(KICK_SUBSCRIBE_URL,'_blank','noopener,noreferrer');
+   return;
+  }
+  // Masaüstünde ayrı, boyutlandırılabilir bir pencere aç.
+  const sw=Number(window.screen?.availWidth||window.innerWidth||1440);
+  const sh=Number(window.screen?.availHeight||window.innerHeight||900);
+  const width=Math.min(1180,Math.max(760,Math.floor(sw*.82)));
+  const height=Math.min(900,Math.max(650,Math.floor(sh*.88)));
+  const left=Math.max(0,Math.floor((sw-width)/2+(window.screen?.availLeft||0)));
+  const top=Math.max(0,Math.floor((sh-height)/2+(window.screen?.availTop||0)));
+  window.open(KICK_SUBSCRIBE_URL,'weizendKickSubscribeWindow',
+   'popup=yes,width='+width+',height='+height+',left='+left+',top='+top+',resizable=yes,scrollbars=yes');
+ }
  function showCta(kind){
   const link=el('wzSp103Cta');
   if(!link)return;
   if(!kind){show('wzSp103CtaRow',false);return}
-  link.href='https://kick.com/weizend';
+  link.href=KICK_SUBSCRIBE_URL;
   link.textContent=kind==='renew'?'Aboneliği Yenile':'Abone Ol';
+  if(!link.dataset.wzKickSubscribeBound){
+   link.addEventListener('click',openKickSubscribe);
+   link.dataset.wzKickSubscribeBound='1';
+  }
   show('wzSp103CtaRow',true);
  }
  function formatSubscriptionDate(value){
