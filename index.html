@@ -10769,7 +10769,7 @@ return;
                     : '⏳ ÖNEMLİ: Katılım işlemini ekranda gösterilen süre dolmadan tamamla.');
 
             titleEl.innerText = title;
-            statusEl.innerText = [String(message || '').trim(), warning].filter(Boolean).join('\\n\\n');
+            statusEl.innerText = [String(message || '').trim(), warning].filter(Boolean).join('\n\n');
             commandEl.innerText = codeText || '';
             if (policyEl) {
                 policyEl.textContent = policyText;
@@ -10811,7 +10811,7 @@ return;
                 const clock = hours>0
                     ? String(hours).padStart(2,'0')+':'+String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0')
                     : String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0');
-                timerEl.innerText = '⏳ KALAN SÜRE: '+clock+'\\nİşlemini bu süre dolmadan tamamla ve ardından turnuva ekranına dön.';
+                timerEl.innerText = '⏳ KALAN SÜRE: '+clock+'\nİşlemini bu süre dolmadan tamamla ve ardından turnuva ekranına dön.';
                 openButton.disabled = false;
             };
 
@@ -10827,7 +10827,7 @@ return;
             modal.scrollTop = 0;
             const inner = modal.querySelector('.redirect-modal-body');
             if (inner) inner.scrollTop = 0;
-            timerEl.innerText = '';
+            // V31.1.86: Do not clear timerEl after rendering the deadline.
         }
 
         function wzOpenPendingExternalPayment() {
