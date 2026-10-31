@@ -5081,7 +5081,20 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
   touch-action:pan-y pinch-zoom!important;
 }
 #redirectModal.wz-payment-guide:not([data-wz-payment-kind="tl"]) #modalCommandText {display:none!important}
-#redirectModal.wz-payment-guide #timerText {display:none!important}
+#redirectModal.wz-payment-guide #timerText {
+  display:block!important;
+  margin:12px 0 0!important;
+  padding:11px 12px!important;
+  border:1px solid #795c24!important;
+  border-radius:10px!important;
+  background:#241b0a!important;
+  color:#ffe29c!important;
+  font-size:.9rem!important;
+  font-weight:850!important;
+  line-height:1.5!important;
+  text-align:center!important;
+  white-space:pre-line!important;
+}
 #redirectModal.wz-payment-guide #redirectExternalOpenButton {
   display:block!important;
   width:100%!important;
@@ -10717,6 +10730,7 @@ return;
             policyText='',
             paymentKind='',
             subscriptionPaymentId='',
+            deadlineAt='',
             buttonText='ÖDEME SAYFASINI AÇ'
         }) {
             pendingExternalPaymentCode = String(codeText || '').trim();
@@ -10745,8 +10759,17 @@ return;
                 redirectTimer = null;
             }
 
+            const safePaymentKind = String(paymentKind || (/bynogame/i.test(String(url)) ? 'tl' : 'direct'));
+            const deadlineMs = Date.parse(String(deadlineAt || ''));
+            const hasDeadline = Number.isFinite(deadlineMs);
+            const warning = safePaymentKind === 'tl'
+                ? '⏳ ÖNEMLİ: Bağışını ödeme kodunun geçerlilik süresi ve turnuvanın kayıt kapanış tarihi dolmadan tamamla. Süre dolduktan sonra gelen ödeme bu bekleyen kayda sayılmaz; gerekirse yeniden kayıt olman gerekir.'
+                : (['direct','gift'].includes(safePaymentKind)
+                    ? '⏳ ÖNEMLİ: Gerekli abonelik veya hediye aboneliği aşağıdaki süre dolmadan tamamla. Süre dolduktan sonra yapılan işlem bu bekleyen kayda sayılmaz; kayıt iptal edilir ve yeniden kayıt olman gerekir.'
+                    : '⏳ ÖNEMLİ: Katılım işlemini ekranda gösterilen süre dolmadan tamamla.');
+
             titleEl.innerText = title;
-            statusEl.innerText = message;
+            statusEl.innerText = [String(message || '').trim(), warning].filter(Boolean).join('\\n\\n');
             commandEl.innerText = codeText || '';
             if (policyEl) {
                 policyEl.textContent = policyText;
@@ -10755,17 +10778,48 @@ return;
             modal.classList.add('wz-payment-guide');
             const kickButton = document.getElementById('wzKickChatManualButton');
             if (kickButton) kickButton.style.display = 'none';
-            modal.dataset.wzPaymentKind = String(paymentKind || (/bynogame/i.test(String(url)) ? 'tl' : 'direct'));
+            modal.dataset.wzPaymentKind = safePaymentKind;
             modal.dataset.wzSubscriptionPaymentId = String(subscriptionPaymentId || '');
             modal.dataset.wzSubscriptionReturnReady = '0';
+            modal.dataset.wzDeadlineAt = hasDeadline ? new Date(deadlineMs).toISOString() : '';
             openButton.innerText = buttonText;
             openButton.style.display = 'block';
             openButton.disabled = false;
             if (cancelButton) cancelButton.innerText = 'Kapat';
 
-            timerEl.innerText = wzExternalPaymentIsMobileLike()
-                ? 'Mobilde küçük pencere desteklenirse popup açılır; tarayıcın desteklemiyorsa yeni sekme açılır. Weizend sayfası kapanmaz.'
-                : 'Masaüstünde ödeme sayfası küçük ayrı pencerede açılır.';
+            const renderDeadline = () => {
+                if (!hasDeadline) {
+                    timerEl.innerText = safePaymentKind === 'tl'
+                        ? '⏳ Ödeme kodu / kayıt kapanış süresi dolmadan bağışını tamamla.'
+                        : '⏳ Abonelik şartını 10 dakika dolmadan tamamla.';
+                    return;
+                }
+                const remaining = Math.max(0,deadlineMs-Date.now());
+                if (remaining <= 0) {
+                    timerEl.innerText = safePaymentKind === 'tl'
+                        ? '⛔ Ödeme süresi doldu. Bu kodla bekleyen kayıt tamamlanamaz; turnuvaya dönüp durumu kontrol et.'
+                        : '⛔ 10 dakikalık kayıt süresi doldu. Bu işlem artık bekleyen kayda sayılmaz; yeniden kayıt olmalısın.';
+                    openButton.disabled = true;
+                    openButton.innerText = 'SÜRE DOLDU';
+                    if (redirectTimer) { clearInterval(redirectTimer); redirectTimer = null; }
+                    return;
+                }
+                const totalSeconds = Math.ceil(remaining/1000);
+                const hours = Math.floor(totalSeconds/3600);
+                const minutes = Math.floor((totalSeconds%3600)/60);
+                const seconds = totalSeconds%60;
+                const clock = hours>0
+                    ? String(hours).padStart(2,'0')+':'+String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0')
+                    : String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0');
+                timerEl.innerText = '⏳ KALAN SÜRE: '+clock+'\\nİşlemini bu süre dolmadan tamamla ve ardından turnuva ekranına dön.';
+                openButton.disabled = false;
+            };
+
+            timerEl.style.display = 'block';
+            renderDeadline();
+            if (hasDeadline && deadlineMs>Date.now()) {
+                redirectTimer = setInterval(renderDeadline,1000);
+            }
 
             modal.style.display = 'flex';
 
@@ -10796,6 +10850,14 @@ return;
             }
             const modal = document.getElementById('redirectModal');
             const kind = String(modal?.dataset.wzPaymentKind || '');
+            const deadlineMs = Date.parse(String(modal?.dataset.wzDeadlineAt || ''));
+            if (Number.isFinite(deadlineMs) && Date.now() >= deadlineMs) {
+                if (timerEl) timerEl.innerText = kind === 'tl'
+                    ? '⛔ Ödeme süresi doldu. Bu ödeme koduyla bekleyen kayıt tamamlanamaz.'
+                    : '⛔ Kayıt süresi doldu. Yeni bir kayıt başlatmalısın.';
+                if (openButton) { openButton.disabled = true; openButton.innerText = 'SÜRE DOLDU'; }
+                return;
+            }
             const isSubscription = ['direct','gift'].includes(kind) && !!modal?.dataset.wzSubscriptionPaymentId;
             const opened = wzOpenExternalPaymentWindow(url);
             let externalOpened = !!opened;
@@ -10827,15 +10889,34 @@ return;
 
         function showBynoGameRedirect(reference, amounts=null) {
             let pending=amounts;
-            if(!pending){
-                const active=tv2State?.me?.activePayment;
-                if(active && String(active.reference||'')===String(reference||'')) pending=tv3PaymentAmounts(active);
+            let deadlineAt='';
+            const active=tv2State?.me?.activePayment;
+            if(active && String(active.reference||'')===String(reference||'')) {
+                if(!pending)pending=tv3PaymentAmounts(active);
+                deadlineAt=active.expiresAt||'';
             }
-            if(!pending){
+            if(!pending || !deadlineAt){
                 try{
                     const saved=JSON.parse(localStorage.getItem(TV3_PENDING_TL_KEY)||'null');
-                    if(saved && String(saved.reference)===String(reference)) pending={expected:Number(saved.expectedAmountCents||0),received:0,remaining:Number(saved.expectedAmountCents||0)};
+                    if(saved && String(saved.reference)===String(reference)){
+                        if(!pending)pending={expected:Number(saved.expectedAmountCents||0),received:0,remaining:Number(saved.expectedAmountCents||0)};
+                        deadlineAt=deadlineAt||saved.expiresAt||'';
+                    }
                 }catch(_){}
+            }
+            if(!deadlineAt){
+                try{
+                    const savedV2=JSON.parse(localStorage.getItem(TV2_PENDING_TL_KEY)||'null');
+                    if(savedV2 && String(savedV2.reference)===String(reference))deadlineAt=savedV2.expiresAt||'';
+                }catch(_){}
+            }
+            const turnRule=tv2State?.me?.rule||tv2State?.publicData?.rule||{};
+            const turnTournament=tv2State?.publicData?.tournament||{};
+            const registrationClose=turnRule.registrationClosesAt||turnTournament.registrationClosesAt||'';
+            const closeMs=Date.parse(String(registrationClose||''));
+            const paymentDeadlineMs=Date.parse(String(deadlineAt||''));
+            if(Number.isFinite(closeMs)&&(!Number.isFinite(paymentDeadlineMs)||closeMs<paymentDeadlineMs)){
+                deadlineAt=new Date(closeMs).toISOString();
             }
             const hasAmount=pending && Number(pending.expected||0)>0;
             const detail = hasAmount
@@ -10848,6 +10929,7 @@ return;
                 codeText: reference,
                 policyText: 'Eksik ödersen kalan tutarı aynı kodla tamamlayabilirsin.\nFazla bağışın iadesi yapılmaz.',
                 paymentKind: 'tl',
+                deadlineAt,
                 buttonText: '📋 KODU KOPYALA · DEVAM ET'
             });
         }
@@ -13224,7 +13306,9 @@ return;
         wzShowExternalPaymentModal({
             url: TV2_KICK_CHANNEL_URL,
             title, message, codeText:'', paymentKind:kind,
-            subscriptionPaymentId:String(p?.id || ''), buttonText
+            subscriptionPaymentId:String(p?.id || ''),
+            deadlineAt:p?.expiresAt || '',
+            buttonText
         });
     }
 
@@ -13585,6 +13669,7 @@ return;
         const fee = tv2Esc(formatTlFromCents(t?.feePerPlayerCents || 0));
         if (mode === 'subscription') return {
             mode, label:'⭐ ABONELİKLE KATILIM',
+            timeNotice:'⏳ ÖNEMLİ: Kayıt işlemini başlattıktan sonra gerekli normal abonelik veya hediye abonelik şartını 10 dakika içinde tamamlamalısın. Süre dolduktan sonra yapılan işlem bu bekleyen kayda sayılmaz; kayıt iptal edilir ve yeniden kayıt olman gerekir.',
             overviewTeam:'⭐ Bu turnuva Kick aboneliği veya hediye abonelik şartıyla düzenleniyor. Her oyuncu kendi hesabıyla şartını tamamlayınca takım hazır olur.',
             overviewSolo:'⭐ Kaydının tamamlanması için Kick abonelik şartının doğrulanması gerekir.',
             selectionTeam:'Kaptan takımı oluşturur. Ardından her oyuncu Kick aboneliği veya hediye abonelik şartını kendi hesabıyla tamamlar. Takım arkadaşı davet koduyla katılır.',
@@ -13606,6 +13691,7 @@ return;
         };
         if (mode === 'tl') return {
             mode, label:'💸 BAĞIŞLA KATILIM',
+            timeNotice:'⏳ ÖNEMLİ: Bağışını oluşturulan ödeme kodunun geçerlilik süresi ve turnuvanın kayıt kapanış tarihi dolmadan tamamla. Bu sürelerden biri dolduktan sonra gelen ödeme bekleyen kaydı tamamlamaz; ödeme kodu geçersizse yeni ödeme işlemi başlatman gerekir.',
             overviewTeam:`💸 Bu turnuvaya katılım için kişi başı ${fee} bağış gerekir. Her koltuğun bağış doğrulaması tamamlanınca takım hazır olur.`,
             overviewSolo:`💸 Katılım için kişi başı ${fee} bağış ve ödeme doğrulaması gerekir.`,
             selectionTeam:'Kaptan takımını oluşturur ve kaç oyuncunun katılım bağışını yapacağını seçer. Takım arkadaşı davet koduyla katılır; ödenmiş koltuk için yeniden bağış yapmaz.',
@@ -13626,7 +13712,7 @@ return;
             inviteStep:'Koltuk önceden ödenmemişse katılım bağışını tamamla.'
         };
         return {
-            mode:'free', label:'🎁 ÜCRETSİZ KATILIM',
+            mode:'free', label:'🎁 ÜCRETSİZ KATILIM', timeNotice:'',
             overviewTeam:'🎁 Bu turnuvaya katılım ücretsizdir. Kaptan takımını kurar, arkadaşı davet koduyla katılır; takım kadrosu tamamlanınca hazır olur.',
             overviewSolo:'🎁 Bu turnuva ücretsizdir. Oyun içi adını girip kaydını tamamla.',
             selectionTeam:'🎁 Ücretsiz turnuva: Kaptan takımını oluşturur; arkadaşına tek kullanımlık davet kodu gönderir. Arkadaşın kendi hesabıyla kodu girerek takıma katılır.',
@@ -13821,6 +13907,7 @@ return;
                     <div class="tv3-payment-note">
                         ${a.received > 0 ? `Eksik tutarı tamamlarken <b>aynı ödeme kodunu</b> kullan.` : 'Bağış mesajına yalnızca yukarıdaki tek kullanımlık ödeme kodunu yaz.'}
                     </div>
+                    <div class="tv2-message" style="margin-top:10px;border-color:#8a6421;background:#241b0a;color:#f6d98b;">⏳ Bağışını bu ödeme kodunun geçerlilik süresi ve turnuvanın kayıt kapanış tarihi dolmadan tamamla. Süre dolduktan sonra gelen ödeme bekleyen kaydı otomatik tamamlamaz.</div>
                     <div class="tv2-actions">
                         ${reference ? `<button class="tv2-btn" onclick="tv3ContinueTlPayment('${tv2Esc(payment.id)}','${tv2Esc(reference)}')">${a.received > 0 ? '💳 TUTARI TAMAMLA' : '💳 BYNOGAME\'E GİT'}</button>` : ''}
                         <button class="tv2-btn secondary" onclick="tv3CheckTlPayment('${tv2Esc(payment.id)}',true)">🔄 ÖDEMEYİ KONTROL ET</button>
@@ -13842,7 +13929,7 @@ return;
         const initialSeconds = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
         const initialLabel = `${String(Math.floor(initialSeconds / 60)).padStart(2, '0')}:${String(initialSeconds % 60).padStart(2, '0')}`;
         const initialMessage = initialSeconds > 0
-            ? '5 dakika içinde tamamlanmazsa bekleyen kayıt otomatik iptal edilir.'
+            ? '10 dakika içinde tamamlanmazsa bekleyen kayıt otomatik iptal edilir.'
             : 'Süre doldu. Sunucu kayıt durumunu doğruluyor…';
         return `<div class="tv3-payment-expiry" data-tv3-sub-expiry="1"
             data-payment-id="${tv2Esc(p.id)}" data-tournament-id="${tv2Esc(tournamentId || tv2State.tournamentId || '')}"
@@ -13929,7 +14016,7 @@ return;
                     ${giftsRequired ? `<div><span>Gift</span><b>${giftsReceived} / ${giftsRequired}</b></div>` : ''}
                 </div>
                 ${pending ? tv3SubscriptionExpiryHtml(p, tv2State.tournamentId) : ''}
-                ${expired ? '<div class="tv2-message error">5 dakikalık süre içinde katılım şartı tamamlanmadı. Bekleyen kayıt iptal edildi. Yeniden katılmak için tekrar kayıt ol.</div>' : ''}
+                ${expired ? '<div class="tv2-message error">10 dakikalık süre içinde katılım şartı tamamlanmadı. Bekleyen kayıt iptal edildi. Yeniden katılmak için tekrar kayıt ol.</div>' : ''}
                 ${pending ? `
                     <div class="tv2-actions">
                         <button class="tv2-btn" onclick="tv2OpenKickChannel(tv2State.me?.subscriptionPayments?.find(x=>String(x.id)==='${tv2Esc(p.id)}')||null)">${awaitingGift ? '🎁 HEDİYE ABONELİK SAYFASINI AÇ' : '⭐ KICK ABONELİK SAYFASINI AÇ'}</button>
@@ -14074,6 +14161,7 @@ return;
                     <div class="tv2-muted" style="margin-top:9px;">
                         ${teamSize > 1 ? entryUX.overviewTeam : entryUX.overviewSolo}
                     </div>
+                    ${entryUX.timeNotice ? `<div class="tv2-message" style="margin-top:10px;border-color:#8a6421;background:#241b0a;color:#f6d98b;">${tv2Esc(entryUX.timeNotice)}</div>` : ''}
                     <div class="tv2-actions"><button class="tv2-btn secondary" onclick="tv3RefreshWithFeedback(this)">🔄 Yenile</button></div>
                 </div>
             </div>
@@ -14791,7 +14879,7 @@ return;
             const p = d.subscriptionPayment || d.payment || {};
             const paymentStatus = String(p.status || '').toLowerCase();
             if (paymentStatus === 'expired' || paymentStatus === 'cancelled') {
-                if (notify) showStatusToast('⏰ 5 dakikalık süre doldu. Tamamlanmayan kayıt iptal edildi.', 4800);
+                if (notify) showStatusToast('⏰ 10 dakikalık süre doldu. Tamamlanmayan kayıt iptal edildi.', 4800);
                 await tv2ReloadMe();
                 await tv2LoadCatalog(false);
                 document.dispatchEvent(new CustomEvent('wz:tournament-expiry-refresh', {
