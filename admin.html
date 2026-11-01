@@ -3540,7 +3540,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
           </div>
         </div>
 
-        <div class="tableWrap">
+        <div class="tableWrap" id="usersTableWrap">
           <table>
             <thead><tr>
               <th>Kick Adı</th><th>Takma Ad</th><th>Puan</th><th>🎟️ Bilet</th><th>Level</th>
@@ -4651,6 +4651,13 @@ let productsCache = [];
 let paymentsCache = [];
 let adminOrdersCache = [];
 let usersCache = [];
+let usersOffset = 0;
+let usersTotal = 0;
+let usersHasMore = false;
+let usersLoading = false;
+let usersRequestId = 0;
+let usersScrollBound = false;
+let usersCurrentQuery = '';
 let editingProductId = null;
 let currentAdminUser = null;
 let currentAdminThread = null;
@@ -7315,61 +7322,110 @@ function scheduleUserSearch(){
   userSearchTimer = setTimeout(() => loadUsers(),300);
 }
 
-async function loadUsers(){
-  const q = String(document.getElementById('userSearch')?.value || '').trim();
-  const status = String(document.getElementById('userStatusFilter')?.value || '').trim();
-  const params = new URLSearchParams();
-  if(q) params.set('q',q);
-  if(status) params.set('status',status);
+function bindUsersInfiniteScroll(){
+  const wrap=document.getElementById('usersTableWrap');
+  if(!wrap || wrap.dataset.wzUsersScrollBound==='1') return;
+  wrap.dataset.wzUsersScrollBound='1';
+  wrap.addEventListener('scroll',()=>{
+    if(usersLoading || !usersHasMore) return;
+    const remaining=wrap.scrollHeight-wrap.scrollTop-wrap.clientHeight;
+    // İlk 11 satırdan yalnızca ilk 10'u görünür; 11. satıra doğru
+    // gerçekten aşağı kaydırıldığında yeni 10'lu grup alınır.
+    if(wrap.scrollTop>0 && remaining<32) loadUsers({append:true});
+  },{passive:true});
+  usersScrollBound=true;
+}
 
-  const body = document.getElementById('usersBody');
-  const count = document.getElementById('userCount');
-  if(body) body.innerHTML = '<tr><td colspan="8" class="muted">⏳ Kullanıcılar yükleniyor...</td></tr>';
-  if(count) count.textContent = 'Kullanıcılar yükleniyor...';
+async function loadUsers(options={}){
+  const append=!!options.append;
+  if(append && (usersLoading || !usersHasMore)) return;
+  const requestId=append?usersRequestId:++usersRequestId;
+  const q=String(document.getElementById('userSearch')?.value||'').trim();
+  const status=String(document.getElementById('userStatusFilter')?.value||'').trim();
+  const body=document.getElementById('usersBody');
+  const count=document.getElementById('userCount');
 
+  if(!append){
+    usersOffset=0;
+    usersTotal=0;
+    usersHasMore=false;
+    usersCache=[];
+    usersCurrentQuery=q;
+    if(body) body.innerHTML='<tr><td colspan="9" class="muted">⏳ Kullanıcılar yükleniyor...</td></tr>';
+    if(count) count.textContent='Kullanıcılar yükleniyor...';
+  }
+
+  usersLoading=true;
+  bindUsersInfiniteScroll();
   try{
-    const query = params.toString() ? `?${params.toString()}` : '';
-    const {r,d} = await api(`/admin/users${query}`);
-    if(!r.ok || !d?.success) throw new Error(d?.error || `HTTP ${r.status}`);
-    usersCache = Array.isArray(d.users) ? d.users : [];
+    const params=new URLSearchParams();
+    if(q) params.set('q',q);
+    if(status) params.set('status',status);
+    params.set('offset',String(usersOffset));
+    // İlk istekte 11 satır al: genel Admin listesi penceresi ilk 10 satırı
+    // gösterir; 11. satıra doğru kaydırma sonraki 10 satırı tetikler.
+    params.set('limit',String(usersOffset===0?11:10));
+    const {r,d}=await api(`/admin/users?${params.toString()}`);
+    if(requestId!==usersRequestId) return;
+    if(!r.ok || !d?.success) throw new Error(d?.error||`HTTP ${r.status}`);
+    const page=Array.isArray(d.users)?d.users:[];
+    usersCache=append?usersCache.concat(page):page;
+    usersTotal=Math.max(0,Number(d.total??usersCache.length)||0);
+    usersOffset=Number(d.nextOffset??(usersOffset+page.length))||0;
+    usersHasMore=Boolean(d.hasMore);
     renderUsers();
     hideStatus('usersStatus');
   }catch(error){
-    usersCache = [];
-    if(count) count.textContent = 'Kullanıcılar yüklenemedi';
-    if(body) body.innerHTML = `<tr><td colspan="8" class="muted">❌ ${esc(error.message || error)}</td></tr>`;
-    showStatus('usersStatus','❌ ' + esc(error.message || error),false);
+    if(requestId!==usersRequestId) return;
+    if(!append){
+      usersCache=[];
+      if(count) count.textContent='Kullanıcılar yüklenemedi';
+      if(body) body.innerHTML=`<tr><td colspan="9" class="muted">❌ ${esc(error.message||error)}</td></tr>`;
+    }
+    showStatus('usersStatus',append
+      ? '⚠️ Sonraki kullanıcılar yüklenemedi: '+esc(error.message||error)
+      : '❌ '+esc(error.message||error),false);
+  }finally{
+    if(requestId===usersRequestId) usersLoading=false;
   }
 }
 
 function renderUsers(){
-  const body = document.getElementById('usersBody');
-  const count = document.getElementById('userCount');
+  const body=document.getElementById('usersBody');
+  const count=document.getElementById('userCount');
   if(!body) return;
-  if(count) count.innerText = `${usersCache.length} kullanıcı`;
-  body.innerHTML = '';
-
-  if(usersCache.length === 0){
-    body.innerHTML = '<tr><td colspan="9" class="muted">Kullanıcı bulunamadı.</td></tr>';
+  const usersWrap=document.getElementById('usersTableWrap');
+  const previousScroll=usersWrap?.scrollTop||0;
+  if(count){
+    const shown=usersCache.length;
+    const total=usersTotal||shown;
+    count.innerText=usersHasMore
+      ? `${shown.toLocaleString('tr-TR')} / ${total.toLocaleString('tr-TR')} kullanıcı · Aşağı kaydırdıkça yüklenir`
+      : `${total.toLocaleString('tr-TR')} kullanıcı${usersCurrentQuery?' · arama sonucu':''}`;
+  }
+  body.innerHTML='';
+  if(usersCache.length===0){
+    body.innerHTML='<tr><td colspan="9" class="muted">Kullanıcı bulunamadı.</td></tr>';
     return;
   }
-
+  const fragment=document.createDocumentFragment();
   for(const u of usersCache){
-    const tr = document.createElement('tr');
-    if(u.status === 'blocked') tr.classList.add('user-row-blocked');
-    tr.innerHTML = `
-      <td><strong>${u.subscription?.active?'⭐ ':''}${esc(u.username || '-')}</strong>${u.subscription?.active?`<div class="muted" style="font-size:11px">${Number(u.subscription.months||1)} AY</div>`:''}</td>
-      <td>${esc(u.nickname || '-')}</td>
+    const tr=document.createElement('tr');
+    if(u.status==='blocked') tr.classList.add('user-row-blocked');
+    tr.innerHTML=`
+      <td><strong>${u.subscription?.active?'⭐ ':''}${esc(u.username||'-')}</strong>${u.subscription?.active?`<div class="muted" style="font-size:11px">${Number(u.subscription.months||1)} AY</div>`:''}</td>
+      <td>${esc(u.nickname||'-')}</td>
       <td>${esc(points(u.points))}</td>
       <td>${esc(String(u.ticketsAvailable??0))}</td>
-      <td>${esc(u.level ?? '-')}</td>
+      <td>${esc(u.level??'-')}</td>
       <td>${esc(dateText(u.first_verified_at))}</td>
-      <td>${esc(dateText(u.last_seen_at || u.last_activity_at))}</td>
-      <td><span class="badge ${userStatusBadge(u.status)}" ${u.blocked_reason ? `title="${esc(u.blocked_reason)}"` : ''}>${esc(userStatusText(u.status))}</span></td>
-      <td><button class="smallBtn secondary" onclick="openUser('${encodeURIComponent(u.kick_uid)}')">⚙️ İşlem Yap</button></td>
-    `;
-    body.appendChild(tr);
+      <td>${esc(dateText(u.last_seen_at||u.last_activity_at))}</td>
+      <td><span class="badge ${userStatusBadge(u.status)}" ${u.blocked_reason?`title="${esc(u.blocked_reason)}"`:''}>${esc(userStatusText(u.status))}</span></td>
+      <td><button class="smallBtn secondary" onclick="openUser('${encodeURIComponent(u.kick_uid)}')">⚙️ İşlem Yap</button></td>`;
+    fragment.appendChild(tr);
   }
+  body.appendChild(fragment);
+  if(usersWrap) usersWrap.scrollTop=previousScroll;
 }
 
 async function openUser(encodedUid){
