@@ -5930,7 +5930,8 @@ function renderSupportRewardEvents(){
     const canCancel=!usedCode && giftStatus!=='processing' &&
       (eventStatus==='code_issued' && giftStatus==='unused' ||
        eventStatus==='pending_identity' && !hasAssignedGift);
-    const canDelete=usedCode || eventStatus==='cancelled' ||
+    // Turnuvada kullanılmış kayıt da silinmez; yalnızca Admin listesinden gizlenir.
+    const canDelete=usedCode || eventStatus==='cancelled' || eventStatus==='ignored_tournament' ||
       (eventStatus==='code_issued' && giftStatus==='disabled');
     const codeLast4=String(item.redeem_code_last4||'').trim();
     const codeText=codeLast4 ? `••••-${codeLast4}` : '-';
@@ -5979,7 +5980,7 @@ function renderSupportRewardEvents(){
       <td>${canCancel
         ? `<button class="smallBtn danger" onclick="cancelSupportRewardEvent('${encodeURIComponent(item.id)}')">🚫 İptal Et</button>`
         : canDelete
-          ? `<button class="iconDanger" title="Destek ödülünü listeden kaldır; kullanılmış kod ve puan korunur" aria-label="Destek kaydını sil" onclick="deleteSupportRewardEvent('${encodeURIComponent(item.id)}')">🗑️</button>`
+          ? `<button class="iconDanger" title="Kaydı Admin listesinden gizle; turnuva kullanımı, kod, puan ve Gift hakkı korunur" aria-label="Destek kaydını sil" onclick="deleteSupportRewardEvent('${encodeURIComponent(item.id)}')">🗑️</button>`
           : '<span class="muted">-</span>'}</td>`;
     fragment.appendChild(tr);
   }
@@ -6215,7 +6216,7 @@ async function cancelSupportRewardEvent(encodedId){
 async function deleteSupportRewardEvent(encodedId){
   const id=decodeURIComponent(encodedId||'');
   if(!id) return;
-  if(!confirm('Bu destek kaydı Admin listesinden gizlensin mi?\n\nKullanılmış hediye kodu, verilmiş puan, Gift abonelik alıcıları ve denetim geçmişi korunacaktır.')) return;
+  if(!confirm('Bu destek kaydı Admin listesinden gizlensin mi?\n\nTurnuvada kullanılan destek kaydının asıl geçmişi, turnuva tahsisi, puanlar, varsa Gift alıcıları ve denetim kayıtları korunacaktır. Yalnızca bu Admin listesinden gizlenecektir.')) return;
 
   try{
     const {r,d}=await api('/admin/support-rewards/event/delete',{
