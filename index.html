@@ -16188,6 +16188,8 @@ return;
             : ''}
       </div>`).join('')}</div>`;
   }
+  // V31.1.91: Timeline ticks run every second. Keep the registration CTA's
+  // authentication state in sync; never overwrite the guest CTA with "KAYIT OL".
   function updateTournamentTimelineDom(){
     if(state.screen!=='detail' || !state.selectedId) return;
     const item=getItem(state.selectedId);
@@ -16204,10 +16206,36 @@ return;
     const registerBtn=document.getElementById('wzTurnRegisterBtn');
     if(registerBtn){
       const action=wzV272RegistrationAction(item);
+      const verified=window.wzIsVerifiedMarketSession?.()===true;
+      const tournamentId=String(item?.tournament?.id||state.selectedId||'');
+      const showVerification=!verified && action.enabled;
+
       registerBtn.disabled=!action.enabled;
       registerBtn.classList.toggle('is-disabled',!action.enabled);
-      registerBtn.textContent=action.label;
+      registerBtn.classList.toggle('is-active',!!action.enabled && !showVerification);
+      registerBtn.classList.toggle('wz-turn-auth-required',showVerification);
+
+      if(showVerification){
+        registerBtn.disabled=false;
+        registerBtn.classList.remove('is-disabled','is-active');
+        registerBtn.textContent='🔐 HESABINI DOĞRULA';
+        registerBtn.onclick=()=>{
+          if(typeof goToVerification==='function') goToVerification();
+        };
+      }else{
+        registerBtn.textContent=action.label;
+        registerBtn.onclick=()=>{
+          if(window.wzIsVerifiedMarketSession?.()===true){
+            if(typeof window.wzTournamentRegistration==='function'){
+              window.wzTournamentRegistration(tournamentId);
+            }
+          }else if(action.enabled && typeof goToVerification==='function'){
+            goToVerification();
+          }
+        };
+      }
     }
+
     const teamActions=wzV273TeamActions(item);
     for(const [id,enabled] of [
       ['wzTurnCreateTeamBtn',teamActions.createEnabled],
@@ -16217,6 +16245,7 @@ return;
       if(!btn) continue;
       btn.disabled=!enabled;
       btn.classList.toggle('is-disabled',!enabled);
+      btn.classList.toggle('is-active',!!enabled);
     }
   }
   function heroStatusLabel(item){
