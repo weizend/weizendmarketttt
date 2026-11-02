@@ -29,7 +29,7 @@ main{max-width:1350px;padding:22px 15px 60px;margin:auto}h1{font-size:clamp(22px
 /* V31.1.14 — doğrulanmış oturuma bağlı çekiliş katılım çağrısı. */
 .wzg-detail-actions{display:grid;grid-template-columns:1fr;gap:8px;margin:14px 0 2px}
 .wzg-detail-actions .wzg-detail-join{width:100%;min-height:53px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;line-height:1.2;background:linear-gradient(140deg,#ed262a,#a40e22);border-color:#fa5368;color:#fff;font-weight:900}
-.wzg-detail-actions .wzg-detail-join.needs-auth{background:#262935;border-color:#caa24c;color:#ffe2a2}
+.wzg-detail-actions .wzg-detail-join.needs-auth{background:linear-gradient(135deg,#ff4141,#cf1010 62%,#a80808)!important;border-color:#ff8585!important;color:#fff!important;box-shadow:0 7px 18px rgba(227,27,27,.28)!important;font-weight:1000!important}
 .wzg-detail-actions .wzg-detail-join.scheduled{background:#7b1118;border-color:#af343d}
 .wzg-detail-actions .wzg-detail-join .icon{font-size:16px}
 .wzg-detail-actions .wzg-detail-join[hidden]{display:none!important}
@@ -87,7 +87,7 @@ function refreshJoinButton(){
  let icon='🎉',label='Çekilişe Katıl',mode='join';
  if(!entryCheckDone){icon='⏳';label='Hesap Kontrol Ediliyor';mode='waiting'}
  else if(!c.startAt||!c.endAt){icon='🔒';label='Tarihler Kesin Değil';mode='scheduled'}
- else if(!sessionVerified){icon='🔐';label='Doğrulama Gerekiyor';mode='auth'}
+ else if(!sessionVerified){icon='🔐';label='Hesabını Doğrula';mode='auth'}
  else if(scheduled){icon='🔒';label='Kayıtlar Açılmadı';mode='scheduled'}
  else if(entryState?.status==='eligible'){icon='✅';label='Katıldın';mode='joined'}
  else if(entryState && entryState.status!=='pending_review'){icon='⛔';label='Kaydın';mode='joined'}
