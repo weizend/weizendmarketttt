@@ -6841,6 +6841,27 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
         let marketAuthenticated = (()=>{
             try{return !!localStorage.getItem(SESSION_STORAGE_KEY);}catch(_){return false;}
         })();
+
+        // V31.1.90: Tournament UI must not flip back to guest mode while the
+        // same verified browser session is being re-hydrated by another panel.
+        // A stored token alone is not enough: when the in-memory flag is false,
+        // require the last successful /profile response as a local confirmation.
+        function wzIsVerifiedMarketSession(){
+            try{
+                const token=localStorage.getItem(SESSION_STORAGE_KEY)||'';
+                if(!token)return false;
+                if(marketAuthenticated===true)return true;
+                const cached=JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY)||'null');
+                if(cached?.success===true && cached?.authenticated===true){
+                    // Restore only the authentication flag. Account restrictions
+                    // remain sourced from the normal profile hydration path.
+                    marketAuthenticated=true;
+                    return true;
+                }
+            }catch(_){}
+            return false;
+        }
+        window.wzIsVerifiedMarketSession=wzIsVerifiedMarketSession;
         let marketGridNeedsRender = false;
         let currentAccountStatus = 'active';
         let currentBlockedReason = '';
@@ -7467,8 +7488,10 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
 
         function showAccessBase() {
             document.documentElement.removeAttribute('data-wz-auth-hydrating');
-            marketAuthenticated = false;
-            currentAccountStatus = 'active';
+            // Opening the access card during a profile refresh must not erase a
+            // still-present, previously verified session from tournament UI.
+            marketAuthenticated = wzIsVerifiedMarketSession();
+            if(!marketAuthenticated) currentAccountStatus = 'active';
             currentBlockedReason = '';
             stopInboxBadgeWatcher();
             const restrictionBanner = document.getElementById('accountRestrictionBanner');
@@ -7480,6 +7503,7 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
             if (marketInitialized) {
                 urunleriYukle(aktifKategori || 'Tümü');
             }
+            try{window.dispatchEvent(new Event('wz:market-auth-state-changed'));}catch(_){}
         }
 
         function showUsernameForm(message = 'Kick kullanıcı adını yaz. Sana özel bir doğrulama kodu oluşturacağız.') {
@@ -7726,6 +7750,7 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
             // Yalnızca inbox_changed veya Worker'ın açıkça `reason=botrix_command`
             // olarak işaretlediği belirli BotRix komutları tek seferlik işlem tetikler.
             connectRealtime(username);
+            try{window.dispatchEvent(new Event('wz:market-auth-state-changed'));}catch(_){}
         }
 
         async function initializeMarketAccount() {
@@ -8006,6 +8031,8 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
 
                         localStorage.removeItem(SESSION_STORAGE_KEY);
                         localStorage.removeItem(PROFILE_CACHE_KEY);
+                        marketAuthenticated=false;
+                        try{window.dispatchEvent(new Event('wz:market-auth-state-changed'));}catch(_){}
                         disconnectRealtime();
                         if (!silent || document.getElementById('marketContent').style.display !== 'block') {
                             showUsernameForm('🔒 Oturumun sona erdi. Kick hesabını yeniden doğrulaman gerekiyor.');
@@ -8342,7 +8369,7 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
             try { event?.stopPropagation?.(); } catch (_) {}
 
             if (inboxUiBusy) return;
-            if (!marketAuthenticated || !localStorage.getItem(SESSION_STORAGE_KEY)) {
+            if (!wzIsVerifiedMarketSession()) {
                 goToVerification();
                 return;
             }
@@ -8598,7 +8625,7 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
         }
 
         function openGiftRedeem() {
-            if (!marketAuthenticated || !localStorage.getItem(SESSION_STORAGE_KEY)) {
+            if (!wzIsVerifiedMarketSession()) {
                 goToVerification();
                 return;
             }
@@ -10316,7 +10343,7 @@ else if (deliveryType === 'manual') {
         function goToVerification() {
             // V30.4.0.3: Market/turnuva/tahmin/profil işlemlerindeki bütün
             // doğrulama butonları aynı, gerçek Kick doğrulama kartına gider.
-            if (marketAuthenticated && localStorage.getItem(SESSION_STORAGE_KEY)) return;
+            if (wzIsVerifiedMarketSession()) return;
 
             // Kayıt penceresi doğrulama kartının üzerinde kalmasın.
             try {
@@ -10381,7 +10408,7 @@ else if (deliveryType === 'manual') {
                 return;
             }
 
-            if (!marketAuthenticated || !localStorage.getItem(SESSION_STORAGE_KEY)) {
+            if (!wzIsVerifiedMarketSession()) {
                 goToVerification();
                 return;
             }
@@ -12213,7 +12240,7 @@ return;
             showStatusToast(`⛔ HESABIN KISITLANDI${currentBlockedReason ? ': ' + currentBlockedReason : ''}`, 5000);
             return;
         }
-        if (!marketAuthenticated || !localStorage.getItem(SESSION_STORAGE_KEY)) {
+        if (!wzIsVerifiedMarketSession()) {
             goToVerification();
             return;
         }
@@ -12702,7 +12729,7 @@ return;
                         Kaptansan takımını oluştur. Başka bir kaptanın kadrosundaysan takım adını yazarak yalnızca bir kez katılma isteği gönder.
                     </div>
                     <div class="tv2-actions">
-                        ${marketAuthenticated && localStorage.getItem(SESSION_STORAGE_KEY)
+                        ${wzIsVerifiedMarketSession()
                           ? `<button class="tv2-btn" ${closed?'disabled':''} onclick="tv2ShowCreateForm()">👑 TAKIM OLUŞTUR</button>
                              <button class="tv2-btn secondary" ${closed?'disabled':''} onclick="tv2ShowJoinForm()">➕ TAKIMA KATIL</button>`
                           : `<button type="button" class="tv2-btn wz-auth-required" ${closed?'disabled':''} onclick="goToVerification()">🔐 HESABINI DOĞRULA</button>`}
@@ -13551,7 +13578,7 @@ return;
                     <input id="tv2SoloTerms" type="checkbox">
                     <span>Oyun içi hesabımı doğru yazdığımı ve turnuva kurallarını kabul ediyorum.</span>
                 </label>
-                <div class="tv2-actions">${marketAuthenticated && localStorage.getItem(SESSION_STORAGE_KEY)
+                <div class="tv2-actions">${wzIsVerifiedMarketSession()
                     ? `<button class="tv2-btn" onclick="tv2RegisterSolo()">KAYIT OL</button>`
                     : `<button type="button" class="tv2-btn wz-auth-required" onclick="goToVerification()">🔐 HESABINI DOĞRULA</button>`}</div>
                 <div id="tv2SoloStatus"></div>
@@ -14042,7 +14069,7 @@ return;
             showStatusToast(`⛔ HESABIN KISITLANDI${currentBlockedReason ? ': ' + currentBlockedReason : ''}`, 5000);
             return;
         }
-        if (!marketAuthenticated || !localStorage.getItem(SESSION_STORAGE_KEY)) {
+        if (!wzIsVerifiedMarketSession()) {
             goToVerification();
             return;
         }
@@ -14187,7 +14214,7 @@ return;
                         <h4>Takım İşlemleri</h4>
                         <div class="tv2-muted">${entryUX.selectionTeam}</div>
                         ${!tv2State.form ? `<div class="tv2-actions">
-                            ${marketAuthenticated && localStorage.getItem(SESSION_STORAGE_KEY)
+                            ${wzIsVerifiedMarketSession()
                               ? `<button class="tv2-btn ${createClosed?'secondary':''}" ${createClosed?'disabled':''} onclick="tv2ShowCreateForm()">👑 TAKIM KUR</button>
                                  <button class="tv2-btn ${inviteJoinClosed?'secondary':''}" ${inviteJoinClosed?'disabled':''} onclick="tv2ShowJoinForm()">🔑 TAKIMA KATIL</button>`
                               : `<button type="button" class="tv2-btn wz-auth-required" ${(createClosed&&inviteJoinClosed)?'disabled':''} onclick="goToVerification()">🔐 HESABINI DOĞRULA</button>`}
@@ -16898,7 +16925,7 @@ return;
     const soloRegisterEnabled=actionOpen && hasCapacity;
     const createTeamEnabled=actionOpen && teamActions.createEnabled;
     const joinTeamEnabled=actionOpen && teamActions.joinEnabled;
-    let verifiedSession=false;try{verifiedSession=typeof marketAuthenticated!=='undefined' && marketAuthenticated===true && !!localStorage.getItem(SESSION_STORAGE_KEY);}catch(_){}
+    const verifiedSession=window.wzIsVerifiedMarketSession?.()===true;
     const needsVerification=!verifiedSession;
     const disabledTitle='Kayıtlar açık değil veya ilgili kontenjan dolu.';
     return `<article class="wz-turn-card" data-wz-tournament-id="${esc(id)}">
@@ -17458,19 +17485,7 @@ return;
   }
 
   function predictionLoggedIn(){
-    try{
-      return (
-        typeof marketAuthenticated !== 'undefined' &&
-        marketAuthenticated === true &&
-        !!localStorage.getItem(
-          typeof SESSION_STORAGE_KEY !== 'undefined'
-            ? SESSION_STORAGE_KEY
-            : 'weizend_market_session_secure_v2'
-        )
-      );
-    }catch(_){
-      return false;
-    }
+    try{return window.wzIsVerifiedMarketSession?.()===true;}catch(_){return false;}
   }
 
   function predictionLockText(reason){
@@ -17911,7 +17926,7 @@ return;
     const openAt=registrationOpenAt(item); const closeAt=registrationCloseAt(item);
     const registrationAction=wzV272RegistrationAction(item);
     const teamActions=wzV273TeamActions(item);
-    let verifiedSession=false;try{verifiedSession=typeof marketAuthenticated!=='undefined' && marketAuthenticated===true && !!localStorage.getItem(SESSION_STORAGE_KEY);}catch(_){}
+    const verifiedSession=window.wzIsVerifiedMarketSession?.()===true;
     return `<div class="wz-turn-detail-page"
       role="dialog"
       aria-modal="true"
@@ -18101,6 +18116,11 @@ return;
       loadSelected();
     }
   }
+  window.addEventListener('wz:market-auth-state-changed',()=>{
+    if(state.screen==='detail') render();
+    else if(state.screen==='list') refreshTournamentListResults();
+  });
+
   async function loadSelected(){
     const id=state.selectedId; if(!id) return;
     await ensureDetail(id);
@@ -18375,7 +18395,7 @@ return;
     if(!id) return;
     let hasSession=false;
     try{hasSession=!!localStorage.getItem(SESSION_STORAGE_KEY)}catch(_){ }
-    if(typeof marketAuthenticated==='undefined' || !marketAuthenticated || !hasSession){
+    if(!wzIsVerifiedMarketSession() || !hasSession){
       if(typeof showStatusToast==='function') showStatusToast('🔒 Takım kaydını görmek için önce Kick hesabını doğrula.',4000);
       if(typeof goToVerification==='function') goToVerification();
       return;
@@ -18401,7 +18421,7 @@ return;
   window.wzTournamentRegistration=async function(id){
     try{
       if(state.screen==='detail') window.wzTurnBack();
-      if(typeof marketAuthenticated!=='undefined' && marketAuthenticated && typeof tv2Open==='function'){
+      if(wzIsVerifiedMarketSession() && typeof tv2Open==='function'){
         await tv2Open(id, true);
         return;
       }
@@ -18418,7 +18438,7 @@ return;
     if(!allowed.teamMode || !allowed[choice==='create'?'createEnabled':'joinEnabled']) return;
     try{
       if(state.screen==='detail') window.wzTurnBack();
-      if(typeof marketAuthenticated==='undefined' || !marketAuthenticated ||
+      if(!wzIsVerifiedMarketSession() ||
          typeof tv2Open!=='function'){
         if(typeof tv2OpenPublic==='function') await tv2OpenPublic(id);
         return;
