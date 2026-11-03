@@ -2489,6 +2489,11 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
 /* Scrolling regular admin lists should not stop when there are fewer than 10 records. */
 #section-giveaways .wzg78-panel{overflow:visible;touch-action:pan-y}
 </style>
+<style id="wz-v31189-no-mobile-tap-rectangles">
+/* Native blue mobile tap highlights only; keyboard-visible focus remains intact. */
+*{-webkit-tap-highlight-color:transparent!important}
+@media(pointer:coarse){button:focus:not(:focus-visible),a:focus:not(:focus-visible),summary:focus:not(:focus-visible),[role="button"]:focus:not(:focus-visible){outline:none!important}}
+</style>
 </head>
 
 <body>
@@ -2670,6 +2675,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
         /* V31.1.11: New raffle form is independent from any selected existing raffle. */
         #section-giveaways.wzgc-creating #wzgcDirectActions,
         #section-giveaways.wzgc-creating #wzgcLivePanel,
+        #section-giveaways.wzgc-creating #wzgWinnerClipsPanel,
         #section-giveaways.wzgc-creating #wzgcDraftsPanel{display:none!important}
         #section-giveaways.wzgc-creating #wzgcSelectedInfo{color:#ffc5cb}
         /* V31.1.08: Loading failures shown beside the chooser; no infinite loading placeholder. */
@@ -2714,6 +2720,14 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
           <p id="wzgcActionNote" class="wzgc-action-note" role="status"></p>
         </div>
       </div>
+        <section id="wzgWinnerClipsPanel" class="wzg-item" hidden style="margin:15px 0;border:1px solid #665035;background:#16141c;border-radius:13px;padding:16px">
+          <h3 style="margin:0 0 7px">🎬 Kazananların yayın klipleri</h3>
+          <p class="muted">Yayında seçilen her kazananın Kick/Twitch/YouTube klip bağlantısını ayrı ayrı kaydet. Sonuçlanmış çekilişte yalnızca bağlantısı eklenen kazananın yanında “▶ Klibi İzle” görünür. Bağlantıyı kaldırmak için alanı boş bırakıp Kaydet'e bas.</p>
+          <div class="wzg-row" style="margin-bottom:10px"><button type="button" class="secondary" onclick="wzgClipPanelRefresh()">🔄 Kazananları Yenile</button></div>
+          <div id="wzgWinnerClipsRows" aria-live="polite"></div>
+          <p id="wzgWinnerClipsStatus" role="status" aria-live="polite" class="muted"></p>
+        </section>
+
       <details id="wzgcCreatePanel" class="wzgc-fold" ontoggle="wzgcCreationPanelToggled()">
         <summary>➕ Yeni Çekiliş / Taslak Oluştur • Şablonlardan Başla</summary>
       <div class="card">
@@ -14482,12 +14496,64 @@ async function wzg2Publish(id){
  }catch(e){const msg='❌ Çekiliş yayımlanamadı: '+String(e?.message||e);wzg2PublishFeedback(msg);alert(msg)}
 }
 
+let wzgClipLoadedId='',wzgClipLoadVersion=0,wzgClipShownStatus='';
+function wzgClipPanelSync(c){
+ const panel=document.getElementById('wzgWinnerClipsPanel');if(!panel)return;
+ const enabled=!!(c&&['drawing','drawn'].includes(c.status));
+ if(!enabled){++wzgClipLoadVersion;wzgClipLoadedId='';wzgClipShownStatus='';panel.hidden=true;return;}
+ panel.hidden=false;
+ if(wzgClipLoadedId!==c.id||wzgClipShownStatus!==c.status){
+  wzgClipLoadedId=c.id;wzgClipShownStatus=c.status;
+  wzgClipPanelLoad(c.id);
+ }
+}
+async function wzgClipPanelRefresh(){
+ const id=wzg78State.campaignId;if(id)await wzgClipPanelLoad(id);
+}
+async function wzgClipPanelLoad(id){
+ const version=++wzgClipLoadVersion;
+ const rows=document.getElementById('wzgWinnerClipsRows');
+ const status=document.getElementById('wzgWinnerClipsStatus');
+ if(!rows||!status||!id)return;
+ status.textContent='⏳ Kazananlar yükleniyor...';
+ try{
+  const {r,d}=await api('/admin/giveaway/winner-clips?id='+encodeURIComponent(id));
+  if(version!==wzgClipLoadVersion||wzg78State.campaignId!==id)return;
+  if(!r.ok||!d?.success)throw Error(d?.error||'Klip listesi alınamadı.');
+  rows.replaceChildren();
+  if(!(d.winners||[]).length){status.textContent='ℹ️ Henüz onaylanmış kazanan yok. Yayında kazanan seçildikten sonra Yenile butonuna bas.';return;}
+  for(const winner of d.winners){
+   const rank=Number(winner.rank),row=document.createElement('div');row.className='wzg-item';
+   row.style.marginBottom='9px';row.style.display='flex';row.style.flexWrap='wrap';row.style.alignItems='end';row.style.gap='9px';
+   const label=document.createElement('label');label.style.flex='1 1 270px';
+   label.style.minWidth='0';label.textContent='🏆 '+rank+'. '+String(winner.username||'')+' — klip adresi';
+   const input=document.createElement('input');input.type='url';input.maxLength=700;input.placeholder='https://kick.com/...';
+   input.value=winner.clipUrl||'';input.autocomplete='off';input.style.width='100%';label.append(input);
+   const button=document.createElement('button');button.type='button';button.textContent='💾 Kaydet';
+   const feedback=document.createElement('small');feedback.setAttribute('role','status');feedback.style.flex='1 1 100%';
+   button.onclick=async()=>{
+    const clipUrl=input.value.trim();
+    if(!clipUrl&&winner.clipUrl&&!confirm(rank+'. kazananın klip bağlantısını kaldırmak istiyor musun?'))return;
+    button.disabled=true;feedback.textContent='⏳ Kaydediliyor...';
+    try{
+     const out=await wzg2AdminCall('/admin/giveaway/winner-clips',{id,rank,clipUrl});
+     winner.clipUrl=out.clipUrl||'';input.value=winner.clipUrl;
+     feedback.textContent=winner.clipUrl?'✅ Bağlantı kaydedildi. Çekiliş sonuçlandıysa kullanıcılar artık izleyebilir.':'✅ Klip bağlantısı kaldırıldı.';
+    }catch(e){feedback.textContent='❌ '+String(e?.message||e)}
+    finally{button.disabled=false}
+   };
+   row.append(label,button,feedback);rows.append(row);
+  }
+  status.textContent='✅ '+d.winners.length+' kazanan • Her bağlantı ayrı kaydedilir.';
+ }catch(e){if(version!==wzgClipLoadVersion)return;status.textContent='❌ '+String(e?.message||e)}
+}
+
 let wzg2EditCampaign=null,wzg2EditPending=false;
 function wzg2OpenLiveEdit(c){
   const dates=wzg136AdminDates(c);
   if(!c||!['active','closed','drawn'].includes(c.status))return;
   const now=Date.now(),startMs=dates.startAt?Date.parse(dates.startAt):NaN,endMs=Date.parse(c.end_at||dates.endAt||'');
-  const fullEdit=c.status==='active'&&(dates.pending||!Number.isFinite(startMs)||startMs>now)&&endMs>now;
+  const fullEdit=c.status==='active'&&Number(c.entry_count||0)===0&&(dates.pending||!Number.isFinite(startMs)||startMs>now);
   wzg2EditCampaign={...c,__fullEdit:fullEdit};
   let storedLinks={};try{storedLinks=JSON.parse(c.conditions_json||'{}').socialLinks||{}}catch(_){ }
   let storedConditions={};try{storedConditions=JSON.parse(c.conditions_json||'{}')}catch(_){ }
@@ -14504,9 +14570,11 @@ function wzg2OpenLiveEdit(c){
   document.getElementById('wzg2EditSubscriberWeight').value=[1,2,3,5,10].includes(liveWeight)?String(liveWeight):'1';
   const lockedIds=['wzg2EditStart','wzg2EditEnd','wzg2EditKickLink','wzg2EditInstagramLink','wzg2EditDiscordLink','wzg2EditYoutubeLink','wzg2EditTiktokLink','wzg2EditSubscriberWeight'];
   lockedIds.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!fullEdit});
+  // Once started, only the end date can be adjusted (server checks fair-play limits).
+  document.getElementById('wzg2EditEnd').disabled=!fullEdit&&c.status!=='active';
   document.getElementById('wzg2EditContext').textContent=fullEdit
     ? 'Yayımlanmış çekiliş: '+c.title+' • Çekiliş numarası: '+c.id+' • Katılım başlamadığı için bütün ayarlar düzenlenebilir.'
-    : 'Yayımlanmış çekiliş: '+c.title+' • Çekiliş numarası: '+c.id+' • '+(c.status==='drawn'?'Sonuçlandı.':c.status==='closed'?'Katılım kapandı.':'Katılım başladı.')+' Yalnızca ad, açıklama, ödül metinleri ve kapak görseli değişir; tarih, görev, şans, katılımcı ve kazanan kayıtları korunur.';
+    : 'Yayımlanmış çekiliş: '+c.title+' • Çekiliş numarası: '+c.id+' • '+(c.status==='drawn'?'Sonuçlandı.':c.status==='closed'?'Katılım kapandı.':'Katılım başladı.')+(c.status==='active'?' Başlangıç ve katılım kuralları sabittir. Bitiş tarihini geleceğe alabilirsin; katılımcı varsa yalnızca uzatabilirsin.':' Tarihler ve kura sonuçları değiştirilemez.')+' Katılımcılar ve kazananlar korunur.';
   document.getElementById('wzg2EditStatus').textContent='';
   const live=document.getElementById('wzgcLivePanel');if(live)live.hidden=false;
   const panel=document.getElementById('wzg2EditPanel');panel.hidden=false;
@@ -14534,6 +14602,8 @@ async function wzg2SaveLiveEdit(){
       payload.socialLinks={kick:val('wzg2EditKickLink'),instagram:val('wzg2EditInstagramLink'),discord:val('wzg2EditDiscordLink'),youtube:val('wzg2EditYoutubeLink'),tiktok:val('wzg2EditTiktokLink')};
       payload.start_at=wzgDateValue(val('wzg2EditStart'));
       payload.end_at=wzgDateValue(val('wzg2EditEnd'));
+    }else if(wzg2EditCampaign.status==='active'){
+      payload.end_at=wzgDateValue(val('wzg2EditEnd'));
     }
   }catch(e){status.textContent='❌ Tarih/saat biçimi geçersiz.';return}
   if(!payload.title||!payload.prize_title){status.textContent='❌ Başlık ve ödül zorunlu.';return}
@@ -14541,6 +14611,14 @@ async function wzg2SaveLiveEdit(){
     if(![1,2,3,5,10].includes(payload.subscriberWeight)){status.textContent='❌ Abone başlangıç hakkı geçersiz.';return}
     const s=payload.start_at?Date.parse(payload.start_at):NaN,e=payload.end_at?Date.parse(payload.end_at):NaN;
     if((Number.isFinite(s)&&Number.isFinite(e)&&e<=s)||(Number.isFinite(e)&&e<=Date.now())){status.textContent='❌ Bitiş tarihi gelecekte ve başlangıçtan sonra olmalı.';return}
+  }else if(wzg2EditCampaign.status==='active'){
+    const s=Date.parse(wzg136AdminDates(wzg2EditCampaign).startAt),e=Date.parse(payload.end_at||'');
+    if(!Number.isFinite(e)||e<=Date.now()||(Number.isFinite(s)&&e<=s)){
+      status.textContent='❌ Yeni bitiş tarihi gelecekte ve başlangıçtan sonra olmalı.';return;
+    }
+    if(Number(wzg2EditCampaign.entry_count||0)>0&&e<Date.parse(wzg2EditCampaign.end_at)){
+      status.textContent='❌ Katılımcı bulunan çekilişte bitişi öne alamazsın; yalnızca uzatabilirsin.';return;
+    }
   }
   const termsChanged=payload.title!==String(wzg2EditCampaign.title||'')||
     payload.prize_title!==String(wzg2EditCampaign.prize_title||'')||
@@ -14548,7 +14626,7 @@ async function wzg2SaveLiveEdit(){
   if(termsChanged){
     if(!confirm('Yayımlanmış çekilişin adı veya ödülü değişecek. Katılmış kişiler varsa bu değişikliği onlara açıkça duyurmalısın. Devam edilsin mi?'))return;
     payload.confirmTermsChange=true;
-  }else if(!confirm(fullEdit?'Yayımlanmış çekilişin bilgilerini ve tarihlerini güncellemek istiyor musun?':'Çekilişin görünen bilgileri güncellenecek. Tarihler, katılımcılar, şans kuralları ve kazanan kayıtları değişmeyecek. Devam edilsin mi?'))return;
+  }else if(!confirm(fullEdit?'Yayımlanmış çekilişin bilgilerini ve tarihlerini güncellemek istiyor musun?':wzg2EditCampaign.status==='active'?'Çekilişin bitiş tarihi ve görünen bilgileri güncellenecek. Katılımcı varsa bitiş yalnızca uzatılabilir; başlangıç, katılım hakları ve kazananlar korunur. Devam edilsin mi?':'Çekilişin görünen bilgileri güncellenecek. Tarihler, katılımcılar, şans kuralları ve kazanan kayıtları değişmeyecek. Devam edilsin mi?'))return;
   wzg2EditPending=true;save.disabled=true;status.textContent='Değişiklikler kaydediliyor...';
   try{
     await wzg2AdminCall('/admin/giveaway/update',payload);
@@ -14657,6 +14735,7 @@ async function wzg2AdminRefresh(){
   const selectedId=wzg78State.campaignId;
   const selectedCampaign=(d.campaigns||[]).find(c=>c.id===selectedId);
   wzgcUpdateToolbar(selectedCampaign||null);
+  wzgClipPanelSync(selectedCampaign||null);
   const livePanel=document.getElementById('wzgcLivePanel');
   if(livePanel&&(!selectedCampaign||wzgcSelectedDraftId))livePanel.hidden=true;
   const nextCampaigns=document.createDocumentFragment(),nextEntries=document.createDocumentFragment();
@@ -15485,9 +15564,9 @@ function wzgcUpdateToolbar(c){
  startBtn.title=future?'Planlanan tarihten önce açmak için ayrıca onay gerekir.':running?'Katılımı erken kapatır; iki kez onay ister.':finished?'Kazananları ve kura geçmişini gösterir.':'Kura ekranını açar.';
  const edit=document.getElementById('wzgcActEdit');
  const editableStatus=['active','closed','drawn'].includes(selected.status);
- const fullSettingsEditable=selected.status==='active'&&(pending||start>now)&&end>now;
+ const fullSettingsEditable=selected.status==='active'&&Number(selected.entry_count||0)===0&&(pending||start>now);
  edit.disabled=!editableStatus;
- edit.title=!editableStatus?'Kura sürerken veya iptal edilmiş çekiliş düzenlenemez.':fullSettingsEditable?'Katılım başlamadan önce tüm ayarları düzenleyebilirsin.':'Başlamış / tamamlanmış çekilişte yalnızca görünen bilgiler düzenlenebilir; tarih, görev ve şans kuralları korunur.';
+ edit.title=!editableStatus?'Kura sürerken veya iptal edilmiş çekiliş düzenlenemez.':fullSettingsEditable?'Katılım başlamadan önce tüm ayarları düzenleyebilirsin.':selected.status==='active'?'Katılım başladıysa bitiş tarihi uzatılabilir; başlangıç ve kura hakları değişmez.':'Tamamlanmış veya kapalı çekilişte tarih, görev ve şans kuralları korunur.';
  const roster=document.getElementById('wzgcActRoster');
  roster.disabled=selected.status==='cancelled';
  roster.title=roster.disabled?'İptal edilen çekiliş için katılımcı yönetimi kapalı.':'Sadece seçilen çekilişin katılımcılarını göster.';
