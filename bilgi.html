@@ -77,6 +77,11 @@ footer{background:#111318!important;border-color:#2d303a!important}
   }
 }
 </style>
+<style id="wz-v31189-no-mobile-tap-rectangles">
+/* Native blue mobile tap highlights only; keyboard-visible focus remains intact. */
+*{-webkit-tap-highlight-color:transparent!important}
+@media(pointer:coarse){button:focus:not(:focus-visible),a:focus:not(:focus-visible),summary:focus:not(:focus-visible),[role="button"]:focus:not(:focus-visible){outline:none!important}}
+</style>
 </head>
 <body>
 <a href="#ana" onblur="this.style.left='-9999px'" onfocus="this.style.left='10px'" style="position:absolute;left:-9999px;top:0">İçeriğe geç</a>
