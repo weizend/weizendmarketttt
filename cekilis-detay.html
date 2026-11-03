@@ -147,7 +147,19 @@ function show(append=false){if(!last)return;const c=last.campaign;$('content').h
   const award=String(w.award||c.prizeTitle||'Ödül');
   const card=text('div','winner','🏆 '+w.rank+'. '+w.username+' · Ödül: '+award+' · Seçim anındaki şansı: '+chance);
   if(c.status==='drawn'&&w.clipUrl){
-   const a=document.createElement('a');a.className='wzg-winner-clip';a.href=w.clipUrl;
+   const a=document.createElement('a');a.className='wzg-winner-clip';
+   let clipHref=w.clipUrl;
+   try{
+    const target=new URL(w.clipUrl);
+    const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||
+      (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    if(mobile&&target.protocol==='https:'&&/^(?:www\.)?kick\.com$/i.test(target.hostname)){
+      const bridge=new URL('clip-izle.html',document.baseURI);
+      bridge.searchParams.set('clip',target.href);
+      clipHref=bridge.href;
+    }
+   }catch(_){}
+   a.href=clipHref;
    a.target='_blank';a.rel='noopener noreferrer';a.textContent='▶ Klibi İzle';
    card.append(document.createElement('div'));card.lastElementChild.append(a);
   }
