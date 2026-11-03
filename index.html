@@ -5230,6 +5230,13 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
 *{-webkit-tap-highlight-color:transparent!important}
 @media(pointer:coarse){button:focus:not(:focus-visible),a:focus:not(:focus-visible),summary:focus:not(:focus-visible),[role="button"]:focus:not(:focus-visible){outline:none!important}}
 </style>
+
+<!-- WEIZEND: Market verification form is visible only in the Market tab.
+     Tournament action buttons still redirect to Market for verification. -->
+<style id="wz-market-only-verification-v1">
+body.wz-view-market #wzMarketAuthHeader{display:block!important}
+body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
+</style>
 </head>
 <body>
 <script id="wz-v58-prepaint-view">
@@ -5468,7 +5475,7 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
           }catch(_){guide.hidden=false;}
         })();
         </script>
-        <header>
+        <header id="wzMarketAuthHeader">
             <img src="https://i.hizliresim.com/fo5evkh4.png" alt="WEİZEND Logo" class="logo-img">
             <h1>WEİZEND MARKET</h1>
             <p style="color: var(--text-muted);">Yayını izleyerek kazandığın puanlarla ödülleri kap!</p>
@@ -15315,7 +15322,7 @@ return;
       // Rebuild only the normal Market surface.
       // Clear stale inline visibility from Profile/legacy flows first.
       const marketEl=document.getElementById('marketContent');
-      const headerEl=document.querySelector('body > .container:first-of-type header');
+      const headerEl=document.getElementById('wzMarketAuthHeader');
       if(marketEl) marketEl.style.display='block';
       if(headerEl) headerEl.style.removeProperty('display');
 
@@ -15324,7 +15331,7 @@ return;
       updateSearchMode('market');
     }else if(view==='tournament'){
       // Turnuva görünümünde eski Market header'ı hiçbir karede görünmesin.
-      const headerEl=document.querySelector('body > .container:first-of-type header');
+      const headerEl=document.getElementById('wzMarketAuthHeader');
       if(headerEl) headerEl.style.display='none';
 
       // The new Tournament page is independent from the Market product grid.
@@ -15342,7 +15349,7 @@ return;
         }
       }catch(_){}
     }else{
-      const headerEl=document.querySelector('body > .container:first-of-type header');
+      const headerEl=document.getElementById('wzMarketAuthHeader');
       if(headerEl) headerEl.style.display='none';
       syncProfile();
     }
