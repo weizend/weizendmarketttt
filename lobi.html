@@ -120,6 +120,11 @@ html,body{overscroll-behavior-y:auto}
 .tableWrap,.table-scroll,main section,main .cards,main .list{overscroll-behavior-y:auto}
 [role="dialog"],dialog,.wz622-team-content,.wz622-team-overlay{overscroll-behavior-y:contain}
 </style>
+<style id="wz-v31189-no-mobile-tap-rectangles">
+/* Native blue mobile tap highlights only; keyboard-visible focus remains intact. */
+*{-webkit-tap-highlight-color:transparent!important}
+@media(pointer:coarse){button:focus:not(:focus-visible),a:focus:not(:focus-visible),summary:focus:not(:focus-visible),[role="button"]:focus:not(:focus-visible){outline:none!important}}
+</style>
 </head><body class="wz-lobby-booting">
 <header class="top"><div class="topinner"><a class="brand" href="index.html?wz_view=players"><img src="https://i.hizliresim.com/fo5evkh4.png" alt="WEİZEND logosu" class="siteLogo"><span class="brandCopy"><span class="brandName">WEİZEND</span><small>OYUN LOBİSİ</small></span></a><a class="headerBack" href="index.html?wz_view=players">← Oyuncu Ara’ya Dön</a></div></header>
 <div id="wzLobbyBoot" role="status" aria-live="polite"><div class="wz3136-loader-card"><div class="wz3136-skeleton wz3136-skeleton-wide"></div><div class="wz3136-skeleton wz3136-skeleton-heading"></div><div class="wz3136-skeleton wz3136-skeleton-short"></div><small id="wz3136LoadingText">Lobi bilgileri alınıyor…</small></div></div>
