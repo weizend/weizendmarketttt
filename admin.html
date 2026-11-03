@@ -2802,7 +2802,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
             <label style="grid-column:1/-1">Kapak görseli (HTTPS)<input id="wzg2EditImage" type="url" maxlength="700" placeholder="https://..."></label>
           </div>
           <h4>🔗 Mevcut çekilişin görev bağlantıları</h4>
-          <p class="muted">Katılım başlamadan önce eklediğin bağlantı otomatik ziyaret şartı olur; sildiğin bağlantının şartı kaldırılır. Katılım başladıktan sonra kurallar değiştirilemez.</p>
+          <p class="muted">Katılım başladıktan sonra mevcut görevlerin bağlantı adresini düzeltebilirsin. Katılımcı varsa yeni zorunlu görev eklenemez veya mevcut görev kaldırılamaz.</p>
           <div class="wzg-grid">
             <label>Kick URL<input id="wzg2EditKickLink" type="url" maxlength="700" placeholder="https://kick.com/..."></label>
             <label>Instagram URL<input id="wzg2EditInstagramLink" type="url" maxlength="700" placeholder="https://instagram.com/..."></label>
@@ -2810,7 +2810,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
             <label>YouTube URL<input id="wzg2EditYoutubeLink" type="url" maxlength="700" placeholder="https://youtube.com/..."></label>
             <label>TikTok URL<input id="wzg2EditTiktokLink" type="url" maxlength="700" placeholder="https://tiktok.com/..."></label>
           </div>
-          <label for="wzg2EditSubscriberWeight" style="display:block;margin-top:12px">⭐ Geçerli abonenin toplam başlangıç hakkı (yalnızca katılım başlamadan önce)
+          <label for="wzg2EditSubscriberWeight" style="display:block;margin-top:12px">⭐ Geçerli abonenin toplam çekiliş hakkı
             <select id="wzg2EditSubscriberWeight">
               <option value="1">×1 — Ek avantaj yok</option>
               <option value="2">×2 — Toplam 2 hak</option>
@@ -2819,7 +2819,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
               <option value="10">×10 — Toplam 10 hak</option>
             </select>
           </label>
-          <p class="muted">Başlamamış çekilişin bağlantılarını ve abone hakkını değiştirebilirsin. Katılım başladıktan sonra çekiliş ayarları kilitlenir. Yöneticinin alıcısını eşleştirdiği geçerli Gift aboneliği de abone hakkı sağlar; verilen çekiliş hakkı sonradan silinmez.</p>
+          <p class="muted">Aktif çekilişte bağlantı adreslerini ve abone şansını güncelleyebilirsin. Mevcut katılımcıların görevleri geriye dönük değişmez; abone şansını değiştirirsen henüz yapılmamış kura için herkesin olasılıkları yeniden hesaplanır. Başlangıç tarihi katılımcı varken değiştirilmez; bitiş tarihi yalnızca uzatılır. Bu tür değişiklikleri katılımcılara duyur. Verilmiş Gift hakları silinmez.</p>
           <div class="wzg-row">
             <button type="button" id="wzg2EditSave" onclick="wzg2SaveLiveEdit()">💾 Değişiklikleri Kaydet</button>
             <button type="button" class="secondary" onclick="wzg2CloseLiveEdit()">Vazgeç</button>
@@ -14553,8 +14553,10 @@ function wzg2OpenLiveEdit(c){
   const dates=wzg136AdminDates(c);
   if(!c||!['active','closed','drawn'].includes(c.status))return;
   const now=Date.now(),startMs=dates.startAt?Date.parse(dates.startAt):NaN,endMs=Date.parse(c.end_at||dates.endAt||'');
-  const fullEdit=c.status==='active'&&Number(c.entry_count||0)===0&&(dates.pending||!Number.isFinite(startMs)||startMs>now);
-  wzg2EditCampaign={...c,__fullEdit:fullEdit};
+  const hasEntries=Number(c.entry_count||0)>0;
+  const fullEdit=c.status==='active'&&!hasEntries&&(dates.pending||!Number.isFinite(startMs)||startMs>now);
+  const canEditStart=c.status==='active'&&!hasEntries;
+  wzg2EditCampaign={...c,__fullEdit:fullEdit,__canEditStart:canEditStart};
   let storedLinks={};try{storedLinks=JSON.parse(c.conditions_json||'{}').socialLinks||{}}catch(_){ }
   let storedConditions={};try{storedConditions=JSON.parse(c.conditions_json||'{}')}catch(_){ }
   const liveWeight=Number(storedConditions.subscriberWeight??(storedConditions.subscriberBonusX5DraftOnly?5:1));
@@ -14568,13 +14570,19 @@ function wzg2OpenLiveEdit(c){
     wzg2EditTiktokLink:storedLinks?.tiktok||''};
   Object.entries(values).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.value=value??''});
   document.getElementById('wzg2EditSubscriberWeight').value=[1,2,3,5,10].includes(liveWeight)?String(liveWeight):'1';
-  const lockedIds=['wzg2EditStart','wzg2EditEnd','wzg2EditKickLink','wzg2EditInstagramLink','wzg2EditDiscordLink','wzg2EditYoutubeLink','wzg2EditTiktokLink','wzg2EditSubscriberWeight'];
-  lockedIds.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!fullEdit});
-  // Once started, only the end date can be adjusted (server checks fair-play limits).
-  document.getElementById('wzg2EditEnd').disabled=!fullEdit&&c.status!=='active';
+  document.getElementById('wzg2EditStart').disabled=!canEditStart;
+  document.getElementById('wzg2EditEnd').disabled=c.status!=='active';
+  document.getElementById('wzg2EditSubscriberWeight').disabled=c.status!=='active';
+  const keys=['Kick','Instagram','Discord','Youtube','Tiktok'];
+  keys.forEach(key=>{
+    const el=document.getElementById('wzg2Edit'+key+'Link');
+    // Existing link URLs can be corrected after a participant joined, but
+    // creating/removing a mandatory task would change accepted conditions.
+    el.disabled=c.status!=='active'||(hasEntries&&!el.value.trim());
+  });
   document.getElementById('wzg2EditContext').textContent=fullEdit
-    ? 'Yayımlanmış çekiliş: '+c.title+' • Çekiliş numarası: '+c.id+' • Katılım başlamadığı için bütün ayarlar düzenlenebilir.'
-    : 'Yayımlanmış çekiliş: '+c.title+' • Çekiliş numarası: '+c.id+' • '+(c.status==='drawn'?'Sonuçlandı.':c.status==='closed'?'Katılım kapandı.':'Katılım başladı.')+(c.status==='active'?' Başlangıç ve katılım kuralları sabittir. Bitiş tarihini geleceğe alabilirsin; katılımcı varsa yalnızca uzatabilirsin.':' Tarihler ve kura sonuçları değiştirilemez.')+' Katılımcılar ve kazananlar korunur.';
+    ? 'Yayımlanmış çekiliş: '+c.title+' • Çekiliş numarası: '+c.id+' • Henüz katılım başlamadığı için tüm başlangıç ayarlarını düzenleyebilirsin.'
+    : 'Yayımlanmış çekiliş: '+c.title+' • Çekiliş numarası: '+c.id+' • '+(c.status==='drawn'?'Sonuçlandı.':c.status==='closed'?'Katılım kapandı.':'Katılım başladı.')+(c.status==='active'?' Mevcut görev adreslerini ve abone şansını güncelleyebilirsin. Katılımcı varsa başlangıç zamanı ve görev listesi sabit; bitiş yalnızca uzatılabilir. Abone hakkı değişirse henüz yapılmamış kura olasılıkları tüm katılımcılar için değişir.':' Tarihler ve kura sonuçları değiştirilemez.')+' Katılımcılar ve kazananlar korunur.';
   document.getElementById('wzg2EditStatus').textContent='';
   const live=document.getElementById('wzgcLivePanel');if(live)live.hidden=false;
   const panel=document.getElementById('wzg2EditPanel');panel.hidden=false;
@@ -14597,36 +14605,55 @@ async function wzg2SaveLiveEdit(){
       title:val('wzg2EditTitle'),description:val('wzg2EditDescription'),
       prize_title:val('wzg2EditPrizeTitle'),prize_details:val('wzg2EditPrizeDetails'),
       image_url:val('wzg2EditImage')};
-    if(fullEdit){
+    if(wzg2EditCampaign.status==='active'){
       payload.subscriberWeight=Number(val('wzg2EditSubscriberWeight'));
       payload.socialLinks={kick:val('wzg2EditKickLink'),instagram:val('wzg2EditInstagramLink'),discord:val('wzg2EditDiscordLink'),youtube:val('wzg2EditYoutubeLink'),tiktok:val('wzg2EditTiktokLink')};
-      payload.start_at=wzgDateValue(val('wzg2EditStart'));
-      payload.end_at=wzgDateValue(val('wzg2EditEnd'));
-    }else if(wzg2EditCampaign.status==='active'){
-      payload.end_at=wzgDateValue(val('wzg2EditEnd'));
+      const originalDates=wzg136AdminDates(wzg2EditCampaign);
+      // datetime-local only shows minutes. If the displayed value was NOT edited,
+      // preserve stored seconds/milliseconds to avoid an accidental shortening.
+      const exactOrEdited=(id,original)=>{
+        const raw=val(id);
+        return raw&&original&&raw===wzgInputDate(original)?original:wzgDateValue(raw);
+      };
+      if(wzg2EditCampaign.__canEditStart)payload.start_at=exactOrEdited('wzg2EditStart',originalDates.startAt);
+      payload.end_at=exactOrEdited('wzg2EditEnd',originalDates.endAt);
     }
   }catch(e){status.textContent='❌ Tarih/saat biçimi geçersiz.';return}
   if(!payload.title||!payload.prize_title){status.textContent='❌ Başlık ve ödül zorunlu.';return}
-  if(fullEdit){
-    if(![1,2,3,5,10].includes(payload.subscriberWeight)){status.textContent='❌ Abone başlangıç hakkı geçersiz.';return}
-    const s=payload.start_at?Date.parse(payload.start_at):NaN,e=payload.end_at?Date.parse(payload.end_at):NaN;
-    if((Number.isFinite(s)&&Number.isFinite(e)&&e<=s)||(Number.isFinite(e)&&e<=Date.now())){status.textContent='❌ Bitiş tarihi gelecekte ve başlangıçtan sonra olmalı.';return}
-  }else if(wzg2EditCampaign.status==='active'){
-    const s=Date.parse(wzg136AdminDates(wzg2EditCampaign).startAt),e=Date.parse(payload.end_at||'');
-    if(!Number.isFinite(e)||e<=Date.now()||(Number.isFinite(s)&&e<=s)){
-      status.textContent='❌ Yeni bitiş tarihi gelecekte ve başlangıçtan sonra olmalı.';return;
-    }
-    if(Number(wzg2EditCampaign.entry_count||0)>0&&e<Date.parse(wzg2EditCampaign.end_at)){
-      status.textContent='❌ Katılımcı bulunan çekilişte bitişi öne alamazsın; yalnızca uzatabilirsin.';return;
+  const active=wzg2EditCampaign.status==='active',hasEntries=Number(wzg2EditCampaign.entry_count||0)>0;
+  if(active){
+    if(![1,2,3,5,10].includes(payload.subscriberWeight)){status.textContent='❌ Abone çekiliş hakkı geçersiz.';return}
+    const plannedStart=wzg136AdminDates(wzg2EditCampaign).startAt;
+    const s=payload.start_at?Date.parse(payload.start_at):Date.parse(plannedStart||'');
+    const e=payload.end_at?Date.parse(payload.end_at):NaN;
+    if(fullEdit){
+      // Date-announcement drafts may intentionally have one or both dates unset.
+      if((Number.isFinite(s)&&Number.isFinite(e)&&e<=s)||(Number.isFinite(e)&&e<=Date.now())){
+        status.textContent='❌ Bitiş tarihi gelecekte ve başlangıçtan sonra olmalı.';return;
+      }
+    }else{
+      if(!Number.isFinite(e)||e<=Date.now()||(Number.isFinite(s)&&e<=s)){
+        status.textContent='❌ Bitiş tarihi gelecekte ve başlangıçtan sonra olmalı.';return;
+      }
+      if(hasEntries&&e<Date.parse(wzg2EditCampaign.end_at)){
+        status.textContent='❌ Katılımcı varsa bitiş tarihi kısaltılamaz.';return;
+      }
     }
   }
   const termsChanged=payload.title!==String(wzg2EditCampaign.title||'')||
     payload.prize_title!==String(wzg2EditCampaign.prize_title||'')||
     payload.prize_details!==String(wzg2EditCampaign.prize_details||'');
-  if(termsChanged){
-    if(!confirm('Yayımlanmış çekilişin adı veya ödülü değişecek. Katılmış kişiler varsa bu değişikliği onlara açıkça duyurmalısın. Devam edilsin mi?'))return;
-    payload.confirmTermsChange=true;
-  }else if(!confirm(fullEdit?'Yayımlanmış çekilişin bilgilerini ve tarihlerini güncellemek istiyor musun?':wzg2EditCampaign.status==='active'?'Çekilişin bitiş tarihi ve görünen bilgileri güncellenecek. Katılımcı varsa bitiş yalnızca uzatılabilir; başlangıç, katılım hakları ve kazananlar korunur. Devam edilsin mi?':'Çekilişin görünen bilgileri güncellenecek. Tarihler, katılımcılar, şans kuralları ve kazanan kayıtları değişmeyecek. Devam edilsin mi?'))return;
+  let oldConditions={};try{oldConditions=JSON.parse(wzg2EditCampaign.conditions_json||'{}')}catch(_){}
+  const oldWeight=Number(oldConditions.subscriberWeight??(oldConditions.subscriberBonusX5DraftOnly?5:1));
+  const weightChanged=active&&Number(payload.subscriberWeight)!==oldWeight;
+  const warnings=[];
+  if(termsChanged)warnings.push('Başlık/ödül bilgileri değişecek; katılımcılara duyurmalısın.');
+  if(active&&weightChanged&&hasEntries)warnings.push('ÖNEMLİ: Abone hakkı '+oldWeight+' → '+payload.subscriberWeight+' olacak. Henüz yapılmamış kurada mevcut tüm katılımcıların kazanma olasılığı yeniden hesaplanacak.');
+  if(active&&hasEntries)warnings.push('Görev ekleme/kaldırma ve başlangıç tarihini değiştirme koruma gereği kapalıdır; yalnızca mevcut görev URL’leri düzeltilebilir.');
+  if(!confirm(warnings.length?warnings.join('\n\n')+'\n\nDeğişiklikleri kaydetmek istiyor musun?':
+    'Çekilişin ayarları kaydedilsin mi?'))return;
+  if(termsChanged)payload.confirmTermsChange=true;
+  if(weightChanged&&hasEntries)payload.confirmOddsChange=true;
   wzg2EditPending=true;save.disabled=true;status.textContent='Değişiklikler kaydediliyor...';
   try{
     await wzg2AdminCall('/admin/giveaway/update',payload);
@@ -15597,7 +15624,7 @@ function wzgcUpdateToolbar(c){
  const editableStatus=['active','closed','drawn'].includes(selected.status);
  const fullSettingsEditable=selected.status==='active'&&Number(selected.entry_count||0)===0&&(pending||start>now);
  edit.disabled=!editableStatus;
- edit.title=!editableStatus?'Kura sürerken veya iptal edilmiş çekiliş düzenlenemez.':fullSettingsEditable?'Katılım başlamadan önce tüm ayarları düzenleyebilirsin.':selected.status==='active'?'Katılım başladıysa bitiş tarihi uzatılabilir; başlangıç ve kura hakları değişmez.':'Tamamlanmış veya kapalı çekilişte tarih, görev ve şans kuralları korunur.';
+ edit.title=!editableStatus?'Kura sürerken veya iptal edilmiş çekiliş düzenlenemez.':fullSettingsEditable?'Katılım başlamadan önce tüm ayarları düzenleyebilirsin.':selected.status==='active'?'Aktif çekilişte mevcut bağlantı adresleri ve abone hakları güncellenebilir; abone hakkı değişikliği için ayrıca onay gerekir. Katılımcı varsa başlangıç sabit, bitiş yalnızca ileri alınır.':'Tamamlanmış veya kapalı çekilişte tarih, görev ve şans kuralları korunur.';
  const roster=document.getElementById('wzgcActRoster');
  roster.disabled=selected.status==='cancelled';
  roster.title=roster.disabled?'İptal edilen çekiliş için katılımcı yönetimi kapalı.':'Sadece seçilen çekilişin katılımcılarını göster.';
