@@ -5237,6 +5237,20 @@ html:not([data-wz-current-view="market"]) #wzNewcomerGuide{display:none!importan
 body.wz-view-market #wzMarketAuthHeader{display:block!important}
 body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
 </style>
+<style id="wz-v3182-mobile-auth-keyboard">
+/* Keep the Kick login field above on-screen keyboards without locking page scroll. */
+@media (max-width: 768px) {
+  #kickUsernameInput { scroll-margin-top: 85px; scroll-margin-bottom: 28vh; }
+  body.wz-auth-input-focused {
+    /* Make room to reposition the field even on a short Market page. */
+    padding-bottom: max(110px, 55vh) !important;
+  }
+  body.wz-auth-input-focused #wzMobileBottomNav {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+</style>
 </head>
 <body>
 <script id="wz-v58-prepaint-view">
@@ -10340,7 +10354,20 @@ else if (deliveryType === 'manual') {
             // doğrulama butonları aynı, gerçek Kick doğrulama kartına gider.
             if (wzIsVerifiedMarketSession()) return;
 
-            // Kayıt penceresi doğrulama kartının üzerinde kalmasın.
+            // Turnuva DETAYI kendi sabit modalini ve scroll kilidini yonetir.
+            // Market dogrulamasina gecmeden once detayi gercekten kapat.
+            // Yalnizca body class silmek yetmez: state.screen='detail' kalirsa
+            // gec gelen auth/tournament guncellemeleri kilidi tekrar acabilir.
+            try {
+                if (document.body.classList.contains('wz-view-tournament') &&
+                    (document.body.classList.contains('wz-turn-modal-open') ||
+                     document.querySelector('#wzEsportsHub .wz-turn-detail-page')) &&
+                    typeof window.wzTurnBack === 'function') {
+                    window.wzTurnBack();
+                }
+            } catch (error) { console.warn('Turnuva detayindan dogrulamaya gecis:', error); }
+
+            // Eski turnuva kayit penceresi de dogrulama kartinin uzerinde kalmasin.
             try {
                 if (document.getElementById('tv2Modal')?.style.display === 'flex' &&
                     typeof tv2Close === 'function') tv2Close();
@@ -10357,18 +10384,101 @@ else if (deliveryType === 'manual') {
                 showUsernameForm('🔐 Market, turnuva ve hesap işlemlerinde güvenliğin için Kick hesabını doğrulaman gerekiyor. Kullanıcı adını yazıp doğrulama kodu oluştur.');
             }
 
-            // Instagram / mobil tarayıcıda da kapalı turnuva modalına değil,
-            // Market'teki gerçek erişim formuna kaydır.
+            // Mobil Safari/Chrome'da klavye ekranı küçültür: önce ODAKLA,
+            // sonra klavyenin kaplamadığı görsel alana göre giriş alanını konumlandır.
+            // iOS klavyeyi açabilsin diye focus() kullanıcı tıklamasının içinde kalır.
             const accessCard = document.getElementById('accessCard');
             if (!accessCard) return;
-            requestAnimationFrame(() => {
-                accessCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                const input = document.getElementById('kickUsernameInput');
-                if (input && document.getElementById('usernameForm')?.style.display !== 'none') {
-                    try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
-                }
-            });
+            const input = document.getElementById('kickUsernameInput');
+            const canType = !!input && document.getElementById('usernameForm')?.style.display !== 'none';
+            if (wz3182MobileAuth() && canType) {
+                try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+                wz3182QueueAuthPosition(true);
+            } else {
+                requestAnimationFrame(() => {
+                    accessCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (canType) {
+                        try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+                    }
+                });
+            }
         }
+
+        // V31.1.82: Keep the REAL Kick username input visible above the mobile
+        // virtual keyboard. visualViewport.height changes after focus, so a
+        // one-time scrollIntoView() before opening the keyboard is not enough.
+        let wz3182AuthFrame = 0;
+        let wz3182AuthTimer = 0;
+        let wz3182AuthFocusAt = 0;
+        function wz3182MobileAuth() {
+            return window.matchMedia('(max-width: 768px)').matches;
+        }
+        function wz3182AuthInputActive() {
+            const input = document.getElementById('kickUsernameInput');
+            return wz3182MobileAuth() && input && document.activeElement === input &&
+                document.documentElement.dataset.wzCurrentView === 'market' &&
+                document.getElementById('usernameForm')?.style.display !== 'none';
+        }
+        function wz3182PositionAuthInput() {
+            if (!wz3182AuthInputActive()) return;
+            const input = document.getElementById('kickUsernameInput');
+            const viewport = window.visualViewport;
+            const visibleHeight = Math.max(150, viewport?.height || window.innerHeight);
+            const viewportOffset = viewport?.offsetTop || 0;
+            const rect = input.getBoundingClientRect();
+            if (!rect.height) return;
+            // Actual visible area, not the layout viewport hidden by keyboard.
+            const fieldTop = rect.top - viewportOffset;
+            const headerSafe = Math.min(88, Math.max(16, visibleHeight * .20));
+            const idealTop = Math.max(headerSafe,
+                Math.min(visibleHeight * .35, visibleHeight - rect.height - 18));
+            const delta = fieldTop - idealTop;
+            if (Math.abs(delta) < 9) return;
+            const root = document.documentElement;
+            const currentY = window.scrollY || root.scrollTop || 0;
+            const maxY = Math.max(0, root.scrollHeight - window.innerHeight);
+            const destination = Math.max(0, Math.min(maxY, currentY + delta));
+            if (Math.abs(destination - currentY) < 2) return;
+            // Page's default scroll-behavior:smooth must not fight keyboard animation.
+            const oldBehavior = root.style.scrollBehavior;
+            root.style.scrollBehavior = 'auto';
+            window.scrollTo({ top: destination, left: 0, behavior: 'instant' });
+            root.style.scrollBehavior = oldBehavior;
+        }
+        function wz3182QueueAuthPosition(repeat = false) {
+            if (!wz3182AuthInputActive()) return;
+            document.body.classList.add('wz-auth-input-focused');
+            if (wz3182AuthFrame) cancelAnimationFrame(wz3182AuthFrame);
+            wz3182AuthFrame = requestAnimationFrame(() => {
+                wz3182AuthFrame = 0;
+                wz3182PositionAuthInput();
+            });
+            clearTimeout(wz3182AuthTimer);
+            wz3182AuthTimer = setTimeout(wz3182PositionAuthInput, repeat ? 340 : 140);
+            if (repeat) setTimeout(wz3182PositionAuthInput, 780);
+        }
+        document.addEventListener('focusin', (event) => {
+            if (event.target?.id !== 'kickUsernameInput') return;
+            wz3182AuthFocusAt = Date.now();
+            wz3182QueueAuthPosition(true);
+        });
+        document.addEventListener('focusout', (event) => {
+            if (event.target?.id !== 'kickUsernameInput') return;
+            setTimeout(() => {
+                if (document.activeElement?.id !== 'kickUsernameInput') {
+                    document.body.classList.remove('wz-auth-input-focused');
+                    clearTimeout(wz3182AuthTimer);
+                    if (wz3182AuthFrame) cancelAnimationFrame(wz3182AuthFrame);
+                    wz3182AuthFrame = 0;
+                }
+            }, 0);
+        });
+        window.visualViewport?.addEventListener('resize', () => wz3182QueueAuthPosition());
+        window.visualViewport?.addEventListener('scroll', () => {
+            // Only follow automatic visual-viewport movement while keyboard opens.
+            if (Date.now() - wz3182AuthFocusAt < 1500) wz3182QueueAuthPosition();
+        });
+        window.addEventListener('resize', () => wz3182QueueAuthPosition());
 
         function getMarketProduct(productId) {
             const wanted = String(productId || '').toLowerCase();
@@ -15304,6 +15414,10 @@ return;
     }
 
     currentView=view;
+    // Sekme değişince mobil doğrulama klavyesinin açık odağını geride bırakma.
+    if(view!=='market' && document.activeElement?.id==='kickUsernameInput') {
+      document.activeElement.blur();
+    }
     try{ sessionStorage.setItem('wz_current_view',view); }catch(_){}
     try{
       history.replaceState(
@@ -18021,7 +18135,10 @@ return;
     if(!host) return;
 
     const detailOpen = state.screen === 'detail';
-    document.body.classList.toggle('wz-turn-modal-open', detailOpen);
+    // Gizli bir sekmenin arka plan render'i tum sayfayi kilitlememeli.
+    // Auth/turnuva API cevaplari Market acikken de gelebilir.
+    const tournamentVisible = document.body.classList.contains('wz-view-tournament');
+    document.body.classList.toggle('wz-turn-modal-open', detailOpen && tournamentVisible);
 
     // Refresh'in ilk karesinde sessionStorage'dan geri yüklenen gerçek Turnuva
     // görünümünü, DOMContentLoaded'daki erken render çağrılarıyla ezme.
@@ -18538,7 +18655,16 @@ return;
   const baseSetView=window.wzSetView;
   if(typeof baseSetView==='function'){
     window.wzSetView=function(view){
-      if(view!=='tournament') wzSharedTurnuvaPending=false;
+      if(view!=='tournament'){
+        wzSharedTurnuvaPending=false;
+        // Market/Profil/Oyuncu Ara/Cekilis sekmesine geciste turnuva
+        // modalini ve onun uygulama durumunu kapat. Kaydirma kilidinin
+        // bir sonraki asenkron render ile tekrar kurulmasini onler.
+        if(state.screen==='detail' &&
+           document.body.classList.contains('wz-view-tournament')){
+          window.wzTurnBack();
+        }
+      }
       const enteringTournament =
         view==='tournament' &&
         !document.body.classList.contains('wz-view-tournament');
