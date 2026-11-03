@@ -15003,6 +15003,22 @@ function wzg66Make(){
  @keyframes wzg66WinnerPulse{from{transform:scale(1);filter:brightness(1)}to{transform:scale(1.02);filter:brightness(1.2)}}
  #wzg66After{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0 0}
  #wzg66Hint{font-size:11px;line-height:1.5;color:#c1b9c7;margin-top:auto;padding-top:5px}
+ /* The center winner row is taller than the spinning rows. Let its strip grow to fit,
+    instead of allowing the fifth row to overlap the result caption. */
+ #wzg66Stage.wzg66-winner-reveal{overflow-y:auto;justify-content:flex-start}
+ #wzg66Stage.wzg66-winner-reveal #wzg66Five{height:auto!important;margin:8px auto 0}
+ #wzg66Stage.wzg66-winner-reveal #wzg66Track .wzg66-name{height:auto;min-height:54px;flex:0 0 auto}
+ #wzg66Five[hidden]{display:none!important}
+ /* Once the draw finishes, show an independent results layout: no stale reel behind it. */
+ #wzg66Stage.wzg66-finished{gap:14px;justify-content:center;overflow-y:auto;padding:22px 16px}
+ #wzg66Stage.wzg66-finished #wzg66Countdown{margin:0}
+ #wzg66Stage.wzg66-finished #wzg66Result{width:100%;max-width:630px;margin:0 auto}
+ #wzg66Stage.wzg66-finished #wzg66After{margin:0}
+ .wzg66-finish-list{display:grid;gap:8px;text-align:left}
+ .wzg66-finish-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border:1px solid #4b3543;border-radius:10px;background:#1b1420;font-size:14px;overflow-wrap:anywhere}
+ .wzg66-finish-row strong{min-width:0;color:#fff4d4}
+ .wzg66-finish-row span{color:#69e9af;font-size:13px;flex-shrink:0}
+ @media(max-width:430px){.wzg66-finish-row{flex-direction:column;align-items:flex-start}.wzg66-finish-row span{flex-shrink:1}}
  #wzg93PrizeRow[hidden]{display:none!important}
  @media(max-width:720px){#wzg66Overlay{align-items:flex-start;padding:6px}#wzg66Box{width:100%;max-height:none;overflow:visible;border-radius:13px;padding:12px}#wzg66Layout{grid-template-columns:minmax(0,1fr);gap:11px}#wzg66RightPanel{min-height:330px}#wzg66Roster{max-height:260px;min-height:160px}#wzg66Five{height:260px}#wzg66Hint{margin-top:2px}}
  `;document.head.append(css);
@@ -15183,6 +15199,7 @@ function wzg66Five(names,centerIndex,progress=0,stepMs=110){
 function wzg66SetMessage(msg){wzg66$('wzg66Result').textContent=msg}
 async function wzg2OpenReel(id,title){
  wzg66Make();wzg66StopTimer();wzg66.id=id;wzg66.title=title;wzg66.candidate=null;wzg66.busy=true;
+ wzg66$('wzg66Stage').classList.remove('wzg66-finished','wzg66-winner-reveal');wzg66$('wzg66Five').hidden=false;
  wzg66$('wzg66Overlay').hidden=false;document.body.style.overflow='hidden';
  wzg66$('wzg66Title').textContent=title;wzg66$('wzg93PrizeRow').hidden=false;wzg66$('wzg66Start').hidden=false;wzg66$('wzg66Start').disabled=false;wzg66$('wzg66Pre').hidden=false;wzg66$('wzg66Stage').hidden=true;wzg66$('wzg66After').hidden=true;
  try{
@@ -15250,7 +15267,7 @@ async function wzg66Start(){
 }
 function wzg66Run(){
  wzg66StopTimer();if(wzg66.retryTimer){clearTimeout(wzg66.retryTimer);wzg66.retryTimer=null}wzg66.candidate=null;wzg66.landing=false;wzg66.pickStarted=false;wzg66.pickPromise=null;wzg66.pickError=null;wzg66.nextPickRetryAt=0;
- wzg66.spinning=true;const reelTrack=wzg66$('wzg66Track');if(reelTrack){if(reelTrack._wzgStepCleanup)clearTimeout(reelTrack._wzgStepCleanup);reelTrack._wzgStepCleanup=null;delete reelTrack.dataset.centerIndex;delete reelTrack.dataset.pendingCenterIndex;reelTrack.style.transition='none';reelTrack.style.transform='translateY(0)'}wzg66$('wzg66Stage').classList.remove('wzg66-winner-reveal');wzg66$('wzg66Stage').hidden=false;
+ wzg66.spinning=true;const reelTrack=wzg66$('wzg66Track');if(reelTrack){if(reelTrack._wzgStepCleanup)clearTimeout(reelTrack._wzgStepCleanup);reelTrack._wzgStepCleanup=null;delete reelTrack.dataset.centerIndex;delete reelTrack.dataset.pendingCenterIndex;reelTrack.style.transition='none';reelTrack.style.transform='translateY(0)'}wzg66$('wzg66Stage').classList.remove('wzg66-winner-reveal','wzg66-finished');wzg66$('wzg66Five').hidden=false;wzg66$('wzg66Stage').hidden=false;
  wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66After').hidden=true;
  const excluded=new Set([...(wzg66.session?.skippedUsernames||[]),...(wzg66.session?.winners||[]).map(w=>w.username)]);
  const names=(wzg66.roster?.participants||[]).filter(p=>p.status==='eligible'&&!excluded.has(p.username));
@@ -15410,7 +15427,7 @@ function wzg66CandidateDetails(p){
 }
 function wzg66ShowCandidate(p,resumed){
  wzg66StopTimer();wzg66.landing=false;wzg66$('wzg66Start').hidden=true;wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66Stage').hidden=false;wzg66$('wzg66After').hidden=false;
- wzg66$('wzg66Stage').classList.add('wzg66-winner-reveal');
+ wzg66$('wzg66Stage').classList.remove('wzg66-finished');wzg66$('wzg66Five').hidden=false;wzg66$('wzg66Stage').classList.add('wzg66-winner-reveal');
  wzg66$('wzg66Countdown').textContent='🏆 KAZANAN ADAYI'+(resumed?' · Kurtarılan oturum':'');
  const visibleSlots=Array.isArray(wzg66.visualSlots)&&wzg66.visualSlots.length?wzg66.visualSlots.slice():[];
  let centerIndex=visibleSlots.length?((Number(wzg66.spinPosition)||0)%visibleSlots.length+visibleSlots.length)%visibleSlots.length:-1;
@@ -15491,10 +15508,24 @@ async function wzg66FinishClick(){
  finally{wzg66.busy=false}
 }
 function wzg66Finished(){
- wzg66$('wzg66Stage').hidden=false;wzg66$('wzg66Pre').hidden=true;
+ const stage=wzg66$('wzg66Stage');stage.hidden=false;stage.classList.remove('wzg66-winner-reveal');stage.classList.add('wzg66-finished');
+ wzg66$('wzg66Pre').hidden=true;wzg66$('wzg66Five').hidden=true;
  wzg66$('wzg93PrizeRow').hidden=true;wzg66$('wzg66Start').hidden=true;
+ wzg66$('wzg66Hint').textContent='Çekiliş tamamlandı. Kazananlar ve ödüller kaydedildi; yayın kliplerini Çekiliş Yönetimi alanından ekleyebilirsin.';
  wzg66$('wzg66Countdown').textContent='🏆 ÇEKİLİŞ TAMAMLANDI';
- wzg66SetMessage((wzg66.session?.winners||[]).map(w=>w.rank+'. '+w.username+(w.award?' · '+w.award:'')).join(' · ')||'Sonuçlar kaydedildi');
+ const result=wzg66$('wzg66Result');result.replaceChildren();
+ const winners=Array.isArray(wzg66.session?.winners)?[...wzg66.session.winners]:[];
+ winners.sort((a,b)=>Number(a.rank||0)-Number(b.rank||0));
+ if(winners.length){
+  const list=document.createElement('div');list.className='wzg66-finish-list';
+  for(const winner of winners){
+   const row=document.createElement('div');row.className='wzg66-finish-row';
+   const name=document.createElement('strong');name.textContent=(winner.rank||'—')+'. '+String(winner.username||'Kazanan');
+   const award=document.createElement('span');award.textContent=String(winner.award||'Ödül kaydedildi');
+   row.append(name,award);list.append(row);
+  }
+  result.append(list);
+ }else result.textContent='Sonuçlar kaydedildi';
  const box=wzg66$('wzg66After');box.hidden=false;box.replaceChildren();
  const b=document.createElement('button');b.className='primary';b.textContent='✅ Kapat';b.onclick=()=>{wzg66StopTimer();wzg66$('wzg66Overlay').hidden=true;document.body.style.overflow='';wzg2AdminRefresh()};box.append(b);
 }
