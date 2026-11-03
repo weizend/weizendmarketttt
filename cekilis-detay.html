@@ -41,7 +41,39 @@ main{max-width:1350px;padding:22px 15px 60px;margin:auto}h1{font-size:clamp(22px
 .wzg-detail-cell b{display:block;font-size:clamp(18px,2vw,25px);line-height:1.25;white-space:nowrap;font-variant-numeric:tabular-nums;color:#fff}
 .wzg-detail-cell small{display:block;margin-top:2px;font-size:10px;color:#b9b8c4;font-weight:800}
 @media(max-width:370px){.wzg-detail-cells{gap:4px}.wzg-detail-cell b{font-size:18px}}
-</style></head>
+</style>
+<style id="wz-v31118-detail-join-tap-fix">
+.wzg-detail-actions .wzg-detail-join{
+  -webkit-tap-highlight-color:transparent!important;
+  -webkit-user-select:none!important;
+  user-select:none!important;
+}
+.wzg-detail-actions .wzg-detail-join:focus-visible{
+  outline:2px solid #fff!important;
+  outline-offset:3px!important;
+}
+</style>
+
+<style id="wz-v31119-universal-android-tap-fix">
+/* Android Chrome: remove the blue tap flash from every element, not just selected buttons. */
+html, html *, html *::before, html *::after {
+  -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+}
+/* Remove only touch-device browser focus frames; keyboard focus remains visible. */
+@media (hover:none) and (pointer:coarse) {
+  button:focus:not(:focus-visible), a:focus:not(:focus-visible),
+  input:focus:not(:focus-visible), select:focus:not(:focus-visible),
+  textarea:focus:not(:focus-visible), summary:focus:not(:focus-visible),
+  [role="button"]:focus:not(:focus-visible), [onclick]:focus:not(:focus-visible),
+  [tabindex]:focus:not(:focus-visible) {
+    outline:none!important; box-shadow:none!important;
+  }
+}
+button, a, summary, [role="button"], [onclick], [tabindex] {
+  -webkit-user-select:none!important; user-select:none!important;
+}
+</style>
+</head>
 <body><header><a href="https://www.weizend.com/"><strong>🎉 WEİZEND <span style="color:#fc4860">ÇEKİLİŞ MERKEZİ</span></strong></a><a class="back" href="https://www.weizend.com/?wz_view=giveaway">← Çekilişlere Dön</a></header>
 <main><h1 id="heading">Çekiliş Detayları</h1><p class="intro">Ödül bilgileri, katılım listesi ve kesinleşen kazananlar</p><p class="status" id="status">⏳ Çekiliş bilgileri yükleniyor...</p><button type="button" id="retryApi" hidden style="margin:0 0 17px">🔄 Tekrar Dene</button>
 <div class="cols" id="content" hidden>
