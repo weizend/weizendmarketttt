@@ -101,6 +101,36 @@ html.wz77-admin-restoring #loginCard { display:none!important; }
 #adminArea .wz168-operation-feedback[data-kind="success"]{border-left-color:#2ba36a;color:#a9e9bf;}
 #adminArea .wz168-operation-feedback[data-kind="error"]{border-left-color:#e35555;color:#ffb2b2;}
 #adminArea .wz168-operation-feedback[data-kind="pending"]{border-left-color:#d9a23a;color:#f1d38d;}
+/* V31.1.94: Operation feedback is a non-blocking toast, NEVER a flex/grid child. */
+#adminArea #wz168FeedbackToast{
+  position:fixed!important;
+  z-index:2147483600!important;
+  bottom:18px!important;
+  right:18px!important;
+  left:auto!important;
+  width:min(430px,calc(100vw - 28px))!important;
+  max-width:calc(100vw - 28px)!important;
+  display:block!important;
+  flex:none!important;
+  margin:0!important;
+  padding:12px 14px!important;
+  border:1px solid #464957!important;
+  border-left:4px solid #65758a!important;
+  border-radius:11px!important;
+  background:#171923!important;
+  box-shadow:0 8px 32px rgba(0,0,0,.75)!important;
+  color:#fff;
+  overflow-wrap:anywhere;
+  pointer-events:none;
+}
+#adminArea #wz168FeedbackToast[data-kind="success"]{border-left-color:#2ba36a!important;}
+#adminArea #wz168FeedbackToast[data-kind="error"]{border-left-color:#e35555!important;}
+#adminArea #wz168FeedbackToast[data-kind="pending"]{border-left-color:#d9a23a!important;}
+@media(max-width:600px){#adminArea #wz168FeedbackToast{left:12px!important;right:12px!important;bottom:12px!important;width:auto!important;max-width:none!important;}}
+#section-tournaments .wz-v3047-team-row>.wz-v54-team-pick{min-width:0!important;flex:1 1 auto!important;width:auto!important;}
+#section-tournaments .wz-v3047-team-row>.wz-v3047-team-tools{flex:0 0 auto;max-width:48%;flex-wrap:wrap;justify-content:flex-end;}
+#section-tournaments .wz-v54-team-pick strong,#section-tournaments .wz-v54-team-pick small{overflow-wrap:anywhere;word-break:normal;}
+
 /* V31.1.69 — One result for each action; suppress only the old duplicated location. */
 #adminArea .status.wz169-legacy-duplicate-hidden{display:none!important;}
 /* V31.1.71: Sekme gezinmesi bir API işlemi değildir; sekme satırına bildirim ekleme. */
@@ -4447,7 +4477,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
         <div id="tournamentPendingSubscriptionsSummary" class="tournamentEntrySummary">Bekleyen talepler yükleniyor...</div>
         <div id="tournamentPendingSubscriptions" class="tournamentEntriesView"></div>
         <hr style="border:0;border-top:1px solid #292929;margin:22px 0">
-        <h3>✅ Kullanılmış Katılım Hakları / Bağışlar</h3>
+        <h3>✅ Seçili Turnuvada Kullanılmış Katılım Hakları / Bağışlar</h3>
         <div id="tournamentSubscriptionSummary" class="tournamentEntrySummary">Henüz ödeme hareketleri yüklenmedi.</div>
         <div id="tournamentSubscriptionEvents" class="tournamentEntriesView"></div>
       </div>
@@ -5030,34 +5060,30 @@ function wz168Place(c,raw,kind){
   const text=wz168NormalizeMessage(raw);
   if(!text)return;
   const button=c.button;
-  let node=button.wz168Notice;
+  let node=document.getElementById('wz168FeedbackToast')||button.wz168Notice;
   if(!node||!node.isConnected){
     node=document.createElement('div');
     node.className='wz168-operation-feedback';
     node.setAttribute('role','status');
     node.setAttribute('aria-live','polite');
-    const parent=button.parentElement;
-    const layout=parent?getComputedStyle(parent):null;
-    // Preserve flex-nowrap button toolbars and CSS grids: add the message
-    // immediately BELOW the controls, instead of creating horizontal overflow.
-    const outsideRow=layout && ((/^(inline-)?flex$/.test(layout.display)&&layout.flexWrap==='nowrap') ||
-      /^(inline-)?grid$/.test(layout.display));
-    // V31.1.85 FIX: recent activity's action buttons live inside .activityItemTop.
-    // Putting a 100%-basis feedback node next to the button inside that flex row
-    // squeezes the username/amount columns to a few pixels. Place feedback below
-    // the whole activity header instead; other button/toolbars keep legacy behavior.
-    const activityHeader=button.closest('.activityItemTop');
-    if(activityHeader){
-      activityHeader.insertAdjacentElement('afterend',node);
-    }else if(outsideRow&&parent?.parentElement){
-      parent.insertAdjacentElement('afterend',node);
-    }else{
-      button.insertAdjacentElement('afterend',node);
-    }
+    // V31.1.94: fixed-position feedback outside cards, grids and buttons.
+    // Inserting feedback in .wz-v3047-team-row (display:flex) squashed the
+    // team-name column into vertical letters after clicking a team button.
+    node.id='wz168FeedbackToast';
+    (document.getElementById('adminArea')||document.body).appendChild(node);
     button.wz168Notice=node;
   }
   node.dataset.kind=kind;
   node.textContent=text;
+  // A brief toast is visible but never changes document flow or button positions.
+  const version=String(Number(node.dataset.wzVersion||0)+1);
+  node.dataset.wzVersion=version;
+  setTimeout(()=>{
+    if(node.isConnected && node.dataset.wzVersion===version){
+      node.remove();
+      if(button.wz168Notice===node)button.wz168Notice=null;
+    }
+  },kind==='pending'?16000:8500);
   if(kind==='success'||kind==='error')c.final=true;
 }
 function wz168MirrorStatus(id,message,ok){
@@ -10533,6 +10559,7 @@ async function loadTournamentList(force=false){
       document.getElementById('tournamentEntriesView').innerHTML = '';
       document.getElementById('tournamentBracketSummary').innerHTML = 'Yönetilecek mevcut turnuva bulunmuyor.';
       document.getElementById('tournamentBracketView').innerHTML = '';
+      wzClearTournamentActivity('Yönetilecek mevcut turnuva bulunmuyor.');
       showStatus(
         'tournamentStatus',
         'ℹ️ Yönetilecek mevcut turnuva bulunmuyor. Tamamlanan turnuvalar Geçmiş Turnuvalar bölümünde.',
@@ -10983,6 +11010,9 @@ function wz41ConfirmTournamentSwitch(){
     }
     wz41ConfigDirty=false;
   }
+  wz41ActivityWaitingSelection=false;
+  wzClearTournamentActivity('Yeni turnuva seçildi. Katılım hareketlerini açarak kayıtlarını görüntüle.');
+  if(wz41Panel==='payments')void refreshTournamentParticipationTransactions();
   void loadTournamentConfig();
 }
 
@@ -11810,7 +11840,11 @@ async function deleteTournamentFromPanel(){
 
 async function loadTournamentEntries(silent=false){
   const id = document.getElementById('tournamentSelect')?.value || '';
-  if(!id) return;
+  if(!id){
+    const view=document.getElementById('tournamentEntriesView');if(view)view.innerHTML='';
+    const sum=document.getElementById('tournamentEntrySummary');if(sum)sum.textContent='Önce bir turnuva seç.';
+    return;
+  }
 
   if(!silent){
     showStatus('tournamentEntriesStatus','⏳ Turnuva V3 kayıtları yenileniyor...',true);
@@ -11818,6 +11852,7 @@ async function loadTournamentEntries(silent=false){
 
   try{
     const {r,d} = await api(`/admin/tournament/v3/entries?id=${encodeURIComponent(id)}&_=${Date.now()}`);
+    if(String(document.getElementById('tournamentSelect')?.value||'')!==String(id))return;
     if(!r.ok || !d?.success) throw new Error(d?.error || `HTTP ${r.status}`);
     currentTournamentEntries = d;
     renderTournamentV3Entries(d);
@@ -11891,6 +11926,76 @@ function wzV3047TeamNotice(message,ok=true){
   const n=document.getElementById('wzV3047PopupStatus');
   if(n){n.className='wz-v3047-note'+(ok?'':' error');n.textContent=wzV3047Notice.message;n.hidden=false;}
 }
+function wzPendingSubPaymentCanApprove(p){
+  const expiry=Date.parse(String(p?.expiresAt||''));
+  return String(p?.status||'')==='pending' && Number(p.requiredDirectSubs)===1 &&
+    Number(p.requiredGifts)===0 && Number.isFinite(expiry) && expiry>Date.now();
+}
+// V31.1.93: Kullanıcının açtığı BEKLEYEN V3 1v1 kaydını, uygun destek kodunu
+// geri alarak onayla. Manuel takım/koltuk veya oyun/Instagram alanı oluşturulmaz.
+let wzPendingSubBusy=false;
+function wzPendingSubClose(){
+  if(wzPendingSubBusy)return;
+  document.getElementById('wzPendingSubOverlay')?.remove();
+}
+async function wzPendingSubOpen(encodedPaymentId){
+  const paymentId=decodeURIComponent(encodedPaymentId||'');
+  if(!paymentId||wzPendingSubBusy)return;
+  let overlay=document.getElementById('wzPendingSubOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');overlay.id='wzPendingSubOverlay';
+    overlay.style.cssText='position:fixed;inset:0;z-index:2147483500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.83);padding:14px';
+    overlay.addEventListener('click',ev=>{if(ev.target===overlay)wzPendingSubClose()});
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML=`<section role="dialog" aria-modal="true" aria-label="Bekleyen turnuva kaydını onayla" style="background:#16151d;color:#fff;border:1px solid #555;border-radius:15px;max-width:530px;width:100%;padding:17px;max-height:85dvh;overflow:auto;box-sizing:border-box">
+    <h3 style="margin:0 0 12px">✅ Bekleyen Abonelik Kaydını Onayla</h3><p class="muted">Kullanıcının mevcut kaydı korunacak; uygun tekil abonelik puan kodu iptal edilip destek kaydı Turnuvada Kullanıldı olacaktır.</p>
+    <div id="wzPendingSubInfo">⏳ Kullanılmamış destekler aranıyor...</div>
+    <div style="display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px">
+      <button type="button" class="smallBtn secondary" onclick="wzPendingSubClose()">Vazgeç</button>
+      <button type="button" class="smallBtn" id="wzPendingSubConfirm" disabled>Kaydı Onayla</button>
+    </div></section>`;
+  try{
+    const {r,d}=await api('/admin/tournament/v3/subscription/eligible?paymentId='+encodeURIComponent(paymentId));
+    if(!r.ok||!d?.success)throw Error(d?.error||`HTTP ${r.status}`);
+    const info=document.getElementById('wzPendingSubInfo');if(!info)return;
+    if(!Array.isArray(d.events)||!d.events.length){
+      info.textContent='⚠️ Eşleşen ve kullanılmamış tekil normal abonelik kodu bulunamadı. Gift, kullanılmış veya birleştirilmiş kodlar onaylanmaz.';
+      return;
+    }
+    info.innerHTML=`<div><b>Kick: ${esc(d.username||'')}</b></div><label style="display:block;margin:10px 0">Abonelik desteğini seç
+      <select id="wzPendingSubEvent" style="width:100%;margin-top:8px;background:#111;color:white;border:1px solid #555;border-radius:8px;padding:10px">
+      ${d.events.map(e=>`<option value="${esc(e.id)}">${esc(e.sourceType==='subscription_renewal'?'Yenileme':'Abonelik')} · ${esc(formatTournamentDate(e.occurredAt))}</option>`).join('')}</select></label>
+      <p style="color:#ffc97d;font-size:13px">Bu desteğe ait kullanılmamış puan kodu kalıcı olarak geçersiz kılınacak. Kullanıcıya normal kayıt tamamlandı mesajı gidecek.</p>`;
+    const confirmButton=document.getElementById('wzPendingSubConfirm');
+    if(confirmButton){confirmButton.disabled=false;confirmButton.onclick=()=>wzPendingSubApprove(paymentId)}
+  }catch(err){const info=document.getElementById('wzPendingSubInfo');if(info)info.textContent='❌ '+String(err.message||err)}
+}
+async function wzPendingSubApprove(paymentId){
+  if(wzPendingSubBusy)return;
+  const eventId=String(document.getElementById('wzPendingSubEvent')?.value||'');
+  if(!eventId)return;
+  if(!confirm('Bu bekleyen turnuva kaydını onaylayıp seçilen aboneliğin KULLANILMAMIŞ puan kodunu iptal etmek istediğine emin misin?'))return;
+  wzPendingSubBusy=true;
+  const btn=document.getElementById('wzPendingSubConfirm');if(btn){btn.disabled=true;btn.textContent='⏳ Onaylanıyor...'}
+  try{
+    const {r,d}=await api('/admin/tournament/v3/subscription/approve',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({paymentId,eventId,confirm:true})
+    });
+    if(!r.ok||!d?.success)throw Error(d?.error||`HTTP ${r.status}`);
+    document.getElementById('wzPendingSubOverlay')?.remove();
+    await loadTournamentEntries(true);
+    if(typeof loadSupportRewardEvents==='function')await loadSupportRewardEvents().catch(()=>{});
+    const msg=d.message||'Bekleyen kayıt onaylandı, destek kodu iptal edildi.';
+    showStatus('tournamentEntriesStatus','✅ '+esc(msg),true);
+    wzV3047TeamNotice('✅ '+msg,true);
+  }catch(err){
+    const info=document.getElementById('wzPendingSubInfo');if(info)info.textContent='❌ '+String(err.message||err);
+    if(btn){btn.disabled=false;btn.textContent='Kaydı Onayla'}
+  }finally{wzPendingSubBusy=false}
+}
+
 function wzV54OpenAdminTeam(index){
   const entry=wzV54AdminTeamEntries[Number(index)];if(!entry?.team?.id)return;
   wzV3047ActiveTeamId=String(entry.team.id);
@@ -11958,7 +12063,10 @@ function wzV3047RenderTeamDialog(entry,firstOpen=false){
             <div class="tournamentV3PaymentGrid"><div><span>Beklenen</span><b>${tournamentV3Money(expected)}</b></div><div><span>Gelen</span><b>${tournamentV3Money(received)}</b></div><div><span>Kalan</span><b>${tournamentV3Money(Math.max(0,expected-received))}</b></div><div><span>Fazla</span><b>${tournamentV3Money(Math.max(0,received-expected))}</b></div></div>
             <small class="muted">Kod: ${esc(p.reference||'-')} · ${esc(formatTournamentDate(p.createdAt||p.created_at))}</small></div>`;
         }).join('')}
-        ${subs.map(p=>`<div class="tournamentV3Payment"><b>🎟️ Abonelik / Gift · ${esc(p.payerUsername||'-')}</b><div class="muted">Durum: ${esc(p.status||'-')} · Normal Abone ${Number(p.receivedDirectSubs||0)}/${Number(p.requiredDirectSubs||0)} · Gift ${Number(p.receivedGifts||0)}/${Number(p.requiredGifts||0)}</div></div>`).join('')}
+        ${subs.map(p=>`<div class="tournamentV3Payment"><b>🎟️ Abonelik / Gift · ${esc(p.payerUsername||'-')}</b><div class="muted">Durum: ${esc(p.status||'-')} · Normal Abone ${Number(p.receivedDirectSubs||0)}/${Number(p.requiredDirectSubs||0)} · Gift ${Number(p.receivedGifts||0)}/${Number(p.requiredGifts||0)}</div>${
+          Number(teamSize)===1 && wzPendingSubPaymentCanApprove(p)
+            ? `<button type="button" class="smallBtn secondary" style="margin-top:8px" onclick="wzPendingSubOpen('${encodeURIComponent(String(p.id))}')">✅ Kaydı Onayla (Destek Kodu)</button>`
+            : ''}</div>`).join('')}
         ${!payments.length&&!subs.length?'<div class="wz-v3047-empty">Bu takım için ödeme hareketi yok.</div>':''}</div></section>
       <div class="muted" style="margin-top:13px">Fikstür yayımlandıktan sonra takım adı ve kaptan dâhil mevcut oyuncuların VALORANT adı ve TAG'ı düzenlenebilir. Oyuncuların Kick hesapları değiştirilemez, takımdan oyuncu çıkarılamaz ve yeni oyuncu eklenemez. Takım silme işlemi de kapalıdır. Mevcut fikstür, ödemeler ve maç kayıtları korunur.</div>
     </div></section>`;
@@ -12035,6 +12143,9 @@ function renderTournamentV3Entries(data){
   host.innerHTML=`<div style="font-weight:900;margin:10px 0 2px">👥 Takımlar · Ada dokun, kadroyu ve işlemleri aç</div>
     <div class="wz-v54-team-pickers">${teams.map((entry,i)=>{
       const t=entry.team||{},ok=['ready','locked'].includes(String(t.status||''));
+      const pendingApproval=(Array.isArray(data?.subscriptionPayments)?data.subscriptionPayments:[]).find(p=>
+        String(p.teamId||'')===`V3:${String(t.id||'')}` && wzPendingSubPaymentCanApprove(p) &&
+        Number(t.teamSize||teamSize||1)===1);
       const id=encodeURIComponent(String(t.id||''));
       return `<div class="wz-v3047-team-row">
         <button type="button" class="wz-v54-team-pick" onclick="wzV54OpenAdminTeam(${i})" aria-label="${esc(t.name||'Takım')} kadrosunu, davet ve ödemeleri aç">
@@ -12042,7 +12153,8 @@ function renderTournamentV3Entries(data){
           <small>${esc(tournamentStatusText(t.status))} · ${Number(t.joinedCount||0)}/${Number(t.teamSize||teamSize||1)} oyuncu · ${Number(t.paidCount||0)} koltuk ödenmiş</small>
           <small style="color:${ok?'#86ecae':'#ffd78a'}">${ok?'✅ Kadro tamam':'⏳ Oyuncu / işlem bekleniyor'}</small>
         </button>
-        <div class="wz-v3047-team-tools">
+        <div class="wz-v3047-team-tools" style="flex-wrap:wrap">
+          ${pendingApproval?`<button type="button" class="smallBtn secondary" onclick="wzPendingSubOpen('${encodeURIComponent(String(pendingApproval.id))}')">✅ Kaydı Onayla</button>`:''}
           <button type="button" class="wz-v3047-icon" title="Takım adını düzenle" aria-label="Takım adını düzenle" onclick="wzV3047EditTeamName('${id}')">✏️</button>
           <button type="button" class="wz-v3047-icon danger" title="Takımı sil" aria-label="Takımı sil" onclick="deleteTournamentTeam('${id}')">🗑</button>
         </div></div>`;
@@ -12361,7 +12473,27 @@ async function adminCancelV3Subscription(encodedId){
   }catch(e){showStatus('tournamentParticipationStatus','❌ '+esc(e.message||e),false);}
 }
 
+// V31.1.94: All participation records are scoped to the selected tournament.
+// Clear old data immediately so a removed/new tournament does not inherit another's users.
+let wzTournamentActivityRequestSeq=0;
+function wzClearTournamentActivity(message='Önce bir turnuva seç.'){
+  wzTournamentActivityRequestSeq++;
+  const ids=['tournamentSubscriptionEvents','tournamentPendingSubscriptions'];
+  for(const id of ids){const el=document.getElementById(id);if(el)el.innerHTML=`<div class="tournamentEmpty">${esc(message)}</div>`;}
+  const sumIds=['tournamentSubscriptionSummary','tournamentPendingSubscriptionsSummary'];
+  for(const id of sumIds){const el=document.getElementById(id);if(el)el.textContent=message;}
+  hideStatus('tournamentParticipationStatus');
+}
+function wzTournamentActivityCurrent(id,sequence){
+  return String(document.getElementById('tournamentSelect')?.value||'')===String(id)&&
+    sequence===wzTournamentActivityRequestSeq;
+}
+
 async function refreshTournamentParticipationTransactions(){
+  const requestedId=String(document.getElementById('tournamentSelect')?.value||'');
+  if(!requestedId || wz41ActivityWaitingSelection){
+    wzClearTournamentActivity('Katılım hareketleri için mevcut bir turnuva seç.');return;
+  }
   const button = document.getElementById('tParticipationRefreshButton');
   const entryMode = String(
     currentTournamentRule?.entryMode ||
@@ -12404,6 +12536,7 @@ async function refreshTournamentParticipationTransactions(){
       loadTournamentEntries(true),
       loadTournamentSubscriptionEvents(true)
     ]);
+    if(String(document.getElementById('tournamentSelect')?.value||'')!==requestedId)return;
 
     showStatus(
       'tournamentParticipationStatus',
@@ -12458,20 +12591,25 @@ async function syncTournamentSubscriptions(){
 }
 
 async function loadTournamentSubscriptionEvents(silent=false){
+  const tid=String(document.getElementById('tournamentSelect')?.value||'').trim();
+  if(!tid || wz41ActivityWaitingSelection){
+    wzClearTournamentActivity('Katılım hareketleri için mevcut bir turnuva seç.');return;
+  }
+  const sequence=++wzTournamentActivityRequestSeq;
   try{
     const {r,d} =
       await api(
-        `/admin/tournament/v2/subscription-events?_=${Date.now()}`
+        `/admin/tournament/v2/subscription-events?tournamentId=${encodeURIComponent(tid)}&_=${Date.now()}`
       );
-
+    if(!wzTournamentActivityCurrent(tid,sequence))return;
     if(!r.ok || !d?.success){
       throw new Error(d?.error || `HTTP ${r.status}`);
     }
 
-    const events =
-      Array.isArray(d.events)
-        ? d.events
-        : [];
+    // Defense-in-depth: older Workers may still return global history.
+    // Never render entries belonging to another tournament.
+    const events = (Array.isArray(d.events)?d.events:[]).filter(e=>
+      e.tournament_id!=null && String(e.tournament_id)===tid);
 
     const host =
       document.getElementById('tournamentSubscriptionEvents');
@@ -12586,7 +12724,8 @@ async function loadTournamentSubscriptionEvents(silent=false){
     }
 
   }catch(error){
-    if(!silent){
+    if(String(document.getElementById('tournamentSelect')?.value||'')===tid &&
+       sequence===wzTournamentActivityRequestSeq && !silent){
       showStatus('tournamentParticipationStatus','❌ ' + esc(error.message || error),false);
     }
   }
@@ -13870,6 +14009,7 @@ document
 const wz41CacheV30=new Map();
 let wz41CatalogBusy=false;
 let wz41Panel='lobbies';
+let wz41ActivityWaitingSelection=false;
 let wz41Installed=false;
 let wz41ScanBusy=false;
 const wz41PanelIds={
@@ -13905,6 +14045,10 @@ function wz411ApplyPanelVisibility(){
 function wz41OpenPanel(key,scroll=true){
  if(!wz41PanelIds[key])return;
  wz41Panel=key;
+ if(key==='new'){
+   wz41ActivityWaitingSelection=true;
+   wzClearTournamentActivity('Yeni turnuva henüz oluşturulmadı. Mevcut bir turnuva seçmeden katılım kaydı gösterilmez.');
+ }
  wz411ApplyPanelVisibility();
  for(const btn of document.querySelectorAll('#wz41Menu button[data-wz41]')){
   const yes=btn.dataset.wz41===key;
@@ -13913,7 +14057,11 @@ function wz41OpenPanel(key,scroll=true){
  }
  // Fetch non-critical data only after requesting that management view.
  const tid=document.getElementById('tournamentSelect')?.value||'';
- if(tid && key==='payments')refreshTournamentParticipationTransactions().catch(()=>{});
+ if(key==='payments'){
+   if(!tid || wz41ActivityWaitingSelection)
+     wzClearTournamentActivity('Katılım hareketleri için önce mevcut bir turnuva seç. Yeni turnuvada henüz işlem yok.');
+   else refreshTournamentParticipationTransactions().catch(()=>{});
+ }
  if(tid && key==='predictions')loadTournamentPredictions(true).catch(()=>{});
  if(tid && key==='teams')loadTournamentEntries(true).catch(()=>{});
  if(tid && key==='bracket')loadTournamentBracket(true).catch(()=>{});
@@ -14012,9 +14160,11 @@ async function wz41SelectTournament(encodedId){
    if(!confirm('Kaydedilmemiş turnuva ayarlarını bırakıp başka turnuvaya geçmek istiyor musun?'))return;
    wz41ConfigDirty=false;
  }
+ wz41ActivityWaitingSelection=false;
  if(select.value!==tid){
    select.value=tid;
    v30AdminOpenMatch='';
+   wzClearTournamentActivity('Bu turnuvanın katılım hareketlerini görmek için “Katılım Hareketleri”ni aç.');
  }
  // The initial option may have been auto-selected while its detail GET failed.
  // Selecting that same card must always be allowed to recover the settings.
