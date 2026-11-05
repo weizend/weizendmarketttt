@@ -5648,7 +5648,9 @@ function renderGiftCodes(items){
 
   for(const item of items){
     const status = String(item.status || 'unused');
-    const statusText = status === 'unused'
+    const appliedToTournament=String(item.source_type||'')==='support_reward' &&
+      String(item.support_event_status||'')==='ignored_tournament' && status==='disabled';
+    const statusText = appliedToTournament ? 'Turnuvada Kullanıldı' : status === 'unused'
       ? 'Kullanılmadı'
       : status === 'processing'
         ? 'Puan Gönderiliyor'
@@ -5657,7 +5659,7 @@ function renderGiftCodes(items){
           : status === 'expired'
             ? 'Süresi Doldu'
             : 'Geçersiz';
-    const badge = status === 'unused'
+    const badge = appliedToTournament ? 'ok' : status === 'unused'
       ? 'ok'
       : status === 'processing'
         ? 'warn'
@@ -11928,8 +11930,11 @@ function wzV3047TeamNotice(message,ok=true){
 }
 function wzPendingSubPaymentCanApprove(p){
   const expiry=Date.parse(String(p?.expiresAt||''));
-  return String(p?.status||'')==='pending' && Number(p.requiredDirectSubs)===1 &&
-    Number(p.requiredGifts)===0 && Number.isFinite(expiry) && expiry>Date.now();
+  return String(p?.status||'')==='pending' &&
+    (Number(p.requiredDirectSubs)===1 && Number(p.requiredGifts)===0 ||
+     Number(p.requiredDirectSubs)===0 && Number(p.requiredGifts)===1) &&
+    Number(p.receivedDirectSubs||0)===0 && Number(p.receivedGifts||0)===0 &&
+    Number.isFinite(expiry) && expiry>Date.now();
 }
 // V31.1.93: Kullanıcının açtığı BEKLEYEN V3 1v1 kaydını, uygun destek kodunu
 // geri alarak onayla. Manuel takım/koltuk veya oyun/Instagram alanı oluşturulmaz.
@@ -11949,7 +11954,7 @@ async function wzPendingSubOpen(encodedPaymentId){
     document.body.appendChild(overlay);
   }
   overlay.innerHTML=`<section role="dialog" aria-modal="true" aria-label="Bekleyen turnuva kaydını onayla" style="background:#16151d;color:#fff;border:1px solid #555;border-radius:15px;max-width:530px;width:100%;padding:17px;max-height:85dvh;overflow:auto;box-sizing:border-box">
-    <h3 style="margin:0 0 12px">✅ Bekleyen Abonelik Kaydını Onayla</h3><p class="muted">Kullanıcının mevcut kaydı korunacak; uygun tekil abonelik puan kodu iptal edilip destek kaydı Turnuvada Kullanıldı olacaktır.</p>
+    <h3 style="margin:0 0 12px">✅ Bekleyen Turnuva Kaydını Onayla</h3><p class="muted">Kullanıcının kendi başlattığı kayıt korunur. Kendi Kick hesabına ait gerçek, tekil ve henüz turnuvada kullanılmamış abonelik/Gift desteği seçilir. İptal edilmiş puan kodu yeniden açılmaz; destek kaydı Turnuvada Kullanıldı olarak güncellenir.</p>
     <div id="wzPendingSubInfo">⏳ Kullanılmamış destekler aranıyor...</div>
     <div style="display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px">
       <button type="button" class="smallBtn secondary" onclick="wzPendingSubClose()">Vazgeç</button>
@@ -11960,13 +11965,15 @@ async function wzPendingSubOpen(encodedPaymentId){
     if(!r.ok||!d?.success)throw Error(d?.error||`HTTP ${r.status}`);
     const info=document.getElementById('wzPendingSubInfo');if(!info)return;
     if(!Array.isArray(d.events)||!d.events.length){
-      info.textContent='⚠️ Eşleşen ve kullanılmamış tekil normal abonelik kodu bulunamadı. Gift, kullanılmış veya birleştirilmiş kodlar onaylanmaz.';
+      info.textContent='⚠️ Bu Kick hesabına ait, harcanmamış tekil abonelik/Gift desteği bulunamadı. Başka hesaba ait, kullanılmış veya birleşik ödül kodları onaylanmaz.';
       return;
     }
-    info.innerHTML=`<div><b>Kick: ${esc(d.username||'')}</b></div><label style="display:block;margin:10px 0">Abonelik desteğini seç
+    info.innerHTML=`<div><b>Kick: ${esc(d.username||'')}</b></div>
+      <p style="color:#c9b6f8;font-size:13px">Başvurunun beklediği şart: ${d.requiredKind==='gift_sub'?'1 Gift':'1 normal abonelik'}. Yönetici olarak aynı kullanıcıya ait gerçek abonelik veya Gift desteğiyle onaylayabilirsin.</p>
+      <label style="display:block;margin:10px 0">Doğrulanmış destek kaydını seç
       <select id="wzPendingSubEvent" style="width:100%;margin-top:8px;background:#111;color:white;border:1px solid #555;border-radius:8px;padding:10px">
-      ${d.events.map(e=>`<option value="${esc(e.id)}">${esc(e.sourceType==='subscription_renewal'?'Yenileme':'Abonelik')} · ${esc(formatTournamentDate(e.occurredAt))}</option>`).join('')}</select></label>
-      <p style="color:#ffc97d;font-size:13px">Bu desteğe ait kullanılmamış puan kodu kalıcı olarak geçersiz kılınacak. Kullanıcıya normal kayıt tamamlandı mesajı gidecek.</p>`;
+      ${d.events.map(e=>`<option value="${esc(e.id)}">${esc(e.sourceKind==='gift_sub'?'Gift':e.sourceType==='subscription_renewal'?'Yenileme':'Abonelik')} · ${esc(formatTournamentDate(e.occurredAt))}${e.codeAlreadyCancelled?' · Kod zaten iptal edilmiş':''}</option>`).join('')}</select></label>
+      <p style="color:#ffc97d;font-size:13px">Kod henüz kullanılmadıysa iptal edilir; daha önce sen iptal ettiysen geçersiz olarak kalır. Başvuru, gerçek kullanılan destek türüne göre tamamlanır ve kullanıcıya normal kayıt bildirimi gider.</p>`;
     const confirmButton=document.getElementById('wzPendingSubConfirm');
     if(confirmButton){confirmButton.disabled=false;confirmButton.onclick=()=>wzPendingSubApprove(paymentId)}
   }catch(err){const info=document.getElementById('wzPendingSubInfo');if(info)info.textContent='❌ '+String(err.message||err)}
@@ -11975,7 +11982,7 @@ async function wzPendingSubApprove(paymentId){
   if(wzPendingSubBusy)return;
   const eventId=String(document.getElementById('wzPendingSubEvent')?.value||'');
   if(!eventId)return;
-  if(!confirm('Bu bekleyen turnuva kaydını onaylayıp seçilen aboneliğin KULLANILMAMIŞ puan kodunu iptal etmek istediğine emin misin?'))return;
+  if(!confirm('Kullanıcının mevcut bekleyen kaydını seçilen gerçek abonelik/Gift desteğiyle tamamlamak, varsa kullanılmamış kodunu iptal etmek ve destek kaydını Turnuvada Kullanıldı yapmak istiyor musun?'))return;
   wzPendingSubBusy=true;
   const btn=document.getElementById('wzPendingSubConfirm');if(btn){btn.disabled=true;btn.textContent='⏳ Onaylanıyor...'}
   try{
@@ -12065,7 +12072,7 @@ function wzV3047RenderTeamDialog(entry,firstOpen=false){
         }).join('')}
         ${subs.map(p=>`<div class="tournamentV3Payment"><b>🎟️ Abonelik / Gift · ${esc(p.payerUsername||'-')}</b><div class="muted">Durum: ${esc(p.status||'-')} · Normal Abone ${Number(p.receivedDirectSubs||0)}/${Number(p.requiredDirectSubs||0)} · Gift ${Number(p.receivedGifts||0)}/${Number(p.requiredGifts||0)}</div>${
           Number(teamSize)===1 && wzPendingSubPaymentCanApprove(p)
-            ? `<button type="button" class="smallBtn secondary" style="margin-top:8px" onclick="wzPendingSubOpen('${encodeURIComponent(String(p.id))}')">✅ Kaydı Onayla (Destek Kodu)</button>`
+            ? `<button type="button" class="smallBtn secondary" style="margin-top:8px" onclick="wzPendingSubOpen('${encodeURIComponent(String(p.id))}')">✅ Kaydı Onayla (Abonelik/Gift)</button>`
             : ''}</div>`).join('')}
         ${!payments.length&&!subs.length?'<div class="wz-v3047-empty">Bu takım için ödeme hareketi yok.</div>':''}</div></section>
       <div class="muted" style="margin-top:13px">Fikstür yayımlandıktan sonra takım adı ve kaptan dâhil mevcut oyuncuların VALORANT adı ve TAG'ı düzenlenebilir. Oyuncuların Kick hesapları değiştirilemez, takımdan oyuncu çıkarılamaz ve yeni oyuncu eklenemez. Takım silme işlemi de kapalıdır. Mevcut fikstür, ödemeler ve maç kayıtları korunur.</div>
@@ -16312,5 +16319,6 @@ async function wz3103Check(encodedId){
 }
 
 </script>
+
 </body>
 </html>
