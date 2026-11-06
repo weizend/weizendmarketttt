@@ -473,7 +473,7 @@ html,body{overscroll-behavior-y:auto}
 <div id="arenaTeamPrizeNote" class="arena-team-prize-note" hidden>🏅 Derece ödülü kazanan takımın her oyuncusuna ayrı ayrı verilir; ikiye bölünmez. Tahmin ödülü ise tahmin yarışmasının kazananına aittir.</div>
 <div id="picksBox" hidden><h3>🎯 Tahminim</h3><p id="authText" class="hint">Kick hesabı kontrol ediliyor...</p><div id="wzPredictionNav" class="wz-pred-nav"><button class="btn secondary" id="wzPredPrev" type="button">← Önceki</button><b id="wzPredIndex">Maç 1/8</b><button class="btn secondary" id="wzPredNext" type="button">Sonraki →</button></div><div class="choices"><button class="choose" id="pickA" disabled>Oyuncu A</button><button class="choose" id="pickB" disabled>Oyuncu B</button><button class="choose arena-auth-pick" id="arenaVerifyPick" type="button" hidden>🔐 HESABINI DOĞRULA</button></div><p id="wzPredDependency" class="wz-pred-dependency" hidden></p><div id="wzPredVotes" class="wz-pred-votes" aria-live="polite"></div><p id="pickProgress" class="pick-status">Tahmin durumu yükleniyor...</p><p id="wzPredLock" class="wz-pred-lock" hidden>🔒 Tahminler Kilitlendi</p><button id="wzGoMissing" type="button" class="btn secondary" style="width:100%;margin:7px 0;display:none">Eksik Tahmine Git</button><button id="confirmPicks" type="button" class="btn" style="width:100%;margin:7px 0 9px;display:none" disabled>Tahminleri Onayla</button><button id="editPicks" type="button" class="btn secondary" style="width:100%;margin:7px 0 9px;display:none">Tahminleri Düzenle</button><p class="small">Sadece tamamlanıp onaylanan kuponlar oy sayısına ve sıralamaya katılır. Maçlar başladığında tahminler sunucuda kilitlenir.</p></div><hr style="border:0;border-top:1px solid #333;margin:16px 0"><h3>👥 Takımlar / Oyuncular</h3><div id="participants" class="members"><div class="small">Katılımcılar yükleniyor...</div></div><hr style="border:0;border-top:1px solid #333;margin:16px 0"><h3>🏅 Tahmin Sıralaması</h3><div id="predictionBoard" class="small">Sıralama yükleniyor...</div></aside>
 </div>
-<div class="arena-room-overlay" id="roomDialog" role="dialog" aria-modal="true" aria-label="WEİZEND Arena maç lobisi" hidden><section class="panel lobby-panel" id="lobbyPanel"><div class="toolbar"><h2>🎮 Kaptan Lobisi ve Hazır Kontrolü</h2><button type="button" class="btn secondary" id="roomExit">← Fikstüre Dön</button><button type="button" class="btn secondary" id="lobbyRefresh">↻ Yenile</button></div>
+<div class="arena-room-overlay" id="roomDialog" role="dialog" aria-modal="true" aria-label="WEİZEND Arena maç lobisi" hidden><section class="panel lobby-panel" id="lobbyPanel"><div class="toolbar"><h2>🎮 Kaptan Lobisi ve Hazır Kontrolü</h2><button type="button" class="btn secondary" id="roomExit">← Fikstüre Dön</button><button type="button" class="btn secondary" id="lobbyRefresh">↻ Yenile</button><button class="arena-ux-close" type="button" aria-label="Maç lobisini kapat" onclick="document.getElementById('roomExit')?.click()">×</button></div>
 <p class="hint">Lobiler VALORANT oyunu içinden kaptanlar tarafından kurulur. Arena yalnızca maç organizasyonunu yönetir.</p>
 <div id="lobbyContent" aria-live="polite">Davet edilen maç lobisi yükleniyor...</div></section></div>
 <div class="footer">WEİZEND ARENA • Turnuva Merkezi</div>
@@ -1680,5 +1680,47 @@ function start(){readStatus();setInterval(readStatus,30000);setInterval(()=>{if(
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
 </script>
+
+<style id="wz-v31198-cross-device-ux">
+/* WEIZEND UX V31.1.98 — consistent keyboard, touch and motion accessibility. */
+:where(button, a, [role="button"], input, select, textarea):focus-visible {
+  outline:2px solid #ff858e!important;outline-offset:3px;
+}
+@media (max-width: 700px) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {font-size:max(16px,1em);}
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after {scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}
+}
+
+/* Match-room layout: toolbar + close stay visible; only match content scrolls. */
+#roomDialog.arena-room-overlay {
+  box-sizing:border-box;overflow:hidden!important;
+  align-items:center!important;justify-content:center!important;
+  padding:max(9px,env(safe-area-inset-top)) 9px max(9px,env(safe-area-inset-bottom))!important;
+}
+#roomDialog .lobby-panel {
+  box-sizing:border-box;display:flex!important;flex-direction:column!important;
+  max-height:calc(100dvh - max(9px,env(safe-area-inset-top)) - max(9px,env(safe-area-inset-bottom)))!important;
+  min-height:0!important;overflow:hidden!important;
+}
+#roomDialog .toolbar {flex:0 0 auto;position:relative;z-index:5;gap:9px;
+  background:#16161d;border-bottom:1px solid #383941;padding:12px;
+  margin:-12px -12px 10px;
+}
+#roomDialog .toolbar h2{min-width:0;overflow-wrap:anywhere;flex:1 1 230px;margin:0;}
+#roomDialog #lobbyContent {flex:1 1 auto;min-height:0;overflow-y:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:3px 5px 18px;}
+#roomDialog .arena-ux-close {width:42px;min-width:42px;height:42px;flex:0 0 42px;
+  display:inline-flex;align-items:center;justify-content:center;padding:0;
+  background:#25252e;color:#fff;border:1px solid #595b65;border-radius:11px;
+  font-size:26px;touch-action:manipulation;}
+@media(max-width:650px){
+  #roomDialog .lobby-panel{border-radius:14px!important;}
+  #roomDialog .toolbar{margin:-12px -12px 9px;padding:10px;}
+  #roomDialog .toolbar h2{font-size:1.04rem;flex:1 1 150px;}
+  #roomDialog #roomExit,#roomDialog #lobbyRefresh{min-height:42px;}
+}
+</style>
 </body>
 </html>
