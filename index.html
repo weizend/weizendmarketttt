@@ -20276,5 +20276,29 @@ return;
   .wz-turn-detail-close-rail > .wz-turn-detail-sticky-close {top:10px!important;right:10px!important;}
 }
 </style>
+
+<style id="wz-v31202-modal-text-legibility">
+/* WEIZEND V31.2.02 — readable popup text; presentation only, no event/API changes. */
+:where([role="dialog"],[aria-modal="true"],.modal-content,.choiceCard) :where(p,small,label,.muted,.notice,.smallprint) {
+  max-width:100%;min-width:0;overflow-wrap:anywhere;word-break:normal;
+  white-space:normal;line-height:1.55;
+}
+:where([role="dialog"],[aria-modal="true"],.modal-content,.choiceCard) :where(h2,h3,h4,strong) {
+  min-width:0;overflow-wrap:anywhere;word-break:normal;
+}
+
+/* Public modals: readable metadata and long usernames on narrow screens. */
+:where(#imageModal,#redirectModal,#purchaseModal,#giftRedeemModal,#inboxModal,#tv2Modal) :where(.modal-header,.modal-body,.redirect-modal-body,.tv2-modal-body) {
+  min-width:0;max-width:100%;
+}
+:where(#imageModal,#redirectModal,#purchaseModal,#giftRedeemModal,#inboxModal,#tv2Modal) :where(p,small,label,.muted,.modal-title,.modal-description) {
+  overflow-wrap:anywhere;word-break:normal;white-space:normal;line-height:1.55;
+}
+.wz-ga-dialog .wz-ga-modal-head{margin-top:0!important;}
+:where(.wz-product-info-body,.wz-v95-team-scroll,.wz-ga-modal,.tv3-dialog,.wz-turn-detail-window) :where(p,small,label,.muted) {
+  min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:normal;white-space:normal;line-height:1.55;
+}
+
+</style>
 </body>
 </html>
