@@ -309,5 +309,37 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 </script>
 
+
+<style id="wz-v31198-cross-device-ux">
+/* WEIZEND UX V31.1.98 — consistent keyboard, touch and motion accessibility. */
+:where(button, a, [role="button"], input, select, textarea):focus-visible {
+  outline:2px solid #ff858e!important;outline-offset:3px;
+}
+@media (max-width: 700px) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {font-size:max(16px,1em);}
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after {scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}
+}
+
+/* Lobby forms: keep dialog title and close control pinned in the viewport. */
+#modal.dialogBackdrop{box-sizing:border-box;overflow:hidden;padding:max(9px,env(safe-area-inset-top)) 9px max(9px,env(safe-area-inset-bottom));}
+#modal > .dialog {box-sizing:border-box;display:flex;flex-direction:column;
+  max-height:calc(100dvh - max(9px,env(safe-area-inset-top)) - max(9px,env(safe-area-inset-bottom)))!important;
+  min-height:0;overflow:hidden!important;padding:0!important;}
+#modal > .dialog > .headrow {flex:0 0 auto;position:relative;z-index:3;min-height:60px;
+  padding:12px 17px;background:#1a1c24;border-bottom:1px solid #42434e;}
+#modal .headrow h2 {margin:0!important;font-size:1.11rem;overflow-wrap:anywhere;min-width:0;}
+#modal #closeModal {display:inline-flex;align-items:center;justify-content:center;
+  width:42px!important;height:42px!important;min-width:42px!important;flex:0 0 42px;
+  padding:0!important;background:#292b35!important;border:1px solid #60616e!important;color:#fff!important;border-radius:11px!important;}
+#modal #dialogContent {flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;padding:17px 20px 22px;}
+@media(max-width:640px){
+ #modal #dialogContent{padding:13px 14px 19px;}
+ #modal > .dialog > .headrow{padding:10px 13px;}
+ #modal .formgrid{grid-template-columns:minmax(0,1fr);}
+}
+</style>
 </body>
 </html>
