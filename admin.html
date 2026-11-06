@@ -11930,7 +11930,7 @@ function wzV3047TeamNotice(message,ok=true){
 }
 function wzPendingSubPaymentCanApprove(p){
   const expiry=Date.parse(String(p?.expiresAt||''));
-  return String(p?.status||'')==='pending' &&
+  return wzAdminSubscriptionState(p)==='pending' &&
     (Number(p.requiredDirectSubs)===1 && Number(p.requiredGifts)===0 ||
      Number(p.requiredDirectSubs)===0 && Number(p.requiredGifts)===1) &&
     Number(p.receivedDirectSubs||0)===0 && Number(p.receivedGifts||0)===0 &&
@@ -12410,13 +12410,38 @@ async function deleteSoloTournamentPlayer(encodedMembershipId){
   }
 }
 
+// V31.1.99: display-only deadline calculation. Server owns actual expiry/cancellation.
+let wzAdminSubscriptionRefreshTimer=null;
+function wzAdminSubscriptionState(p){
+  const raw=String(p?.status||'').toLowerCase();
+  if(raw!=='pending')return raw;
+  const expiry=Date.parse(String(p?.expiresAt||''));
+  return Number.isFinite(expiry)&&expiry<=Date.now()?'expired':raw;
+}
+function wzScheduleAdminSubscriptionRefresh(subs){
+  if(wzAdminSubscriptionRefreshTimer){clearTimeout(wzAdminSubscriptionRefreshTimer);wzAdminSubscriptionRefreshTimer=null;}
+  const now=Date.now();
+  const soonest=(subs||[]).filter(p=>wzAdminSubscriptionState(p)==='pending')
+    .map(p=>Date.parse(String(p.expiresAt||'')))
+    .filter(x=>Number.isFinite(x)&&x>now).sort((a,b)=>a-b)[0];
+  if(!Number.isFinite(soonest))return;
+  const selected=String(document.getElementById('tournamentSelect')?.value||'');
+  wzAdminSubscriptionRefreshTimer=setTimeout(()=>{
+    wzAdminSubscriptionRefreshTimer=null;
+    if(selected&&String(document.getElementById('tournamentSelect')?.value||'')===selected)
+      loadTournamentEntries(true).catch(e=>console.warn('Tournament expiry admin refresh:',e));
+  },Math.min(2147483647,Math.max(1000,soonest-now+900)));
+}
 function renderTournamentSubscriptionPayments(subs){
   const box = document.getElementById('tournamentPendingSubscriptionsSummary');
   if(!box) return;
 
-  const pending = subs.filter(s=>s.status==='pending').length;
-  const paid = subs.filter(s=>s.status==='paid').length;
-  const expired = subs.filter(s=>s.status==='expired').length;
+  const pending = subs.filter(s=>wzAdminSubscriptionState(s)==='pending').length;
+  const paid = subs.filter(s=>wzAdminSubscriptionState(s)==='paid').length;
+  const expired = subs.filter(s=>wzAdminSubscriptionState(s)==='expired').length;
+  // Records stay in D1 for audit but expired/cancelled are not active requests.
+  const visible = subs.filter(s=>!['expired','cancelled'].includes(wzAdminSubscriptionState(s)));
+  wzScheduleAdminSubscriptionRefresh(subs);
 
   box.innerHTML = `
     <span class="tournamentPill">Bekleyen: ${pending}</span>
@@ -12427,7 +12452,7 @@ function renderTournamentSubscriptionPayments(subs){
   const host = document.getElementById('tournamentPendingSubscriptions');
 
   if(host){
-    if(!subs.length){ host.innerHTML='<div class="tournamentEmpty">Bu turnuvada görüntülenecek abonelik/gift işlemi yok.</div>';return; }
+    if(!visible.length){ host.innerHTML='<div class="tournamentEmpty">Aktif bekleyen veya tamamlanan abonelik/Gift işlemi yok. Süresi dolan kayıtlar denetim geçmişinde korunur.</div>';return; }
     host.innerHTML = `
       <div class="tableWrap">
         <table>
@@ -12442,7 +12467,7 @@ function renderTournamentSubscriptionPayments(subs){
             </tr>
           </thead>
           <tbody>
-            ${subs.map(s=>`
+            ${visible.map(s=>`
               <tr>
                 <td><b>${esc(s.payerUsername||'-')}</b></td>
                 <td>
