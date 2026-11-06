@@ -18115,9 +18115,11 @@ return;
       aria-label="Turnuva detayları"
       onclick="if(event.target===this) wzTurnBack()">
       <div class="wz-turn-detail-window">
+        <div class="wz-turn-detail-close-rail">
+          <button type="button" class="wz-turn-detail-sticky-close" onclick="wzTurnBack()" aria-label="Turnuva detaylarını kapat" title="Turnuva detaylarını kapat">×</button>
+        </div>
         <section class="wz-turn-hero">
           <div class="wz-turn-hero-cover"${heroStyle}>
-            <button type="button" class="wz-turn-cover-back" onclick="wzTurnBack()" aria-label="Turnuva detaylarını kapat">×</button>
           </div>
           ${renderTournamentTimeline(item)}
           ${teamActions.teamMode ? `
@@ -20224,6 +20226,53 @@ return;
   #giftRedeemModal > .modal-content,#tv2Modal > .modal-content {width:100%!important;max-width:100%!important;}
   .modal-header h3{min-width:0;overflow-wrap:anywhere;}
   .wz-v95-team-overlay,.wz-product-info-overlay {padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom))!important;}
+}
+</style>
+
+<style id="wz-v31199-tournament-detail-sticky-close">
+/* Independent of the hero: the close button stays in the tournament detail scroller. */
+.wz-turn-detail-window > .wz-turn-detail-close-rail {
+  position:sticky!important;
+  top:0!important;
+  z-index:120!important;
+  height:0!important;
+  min-height:0!important;
+  display:flex!important;
+  justify-content:flex-end!important;
+  overflow:visible!important;
+  pointer-events:none!important;
+}
+.wz-turn-detail-close-rail > .wz-turn-detail-sticky-close {
+  pointer-events:auto!important;
+  position:relative!important;
+  top:12px!important;
+  right:12px!important;
+  z-index:121!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:44px!important;
+  height:44px!important;
+  min-width:44px!important;
+  min-height:44px!important;
+  flex:0 0 44px!important;
+  margin:0!important;
+  padding:0!important;
+  color:#fff!important;
+  font-size:28px!important;
+  font-weight:750!important;
+  line-height:1!important;
+  background:rgba(13,15,20,.94)!important;
+  border:1px solid #636773!important;
+  border-radius:12px!important;
+  box-shadow:0 5px 18px rgba(0,0,0,.65)!important;
+  cursor:pointer!important;
+  opacity:1!important;
+  touch-action:manipulation!important;
+}
+.wz-turn-detail-close-rail > .wz-turn-detail-sticky-close:focus-visible { outline:3px solid #ffa0a0!important;outline-offset:2px; }
+@media(max-width:700px){
+  .wz-turn-detail-close-rail > .wz-turn-detail-sticky-close {top:10px!important;right:10px!important;}
 }
 </style>
 </body>
