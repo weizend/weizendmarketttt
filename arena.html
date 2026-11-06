@@ -1722,5 +1722,22 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   #roomDialog #roomExit,#roomDialog #lobbyRefresh{min-height:42px;}
 }
 </style>
+
+<style id="wz-v31202-modal-text-legibility">
+/* WEIZEND V31.2.02 — readable popup text; presentation only, no event/API changes. */
+:where([role="dialog"],[aria-modal="true"],.modal-content,.choiceCard) :where(p,small,label,.muted,.notice,.smallprint) {
+  max-width:100%;min-width:0;overflow-wrap:anywhere;word-break:normal;
+  white-space:normal;line-height:1.55;
+}
+:where([role="dialog"],[aria-modal="true"],.modal-content,.choiceCard) :where(h2,h3,h4,strong) {
+  min-width:0;overflow-wrap:anywhere;word-break:normal;
+}
+
+:where(#roomDialog,.wz622-team-dialog) :where(p,small,label,.muted,.notice) {
+  min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:normal;white-space:normal;line-height:1.55;
+}
+:where(#roomDialog,.wz622-team-dialog) :where(h2,h3,h4,strong){min-width:0;overflow-wrap:anywhere;}
+
+</style>
 </body>
 </html>
