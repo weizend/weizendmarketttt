@@ -4660,7 +4660,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
 
 <div id="adminChoiceModal" class="choiceOverlay" onclick="if(event.target===this) closeAdminChoiceModal()">
   <div class="choiceCard" onclick="event.stopPropagation()">
-    <h3 id="adminChoiceTitle">İşlem seç</h3>
+    <div class="wz-ux-choice-head"><h3 id="adminChoiceTitle">İşlem seç</h3><button type="button" class="wz-ux-close" aria-label="Pencereyi kapat" onclick="closeAdminChoiceModal()">×</button></div>
     <p id="adminChoiceText"></p>
 
     <div class="choiceActions">
@@ -14317,7 +14317,7 @@ async function wz41ComposeReferee(encodedMid){
  wz41MessageMatch={id,tournamentId:tid,tournamentName:tournamentCatalogCache.find(x=>String(x.id)===String(tid))?.name||tid,round:match.round_number,num:match.match_number};
  const prior=document.getElementById('wz41RefereeDialog');if(prior)prior.remove();
  const overlay=document.createElement('div');overlay.id='wz41RefereeDialog';overlay.className='wz41-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');
- overlay.innerHTML=`<div class="wz41-dialog"><h3>💬 Maç Hakem Duyurusu</h3>
+ overlay.innerHTML=`<div class="wz41-dialog"><div class="wz41-referee-head"><h3>💬 Maç Hakem Duyurusu</h3><button type="button" class="wz-ux-close" aria-label="Pencereyi kapat" onclick="wz41CloseReferee()">×</button></div>
    <p class="muted">${esc(wz41MessageMatch.tournamentName)} · Tur ${Number(match.round_number)} / Maç ${Number(match.match_number)}</p>
    <p><strong>${wz41MessageRecipients.length} doğrulanmış alıcı:</strong> ${wz41MessageRecipients.map(x=>esc(x.username)).join(', ')}</p>
    <div class="muted">Mesajlar oyuncuların <b>Market Gelen Kutusu'na özel mesaj</b> olarak gider. Ortak Arena sohbeti değildir. Oyuncular cevap verebilir; cevaplarını Admin Mesajlar bölümünde görebilirsin.</div>
@@ -16140,7 +16140,7 @@ async function wzgcDeleteTemplate(id,name){
 
 <div id="tournamentPlayerEditOverlay" class="choiceOverlay" onclick="if(event.target===this) closeTournamentSlotEditor()">
   <div class="choiceCard" onclick="event.stopPropagation()">
-    <h3>✏️ Oyuncu Bilgilerini Düzenle</h3>
+    <div class="wz-ux-choice-head"><h3>✏️ Oyuncu Bilgilerini Düzenle</h3><button type="button" class="wz-ux-close" aria-label="Pencereyi kapat" onclick="closeTournamentSlotEditor()">×</button></div>
     <p id="tournamentSlotEditExplain">Kadro kayıtlarını değiştirmeden mevcut oyuncunun oyun içi adını (VALORANT Ad#TAG) düzenleyebilirsin.</p>
 
     <div class="field">
@@ -16320,5 +16320,53 @@ async function wz3103Check(encodedId){
 
 </script>
 
+
+<style id="wz-v31198-cross-device-ux">
+/* WEIZEND UX V31.1.98 — consistent keyboard, touch and motion accessibility. */
+:where(button, a, [role="button"], input, select, textarea):focus-visible {
+  outline:2px solid #ff858e!important;outline-offset:3px;
+}
+@media (max-width: 700px) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {font-size:max(16px,1em);}
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after {scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}
+}
+
+/* Support/gift modal: sticky close button while the recipient list and form scroll. */
+#wz156GiftModal .wz156GiftDialog{max-height:calc(100dvh - 24px)!important;min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+#wz156GiftModal .wz156GiftHead{
+  position:sticky;top:0;z-index:8;margin:-20px -20px 14px;padding:13px 17px;
+  background:#191b22;border-bottom:1px solid #424550;min-height:60px;
+}
+#wz156GiftModal .wz156GiftHead button {min-width:94px;min-height:42px;flex:0 0 auto;}
+/* Standard admin confirmations/forms are bounded by the viewport. */
+.choiceOverlay,.dmNewMessageModal,.wz41-overlay {overscroll-behavior:contain;}
+.choiceCard,.dmNewMessageCard,.wz41-dialog{
+  box-sizing:border-box;max-height:calc(100dvh - 24px)!important;
+  min-height:0;overflow-y:auto!important;overflow-x:hidden!important;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+}
+.wz-ux-choice-head,.dmNewMessageHead,.wz41-referee-head{
+  position:sticky;top:0;z-index:10;min-height:54px;display:flex;
+  align-items:center;justify-content:space-between;gap:10px;
+  margin:-15px -15px 12px;padding:11px 15px;
+  background:#191b22;border-bottom:1px solid #3f424e;
+}
+.wz-ux-choice-head h3,.dmNewMessageHead h3,.wz41-referee-head h3 {margin:0;min-width:0;overflow-wrap:anywhere;}
+.wz-ux-close {flex:0 0 42px!important;width:42px!important;min-width:42px!important;height:42px!important;padding:0!important;
+  display:inline-flex!important;align-items:center;justify-content:center;
+  background:#292b35!important;color:#fff!important;border:1px solid #5c5e68!important;
+  border-radius:11px!important;font-size:24px!important;}
+.dmNewMessageHead .dmCloseButton{width:42px!important;height:42px!important;min-width:42px!important;flex:0 0 42px!important;}
+.wz-v54-admin-modal-header {position:relative;z-index:5;min-height:57px;}
+.wz-v54-admin-modal-scroll {min-height:0!important;overflow-y:auto!important;}
+@media(max-width:760px){
+  .choiceOverlay,.dmNewMessageModal {align-items:center!important;padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom))!important;}
+  .choiceCard,.dmNewMessageCard {border-radius:16px!important;width:100%!important;max-width:600px!important;}
+  #wz156GiftModal .wz156GiftHead {margin:-20px -20px 12px;padding:12px 14px;}
+  .wz-ux-choice-head,.dmNewMessageHead,.wz41-referee-head {margin:-15px -15px 12px;padding:10px 13px;}
+}
+</style>
 </body>
 </html>
