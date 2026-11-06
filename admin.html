@@ -12070,7 +12070,7 @@ function wzV3047RenderTeamDialog(entry,firstOpen=false){
             <div class="tournamentV3PaymentGrid"><div><span>Beklenen</span><b>${tournamentV3Money(expected)}</b></div><div><span>Gelen</span><b>${tournamentV3Money(received)}</b></div><div><span>Kalan</span><b>${tournamentV3Money(Math.max(0,expected-received))}</b></div><div><span>Fazla</span><b>${tournamentV3Money(Math.max(0,received-expected))}</b></div></div>
             <small class="muted">Kod: ${esc(p.reference||'-')} · ${esc(formatTournamentDate(p.createdAt||p.created_at))}</small></div>`;
         }).join('')}
-        ${subs.map(p=>`<div class="tournamentV3Payment"><b>🎟️ Abonelik / Gift · ${esc(p.payerUsername||'-')}</b><div class="muted">Durum: ${esc(p.status||'-')} · Normal Abone ${Number(p.receivedDirectSubs||0)}/${Number(p.requiredDirectSubs||0)} · Gift ${Number(p.receivedGifts||0)}/${Number(p.requiredGifts||0)}</div>${
+        ${subs.map(p=>`<div class="tournamentV3Payment"><b>🎟️ Abonelik / Gift · ${esc(p.payerUsername||'-')}</b><div class="muted">Durum: ${p.status==='expired_review'?'⚠️ Süre doldu; katkı nedeniyle yönetici incelemesi gerekli':esc(p.status||'-')} · Normal Abone ${Number(p.receivedDirectSubs||0)}/${Number(p.requiredDirectSubs||0)} · Gift ${Number(p.receivedGifts||0)}/${Number(p.requiredGifts||0)}</div>${
           Number(teamSize)===1 && wzPendingSubPaymentCanApprove(p)
             ? `<button type="button" class="smallBtn secondary" style="margin-top:8px" onclick="wzPendingSubOpen('${encodeURIComponent(String(p.id))}')">✅ Kaydı Onayla (Abonelik/Gift)</button>`
             : ''}</div>`).join('')}
@@ -12416,7 +12416,9 @@ function wzAdminSubscriptionState(p){
   const raw=String(p?.status||'').toLowerCase();
   if(raw!=='pending')return raw;
   const expiry=Date.parse(String(p?.expiresAt||''));
-  return Number.isFinite(expiry)&&expiry<=Date.now()?'expired':raw;
+  if(Number.isFinite(expiry)&&expiry<=Date.now())
+    return Number(p?.receivedDirectSubs||0)>0 || Number(p?.receivedGifts||0)>0 ? 'expired_review' : 'expired';
+  return raw;
 }
 function wzScheduleAdminSubscriptionRefresh(subs){
   if(wzAdminSubscriptionRefreshTimer){clearTimeout(wzAdminSubscriptionRefreshTimer);wzAdminSubscriptionRefreshTimer=null;}
@@ -12439,6 +12441,7 @@ function renderTournamentSubscriptionPayments(subs){
   const pending = subs.filter(s=>wzAdminSubscriptionState(s)==='pending').length;
   const paid = subs.filter(s=>wzAdminSubscriptionState(s)==='paid').length;
   const expired = subs.filter(s=>wzAdminSubscriptionState(s)==='expired').length;
+  const review = subs.filter(s=>wzAdminSubscriptionState(s)==='expired_review').length;
   // Records stay in D1 for audit but expired/cancelled are not active requests.
   const visible = subs.filter(s=>!['expired','cancelled'].includes(wzAdminSubscriptionState(s)));
   wzScheduleAdminSubscriptionRefresh(subs);
@@ -12447,6 +12450,7 @@ function renderTournamentSubscriptionPayments(subs){
     <span class="tournamentPill">Bekleyen: ${pending}</span>
     <span class="tournamentPill">Tamamlanan: ${paid}</span>
     <span class="tournamentPill">Süresi Dolan: ${expired}</span>
+    <span class="tournamentPill" style="color:#ffc570;border-color:#a97328">⚠️ İnceleme: ${review}</span>
   `;
 
   const host = document.getElementById('tournamentPendingSubscriptions');
@@ -12478,9 +12482,11 @@ function renderTournamentSubscriptionPayments(subs){
                   ${Number(s.receivedDirectSubs||0)}/${Number(s.requiredDirectSubs||0)} normal abone
                   ${Number(s.requiredGifts||0) ? ` + ${Number(s.receivedGifts||0)}/${Number(s.requiredGifts||0)} gift` : ''}
                 </td>
-                <td>${esc(s.status||'-')}</td>
+                <td>${wzAdminSubscriptionState(s)==='expired_review'
+                  ? '<strong style="color:#ffd08a">⚠️ SÜRE DOLDU — KATKI VAR / İNCELE</strong>'
+                  : esc(s.status||'-')}</td>
                 <td>${esc(formatTournamentDate(s.expiresAt))}</td>
-                <td>${s.status!=='paid' && Number(s.receivedDirectSubs||0)===0 && Number(s.receivedGifts||0)===0 ? `<button type="button" class="smallBtn danger" onclick="adminCancelV3Subscription('${encodeURIComponent(s.id||'')}')" title="İptal et ve listeden kaldır">🗑️ Sil</button>` : '<span class="muted">Katkı var</span>'}</td>
+                <td>${s.status==='pending' && Number(s.receivedDirectSubs||0)===0 && Number(s.receivedGifts||0)===0 ? `<button type="button" class="smallBtn danger" onclick="adminCancelV3Subscription('${encodeURIComponent(s.id||'')}')" title="İptal et ve listeden kaldır">🗑️ Sil</button>` : '<span class="muted">Otomatik işlem kapalı</span>'}</td>
               </tr>
             `).join('')}
           </tbody>
