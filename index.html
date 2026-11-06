@@ -14,6 +14,31 @@
 })();
 </script>
 <meta charset="UTF-8">
+<!-- V31.1.97: Start public catalog lookup early; the Market UI reuses this one request. -->
+<script id="wz-v31197-early-catalog">
+(function(){
+  'use strict';
+  try {
+    if (location.hostname === 'weizend.github.io') return;
+    if (location.pathname !== '/' && !location.pathname.endsWith('/index.html')) return;
+    const query = new URLSearchParams(location.search);
+    if (query.has('turnuva') || query.has('cekilis') || query.has('urun') ||
+        (query.has('wz_view') && query.get('wz_view') !== 'market')) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const request = fetch('https://www.weizend.com/api/catalog', {
+      method:'GET',headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal
+    }).then(async response => {
+      const data = await response.json();
+      if (!response.ok || !data?.success || !Array.isArray(data.products))
+        throw new Error(data?.error || 'Catalog request failed');
+      return data;
+    }).finally(() => clearTimeout(timeout));
+    window.__WZ_MARKET_EARLY_CATALOG__ = request;
+    request.catch(() => {}); // A later background retry handles connection errors.
+  } catch (_) {}
+})();
+</script>
 <!-- WEİZEND | Sosyal medya kartı ve site simgesi -->
 <meta name="description" content="WEİZEND Market, çekilişler, VALORANT turnuvaları ve oyun lobileri bir arada! Puan kazan, ödülleri keşfet, takım kur ve birlikte oyna.">
 <link rel="canonical" href="https://www.weizend.com/">
@@ -518,6 +543,8 @@ body.wz-initializing *{
         .wz3144-step.is-active {border-color:var(--weizend-red,#e31b1b);box-shadow:0 0 0 1px rgba(227,27,27,.09) inset;}
         .wz3144-step.is-done {border-color:rgba(39,185,105,.55);}
         .wz3144-step.is-locked {opacity:.58;}
+        /* V31.1.97: An expired code must not dim its active renewal button via parent opacity. */
+        .wz3144-step.is-expired {opacity:1!important;border-color:#dc3838;}
         .wz3144-step-title {display:flex;align-items:center;gap:10px;font-size:.92rem;line-height:1.35;font-weight:850;color:#fff;}
         .wz3144-step-num {flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#2e2e2e;color:#fff;font-weight:900;}
         .wz3144-step.is-active .wz3144-step-num {background:var(--weizend-red,#e31b1b);}
@@ -7087,27 +7114,17 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
                 syncCatalogStock().catch(error => console.warn('CATALOG SYNC ERROR:', error));
                 initializeMarketAccount();
             } else if ((window.__WZ_INITIAL_VIEW__ || 'market') === 'market' && !window.__WZ_SHARED_PRODUCT_ID__) {
-                // On a cold Market visit, don't first paint a non-ranked list and then move
-                // the popular product after the API responds. Show a compact loader instead.
-                const initialGrid = document.getElementById('urunGrid');
-                if (initialGrid) {
-                    initialGrid.innerHTML = '<div class="market-catalog-loading" role="status" aria-live="polite"><span class="market-catalog-spinner" aria-hidden="true"></span><strong>Market ürünleri hazırlanıyor…</strong><span>Popüler ürünler ve güncel stoklar yükleniyor.</span></div>';
+                // V31.1.97: Paint immediately from the last public catalog, then refresh.
+                // Purchases/auth remain server-authoritative; the cache never grants rights.
+                const cachedCatalog = wzReadPublicMarketCatalog();
+                if (cachedCatalog) {
+                    try { wzApplyMarketCatalog(cachedCatalog); }
+                    catch (error) { console.warn('CACHED MARKET CATALOG:', error); }
                 }
                 marketInitialized = false;
-                marketCatalogBootstrapping = true;
-                syncCatalogStock()
-                    .catch(error => console.warn('CATALOG SYNC ERROR:', error))
-                    .finally(() => {
-                        marketCatalogBootstrapping = false;
-                        if (!marketInitialized) {
-                            urunleriYukle(aktifKategori || 'Tümü');
-                            marketInitialized = true;
-                        } else if (marketGridNeedsRender) {
-                            urunleriYukle(aktifKategori || 'Tümü');
-                        }
-                    });
-                // Authentication/profile checks can proceed while catalog data loads;
-                // showAccount defers only the Market grid paint during this short bootstrap.
+                urunleriYukle(aktifKategori || 'Tümü');
+                marketInitialized = true;
+                syncCatalogStock().catch(error => console.warn('CATALOG SYNC ERROR:', error));
                 initializeMarketAccount();
             } else {
                 // Other deep-linked views do not need to wait for the hidden Market grid.
@@ -7602,9 +7619,11 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
                 const step = document.getElementById('wz3144Step' + i);
                 const progress = document.getElementById('wz3144Progress' + i);
                 const done = states[i - 1];
-                const active = !expired && !done && (i === 1 && !copied || i === 2 && copied && !visited || i === 3 && copied && visited);
-                const unlocked = !expired && (i === 1 || copied);
+                const active = expired ? i === 1 : !done && (i === 1 && !copied || i === 2 && copied && !visited || i === 3 && copied && visited);
+                // On expiration, step 1 remains fully visible so users can request a new code.
+                const unlocked = i === 1 || (!expired && copied);
                 if (step) {
+                    step.classList.toggle('is-expired', expired && i === 1);
                     step.classList.toggle('is-done', done);
                     step.classList.toggle('is-active', active);
                     step.classList.toggle('is-locked', !done && !unlocked);
@@ -9895,27 +9914,46 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
             ).join('')}</ul>`;
         }
 
-        async function syncCatalogStock() {
-            const beforeSignature = marketCatalogSignature();
-
+        // V31.1.97: Public product data only. Never cache account, payment or support data.
+        const WZ_PUBLIC_MARKET_CATALOG_CACHE = 'wz_public_market_catalog_v31197';
+        function wzReadPublicMarketCatalog() {
+            try {
+                const raw = localStorage.getItem(WZ_PUBLIC_MARKET_CATALOG_CACHE);
+                if (!raw || raw.length > 600000) return null;
+                const item = JSON.parse(raw);
+                if (!item || !Array.isArray(item.products) || !Number.isFinite(item.savedAt) ||
+                    item.savedAt > Date.now() || Date.now() - item.savedAt > 24 * 60 * 60 * 1000) return null;
+                return {success:true,products:item.products};
+            } catch (_) { return null; }
+        }
+        function wzSavePublicMarketCatalog(data) {
+            try {
+                const raw = JSON.stringify({savedAt:Date.now(),products:data.products});
+                if (raw.length <= 600000) localStorage.setItem(WZ_PUBLIC_MARKET_CATALOG_CACHE,raw);
+            } catch (_) {} // Local storage is optional; never interrupt Market.
+        }
+        async function wzFetchLiveMarketCatalog() {
+            // Reuse the early request. If it failed, fall back to the normal Worker call.
+            const early = window.__WZ_MARKET_EARLY_CATALOG__;
+            window.__WZ_MARKET_EARLY_CATALOG__ = null;
+            if (early) {
+                try { return await early; }
+                catch (error) { console.warn('EARLY CATALOG:',error); }
+            }
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 5000);
-            let response, data;
             try {
-                response = await fetch(`${MARKET_WORKER}/catalog?_=${Date.now()}`, {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' },
-                    cache: 'no-store',
-                    signal: controller.signal
+                const response = await fetch(`${MARKET_WORKER}/catalog?_=${Date.now()}`, {
+                    method:'GET',headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal
                 });
-                data = await response.json();
-            } finally {
-                clearTimeout(timeout);
-            }
-            if (!response.ok || !data?.success || !Array.isArray(data.products)) {
-                throw new Error(data?.error || `HTTP ${response.status}`);
-            }
-
+                const data = await response.json();
+                if (!response.ok || !data?.success || !Array.isArray(data.products))
+                    throw new Error(data?.error || `HTTP ${response.status}`);
+                return data;
+            } finally { clearTimeout(timeout); }
+        }
+        function wzApplyMarketCatalog(data) {
+            const beforeSignature = marketCatalogSignature();
             let nextOriginalId = URUNLER.reduce(
                 (max, item) => Math.max(max, Number(item.orijinalId) || 0),
                 0
@@ -10028,6 +10066,12 @@ urun.deliveryType = String(
                 }
             }
 
+            return true;
+        }
+        async function syncCatalogStock() {
+            const data = await wzFetchLiveMarketCatalog();
+            wzApplyMarketCatalog(data);
+            wzSavePublicMarketCatalog(data);
             return true;
         }
 
@@ -19453,7 +19497,13 @@ return;
   const overlay=el('div','wz-ga-dialog'),box=el('div','wz-ga-modal');
   box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
   box.setAttribute('aria-label',title);
-  box.append(el('h3','',title));overlay.append(box);document.body.append(overlay);
+  const modalHead=el('div','wz-ga-modal-head');
+  modalHead.append(el('h3','',title));
+  const closeButton=el('button','wz-ga-modal-close','×');
+  closeButton.type='button';closeButton.setAttribute('aria-label','Pencereyi kapat');
+  closeButton.onclick=()=>close();
+  modalHead.append(closeButton);box.append(modalHead);
+  overlay.append(box);document.body.append(overlay);
   // Android visual viewport shrinks when keyboard opens; move the dialog within
   // the visible space rather than letting the native keyboard cover its buttons.
   const vv=window.visualViewport;
@@ -20104,5 +20154,77 @@ return;
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',begin,{once:true});else begin();
 })();
 </script>
+<style id="wz-v31198-cross-device-ux">
+/* WEIZEND UX V31.1.98 — consistent keyboard, touch and motion accessibility. */
+:where(button, a, [role="button"], input, select, textarea):focus-visible {
+  outline:2px solid #ff858e!important;outline-offset:3px;
+}
+@media (max-width: 700px) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {font-size:max(16px,1em);}
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after {scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}
+}
+
+/* Shared, safely contained public-site dialogs. The header remains visible; only content scrolls. */
+#imageModal,#redirectModal,#purchaseModal,#giftRedeemModal,#inboxModal,#tv2Modal {
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+  padding:max(9px,env(safe-area-inset-top)) 10px max(9px,env(safe-area-inset-bottom))!important;
+  align-items:center!important;justify-content:center!important;
+}
+#imageModal > .modal-content,#redirectModal > .modal-content,
+#purchaseModal > .modal-content,#giftRedeemModal > .modal-content,
+#inboxModal > .modal-content,#tv2Modal > .modal-content {
+  box-sizing:border-box!important;display:flex!important;flex-direction:column!important;
+  min-height:0!important;
+  max-height:calc(100dvh - max(9px,env(safe-area-inset-top)) - max(9px,env(safe-area-inset-bottom)))!important;
+  overflow:hidden!important;
+}
+#imageModal .modal-header,#redirectModal .modal-header,
+#purchaseModal .modal-header,#giftRedeemModal .modal-header,
+#inboxModal .modal-header,#tv2Modal .modal-header {
+  flex:0 0 auto!important;min-height:56px;position:relative!important;
+  z-index:10!important;background:#111217!important;
+}
+#imageModal .modal-body,#redirectModal .redirect-modal-body,
+#purchaseModal .purchase-body,#giftRedeemModal .redirect-modal-body,
+#tv2Modal .tv2-modal-body {
+  flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+}
+#imageModal .close-icon,#redirectModal .close-icon,#purchaseModal .close-icon,
+#giftRedeemModal .close-icon,#inboxModal .close-icon,#tv2Modal .close-icon,
+.wz-product-info-close,.wz-v95-team-close {
+  flex:0 0 42px;min-width:42px;min-height:42px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:#202127!important;color:#fff!important;border:1px solid #50505c!important;
+  border-radius:11px!important;touch-action:manipulation;
+}
+/* Game-account forms were a scrollable card without any close control at the top. */
+.wz-ga-dialog .wz-ga-modal-head {
+  position:sticky;top:0;z-index:11;display:flex;gap:10px;
+  align-items:center;justify-content:space-between;
+  margin:-18px -18px 12px;padding:13px 16px;
+  background:#13151b;border-bottom:1px solid #373944;
+}
+.wz-ga-modal-head h3{margin:0!important;font-size:1.05rem;min-width:0;overflow-wrap:anywhere;}
+.wz-ga-dialog .wz-ga-modal-close {
+  width:42px!important;height:42px!important;min-width:42px!important;flex:none;
+  padding:0!important;display:inline-flex;align-items:center;justify-content:center;
+  background:#272932!important;border:1px solid #62646e!important;
+  border-radius:11px!important;color:#fff!important;font-size:25px!important;
+}
+.wz-ga-dialog .wz-ga-modal {scrollbar-gutter:stable;}
+.wz-v95-team-top,.wz-product-info-head {flex:0 0 auto!important;min-height:56px;}
+.wz-v95-team-scroll,.wz-product-info-body{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;}
+@media(max-width:700px) {
+  .wz-ga-dialog .wz-ga-modal-head {top:0;margin:-16px -16px 11px;padding:11px 13px;}
+  #imageModal > .modal-content,#redirectModal > .modal-content,#purchaseModal > .modal-content,
+  #giftRedeemModal > .modal-content,#tv2Modal > .modal-content {width:100%!important;max-width:100%!important;}
+  .modal-header h3{min-width:0;overflow-wrap:anywhere;}
+  .wz-v95-team-overlay,.wz-product-info-overlay {padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom))!important;}
+}
+</style>
 </body>
 </html>
