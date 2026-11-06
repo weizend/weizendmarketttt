@@ -1,5 +1,5 @@
 /*
- * WEİZEND Experience V31.2.03 — display layer only
+ * WEİZEND Experience V31.2.04 — display layer only
  * Scope: body[data-wz-experience] on eight public/admin HTML pages.
  * Never changes visibility/state classes, permissions, purchase logic, animation JS,
  * header modal positioning or server actions. Brand remains RED / BLACK / WHITE.
@@ -530,4 +530,223 @@ body[data-wz-experience="landing"] :is(.section,.card,.banner) {
     transition: none !important;
     transform: none !important;
   }
+}
+
+
+/* ============================================================
+   WEİZEND V31.2.04 • MARKED VISUAL REFRESH — MARKET ONLY
+   Existing market, auth, modal, support & tournament JS untouched.
+   Scope strictly to body[data-wz-experience="home"] #marketContent.
+   ============================================================ */
+body[data-wz-experience="home"] #marketContent {
+  --wz24-ink: #090a0e;
+  --wz24-panel: #161920;
+  --wz24-line: rgba(255,255,255,.12);
+  --wz24-hot: #f32031;
+  position: relative;
+}
+body[data-wz-experience="home"] .wz24-showcase,
+body[data-wz-experience="home"] .wz24-showcase * { box-sizing: border-box; }
+body[data-wz-experience="home"] .wz24-showcase {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0,1.25fr) minmax(250px,.75fr);
+  align-items: center;
+  gap: clamp(18px,3vw,45px);
+  overflow: hidden;
+  min-height: 324px;
+  margin: 5px 0 34px;
+  padding: clamp(24px,4vw,52px);
+  border: 1px solid rgba(250,67,78,.36);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 83% 55%, rgba(244,28,44,.30), transparent 35%),
+    linear-gradient(122deg, #1d1218 0%, #121219 45%, #0a0c11 100%);
+  box-shadow: 0 25px 80px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.10);
+}
+body[data-wz-experience="home"] .wz24-showcase::before {
+  content:"";
+  position:absolute; inset:0; z-index:-1; pointer-events:none;
+  background-image: linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:32px 32px;
+  mask-image:linear-gradient(90deg,transparent 28%,#000 100%);
+  -webkit-mask-image:linear-gradient(90deg,transparent 28%,#000 100%);
+}
+body[data-wz-experience="home"] .wz24-showcase::after {
+  content:""; position:absolute; inset:auto -12% -130px 36%; height:260px;
+  border-radius:50%; border:1px solid rgba(244,44,54,.26); transform:rotate(-12deg);
+  pointer-events:none; z-index:-1;
+}
+body[data-wz-experience="home"] .wz24-showcase-copy { position:relative; z-index:2; min-width:0; }
+body[data-wz-experience="home"] .wz24-showcase-kicker {
+  display:inline-flex; gap:10px; align-items:center;
+  color:#ff9ba5; font-size:clamp(.67rem,.85vw,.77rem);
+  font-weight:900; letter-spacing:.17em;
+  padding:8px 12px; border:1px solid rgba(244,65,78,.26);
+  background:rgba(230,25,42,.07); border-radius:999px;
+}
+body[data-wz-experience="home"] .wz24-live-dot {
+  display:inline-block; flex:0 0 7px; width:7px; height:7px;
+  background:#ff4656; border-radius:100%; box-shadow:0 0 0 4px rgba(255,70,86,.12);
+}
+body[data-wz-experience="home"] .wz24-showcase h2 {
+  margin:17px 0 13px!important; padding:0!important;
+  color:#fff!important; font-weight:1000!important;
+  font-size:clamp(2rem,4.5vw,4.2rem)!important;
+  letter-spacing:-.057em!important; line-height:1.01!important;
+}
+body[data-wz-experience="home"] .wz24-showcase h2 span {
+  display:block; color:#ff394b;
+  text-shadow:0 9px 34px rgba(247,33,53,.18);
+}
+body[data-wz-experience="home"] .wz24-showcase p {
+  max-width:560px; margin:0!important;
+  font-size:clamp(.91rem,1.2vw,1.06rem)!important;
+  color:#bfc4ce!important; line-height:1.7!important;
+}
+body[data-wz-experience="home"] .wz24-showcase-actions {
+  display:flex; flex-wrap:wrap; gap:16px; align-items:center; margin-top:25px;
+}
+body[data-wz-experience="home"] .wz24-primary-link {
+  display:inline-flex; gap:20px; align-items:center; justify-content:center;
+  min-height:48px; padding:12px 18px; border-radius:10px;
+  background:linear-gradient(135deg,#fa2435,#a70c1d);
+  border:1px solid #fb5260; box-shadow:0 12px 25px rgba(228,29,45,.19);
+  color:#fff!important; text-decoration:none!important;
+  font-size:.81rem; font-weight:950; letter-spacing:.045em;
+}
+body[data-wz-experience="home"] .wz24-primary-link:hover {filter:brightness(1.12)}
+body[data-wz-experience="home"] .wz24-showcase-note {
+  font-size:.66rem; font-weight:850; letter-spacing:.11em; color:#989da9;
+}
+body[data-wz-experience="home"] .wz24-showcase-art {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-width:0; position:relative; min-height:235px;
+}
+body[data-wz-experience="home"] .wz24-showcase-halo {
+  display:grid; place-items:center;
+  width:clamp(175px,20vw,250px); aspect-ratio:1;
+  border-radius:50%;
+  border:1px solid rgba(249,77,91,.52);
+  background:radial-gradient(circle,rgba(240,33,47,.18) 0%,rgba(11,11,17,.9) 65%);
+  box-shadow:0 0 0 15px rgba(221,29,47,.06),0 0 0 38px rgba(221,29,47,.035),0 0 65px rgba(222,25,40,.23);
+}
+body[data-wz-experience="home"] .wz24-showcase-halo img {
+  width:70%; height:70%; object-fit:contain; border-radius:50%;
+  filter:drop-shadow(0 13px 24px rgba(0,0,0,.5));
+}
+body[data-wz-experience="home"] .wz24-showcase-art-caption {
+  margin-top:25px; color:#ffb1ba; letter-spacing:.23em;
+  font-size:.66rem; font-weight:900;
+}
+body[data-wz-experience="home"] .wz24-showcase-art-caption b {color:#fff}
+body[data-wz-experience="home"] .wz24-section-label {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin:0 0 17px; padding:0 3px 13px;
+  border-bottom:1px solid rgba(255,255,255,.12);
+}
+body[data-wz-experience="home"] .wz24-section-label span {
+  font-size:.68rem; font-weight:900; letter-spacing:.15em; color:#ff6978;
+}
+body[data-wz-experience="home"] .wz24-section-label strong {
+  font-size:.85rem; font-weight:950; letter-spacing:.12em; color:#f4f5f8;
+}
+body[data-wz-experience="home"] #marketContent .market-search-wrap {
+  max-width:100%; margin:0 0 17px;
+}
+body[data-wz-experience="home"] #marketContent .market-search-box {
+  min-height:62px; padding:0 16px;
+  border:1px solid #434752!important;
+  background:linear-gradient(180deg,#1a1d26,#12141a)!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.17)!important;
+  border-radius:15px!important;
+}
+body[data-wz-experience="home"] #marketContent .market-search-input {
+  min-height:56px; font-size:.95rem;
+}
+body[data-wz-experience="home"] #marketContent #filters {
+  justify-content:flex-start!important; gap:10px!important;
+  margin:0 0 26px!important;
+}
+body[data-wz-experience="home"] #marketContent #filters .filter-btn {
+  min-height:39px; padding:9px 16px!important;
+  border-radius:10px!important;
+  background:#191c25; border-color:#3c404c!important;
+  color:#d9dce4; font-weight:850;
+}
+body[data-wz-experience="home"] #marketContent #filters .filter-btn.active {
+  background:#db1d30!important; border-color:#fa5260!important;
+  color:#fff!important; box-shadow:0 8px 20px rgba(229,29,45,.18);
+}
+body[data-wz-experience="home"] #marketContent #urunGrid {
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:20px!important; align-items:stretch;
+}
+body[data-wz-experience="home"] #marketContent #urunGrid > .card {
+  padding:13px!important; min-width:0;
+  border-radius:19px!important;
+  background:linear-gradient(172deg,#1b1e27 0%,#111318 72%)!important;
+  border:1px solid #3d404a!important;
+  box-shadow:0 13px 35px rgba(0,0,0,.17)!important;
+}
+body[data-wz-experience="home"] #marketContent #urunGrid > .card.wz81-top-product {
+  border-color:rgba(249,61,78,.78)!important;
+  box-shadow:0 0 0 1px rgba(249,61,78,.18),0 16px 45px rgba(0,0,0,.27)!important;
+}
+body[data-wz-experience="home"] #marketContent #urunGrid .img-container {
+  height:260px!important;
+  margin-bottom:14px!important;
+  background:radial-gradient(circle at 50% 30%,#272a34,#0f1116 70%)!important;
+  border-color:#383b43!important; border-radius:13px!important;
+}
+body[data-wz-experience="home"] #marketContent #urunGrid .img-container img { object-fit:contain; }
+body[data-wz-experience="home"] #marketContent #urunGrid .product-title {
+  min-height:0!important; font-size:1.1rem!important;
+  margin:4px 2px 12px!important; color:#fff!important;
+  font-weight:950!important; line-height:1.34!important;
+}
+body[data-wz-experience="home"] #marketContent #urunGrid .price-command {
+  margin-top:auto; margin-bottom:14px!important; padding:13px 0!important;
+}
+body[data-wz-experience="home"] #marketContent #urunGrid .price {
+  font-size:1.25rem!important; color:#ff4050!important; font-weight:950!important;
+}
+body[data-wz-experience="home"] #marketContent #urunGrid .action-btn,
+body[data-wz-experience="home"] #marketContent #urunGrid .wz82-product-share {
+  min-height:44px; border-radius:10px!important;
+}
+body[data-wz-experience="home"] #marketContent #urunGrid .action-btn:not(:disabled) {
+  background:linear-gradient(115deg,#ed2133,#bb1325)!important;
+  box-shadow:0 8px 18px rgba(222,24,41,.14)!important;
+}
+body[data-wz-experience="home"] #marketContent #urunGrid .card details {
+  border-radius:10px!important; background:#13151b;
+}
+@media(max-width:960px) {
+  body[data-wz-experience="home"] #marketContent #urunGrid {grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  body[data-wz-experience="home"] .wz24-showcase {grid-template-columns:minmax(0,1fr) 180px;min-height:285px}
+  body[data-wz-experience="home"] .wz24-showcase-halo {width:160px}
+}
+@media(max-width:620px) {
+  body[data-wz-experience="home"] .wz24-showcase {grid-template-columns:minmax(0,1fr);gap:12px;min-height:0;margin:5px 0 24px;padding:24px 20px;border-radius:18px}
+  body[data-wz-experience="home"] .wz24-showcase h2 {font-size:clamp(2rem,9vw,3rem)!important;line-height:1.04!important}
+  body[data-wz-experience="home"] .wz24-showcase-kicker {font-size:.58rem;letter-spacing:.085em;padding:7px 10px}
+  body[data-wz-experience="home"] .wz24-showcase p {font-size:.86rem!important}
+  body[data-wz-experience="home"] .wz24-showcase-actions {gap:10px;margin-top:17px}
+  body[data-wz-experience="home"] .wz24-showcase-note {font-size:.58rem}
+  body[data-wz-experience="home"] .wz24-primary-link {min-height:44px;font-size:.74rem}
+  body[data-wz-experience="home"] .wz24-showcase-art {position:absolute;right:-42px;top:0;width:130px;min-height:130px;opacity:.20;pointer-events:none}
+  body[data-wz-experience="home"] .wz24-showcase-halo {width:120px;box-shadow:0 0 0 14px rgba(221,29,47,.055)}
+  body[data-wz-experience="home"] .wz24-showcase-art-caption {display:none}
+  body[data-wz-experience="home"] .wz24-section-label {align-items:flex-start;flex-direction:column;gap:4px}
+  body[data-wz-experience="home"] .wz24-section-label strong {font-size:.8rem}
+  body[data-wz-experience="home"] #marketContent #filters {flex-wrap:nowrap!important;overflow-x:auto!important;padding:0 0 12px;scrollbar-width:thin}
+  body[data-wz-experience="home"] #marketContent #filters .filter-btn {flex:0 0 auto;white-space:nowrap}
+  body[data-wz-experience="home"] #marketContent #urunGrid {grid-template-columns:minmax(0,1fr)!important;gap:16px!important}
+  body[data-wz-experience="home"] #marketContent #urunGrid .img-container {height:min(72vw,270px)!important}
+  body[data-wz-experience="home"] #marketContent .market-search-box {min-height:56px;padding:0 9px}
+}
+@media(prefers-reduced-motion:reduce) {
+  body[data-wz-experience="home"] #marketContent #urunGrid > .card {transition:none!important}
 }
