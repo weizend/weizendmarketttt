@@ -11930,17 +11930,20 @@ function wzV3047TeamNotice(message,ok=true){
 }
 function wzPendingSubPaymentCanApprove(p){
   const expiry=Date.parse(String(p?.expiresAt||''));
+  const created=Date.parse(String(p?.createdAt||''));
   return wzAdminSubscriptionState(p)==='pending' &&
     (Number(p.requiredDirectSubs)===1 && Number(p.requiredGifts)===0 ||
      Number(p.requiredDirectSubs)===0 && Number(p.requiredGifts)===1) &&
     Number(p.receivedDirectSubs||0)===0 && Number(p.receivedGifts||0)===0 &&
-    Number.isFinite(expiry) && expiry>Date.now();
+    Number.isFinite(expiry) && Number.isFinite(created) &&
+    Date.now()<Math.min(expiry,created+600000);
 }
 // V31.1.93: Kullanıcının açtığı BEKLEYEN V3 1v1 kaydını, uygun destek kodunu
 // geri alarak onayla. Manuel takım/koltuk veya oyun/Instagram alanı oluşturulmaz.
 let wzPendingSubBusy=false;
 function wzPendingSubClose(){
   if(wzPendingSubBusy)return;
+  if(wzPendingSubModalTimer){clearInterval(wzPendingSubModalTimer);wzPendingSubModalTimer=null;}
   document.getElementById('wzPendingSubOverlay')?.remove();
 }
 async function wzPendingSubOpen(encodedPaymentId){
@@ -11953,48 +11956,61 @@ async function wzPendingSubOpen(encodedPaymentId){
     overlay.addEventListener('click',ev=>{if(ev.target===overlay)wzPendingSubClose()});
     document.body.appendChild(overlay);
   }
-  overlay.innerHTML=`<section role="dialog" aria-modal="true" aria-label="Bekleyen turnuva kaydını onayla" style="background:#16151d;color:#fff;border:1px solid #555;border-radius:15px;max-width:530px;width:100%;padding:17px;max-height:85dvh;overflow:auto;box-sizing:border-box">
-    <h3 style="margin:0 0 12px">✅ Bekleyen Turnuva Kaydını Onayla</h3><p class="muted">Kullanıcının kendi başlattığı kayıt korunur. Kendi Kick hesabına ait gerçek, tekil ve henüz turnuvada kullanılmamış abonelik/Gift desteği seçilir. İptal edilmiş puan kodu yeniden açılmaz; destek kaydı Turnuvada Kullanıldı olarak güncellenir.</p>
-    <div id="wzPendingSubInfo">⏳ Kullanılmamış destekler aranıyor...</div>
+  overlay.innerHTML=`<section role="dialog" aria-modal="true" aria-label="Bekleyen turnuva kaydını yönetici onayıyla tamamla" style="background:#16151d;color:#fff;border:1px solid #555;border-radius:15px;max-width:530px;width:100%;padding:17px;max-height:85dvh;overflow:auto;box-sizing:border-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h3 style="margin:0 0 12px">✅ 10 Dakika İçinde Kaydı Onayla</h3><button type="button" class="smallBtn secondary" aria-label="Pencereyi kapat" onclick="wzPendingSubClose()">×</button></div>
+    <p class="muted">Bu işlem kullanıcının başlattığı <b>mevcut kaydı</b> onaylar. Abonelik/Gift gönderilmediği hâlde <b>yönetici istisnası</b> uygulanır. Gerçek Kick aboneliği oluşturulmaz; destek kodu, puan ve diğer kullanıcı hakları değiştirilmez.</p>
+    <div id="wzPendingSubInfo" role="status">⏳ Başvurunun kalan süresi doğrulanıyor...</div>
     <div style="display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px">
       <button type="button" class="smallBtn secondary" onclick="wzPendingSubClose()">Vazgeç</button>
-      <button type="button" class="smallBtn" id="wzPendingSubConfirm" disabled>Kaydı Onayla</button>
+      <button type="button" class="smallBtn" id="wzPendingSubConfirm" disabled>✅ Kaydı Onayla</button>
     </div></section>`;
   try{
-    const {r,d}=await api('/admin/tournament/v3/subscription/eligible?paymentId='+encodeURIComponent(paymentId));
+    const {r,d}=await api('/admin/tournament/v3/subscription/preview?paymentId='+encodeURIComponent(paymentId));
     if(!r.ok||!d?.success)throw Error(d?.error||`HTTP ${r.status}`);
     const info=document.getElementById('wzPendingSubInfo');if(!info)return;
-    if(!Array.isArray(d.events)||!d.events.length){
-      info.textContent='⚠️ Bu Kick hesabına ait, harcanmamış tekil abonelik/Gift desteği bulunamadı. Başka hesaba ait, kullanılmış veya birleşik ödül kodları onaylanmaz.';
-      return;
-    }
-    info.innerHTML=`<div><b>Kick: ${esc(d.username||'')}</b></div>
-      <p style="color:#c9b6f8;font-size:13px">Başvurunun beklediği şart: ${d.requiredKind==='gift_sub'?'1 Gift':'1 normal abonelik'}. Yönetici olarak aynı kullanıcıya ait gerçek abonelik veya Gift desteğiyle onaylayabilirsin.</p>
-      <label style="display:block;margin:10px 0">Doğrulanmış destek kaydını seç
-      <select id="wzPendingSubEvent" style="width:100%;margin-top:8px;background:#111;color:white;border:1px solid #555;border-radius:8px;padding:10px">
-      ${d.events.map(e=>`<option value="${esc(e.id)}">${esc(e.sourceKind==='gift_sub'?'Gift':e.sourceType==='subscription_renewal'?'Yenileme':'Abonelik')} · ${esc(formatTournamentDate(e.occurredAt))}${e.codeAlreadyCancelled?' · Kod zaten iptal edilmiş':''}</option>`).join('')}</select></label>
-      <p style="color:#ffc97d;font-size:13px">Kod henüz kullanılmadıysa iptal edilir; daha önce sen iptal ettiysen geçersiz olarak kalır. Başvuru, gerçek kullanılan destek türüne göre tamamlanır ve kullanıcıya normal kayıt bildirimi gider.</p>`;
+    info.innerHTML=`<p><b>Kick hesabı:</b> ${esc(d.username||'-')}</p>
+      <p><b>Beklenen şart:</b> ${d.requiredKind==='gift_sub'?'1 abonelik hediyesi':'1 normal abonelik'}</p>
+      <p style="color:#ffc97d"><b>Son onay saati:</b> ${esc(formatTournamentDate(d.expiresAt))} · <span id="wzPendingSubRemaining">${Number(d.secondsRemaining||0)} saniye</span> kaldı.</p>
+      <p class="muted">10 dakika dolunca manuel onay kapanır ve yerine yeni bir kayıt açılması gerekir.</p>`;
     const confirmButton=document.getElementById('wzPendingSubConfirm');
     if(confirmButton){confirmButton.disabled=false;confirmButton.onclick=()=>wzPendingSubApprove(paymentId)}
+    wzPendingSubModalDeadline=Date.parse(d.expiresAt);
+    wzPendingSubUpdateTimer();
   }catch(err){const info=document.getElementById('wzPendingSubInfo');if(info)info.textContent='❌ '+String(err.message||err)}
+}
+let wzPendingSubModalDeadline=0;
+let wzPendingSubModalTimer=null;
+function wzPendingSubUpdateTimer(){
+  if(wzPendingSubModalTimer)clearInterval(wzPendingSubModalTimer);
+  const tick=()=>{
+    const el=document.getElementById('wzPendingSubRemaining');
+    if(!el){clearInterval(wzPendingSubModalTimer);wzPendingSubModalTimer=null;return;}
+    const seconds=Math.max(0,Math.ceil((wzPendingSubModalDeadline-Date.now())/1000));
+    el.textContent=seconds+' saniye';
+    if(seconds<=0){
+      const btn=document.getElementById('wzPendingSubConfirm');if(btn)btn.disabled=true;
+      clearInterval(wzPendingSubModalTimer);wzPendingSubModalTimer=null;
+      loadTournamentEntries(true).catch(()=>{});
+    }
+  };
+  tick();
+  if(document.getElementById('wzPendingSubRemaining'))wzPendingSubModalTimer=setInterval(tick,1000);
 }
 async function wzPendingSubApprove(paymentId){
   if(wzPendingSubBusy)return;
-  const eventId=String(document.getElementById('wzPendingSubEvent')?.value||'');
-  if(!eventId)return;
-  if(!confirm('Kullanıcının mevcut bekleyen kaydını seçilen gerçek abonelik/Gift desteğiyle tamamlamak, varsa kullanılmamış kodunu iptal etmek ve destek kaydını Turnuvada Kullanıldı yapmak istiyor musun?'))return;
+  if(!confirm('Bu kayıt 10 dakika dolmadan turnuvaya kabul edilsin mi? Abonelik/Gift şartını yönetici istisnasıyla kaldırıyorsun; hiçbir gerçek destek kaydı veya puan kodu değişmeyecek.'))return;
   wzPendingSubBusy=true;
   const btn=document.getElementById('wzPendingSubConfirm');if(btn){btn.disabled=true;btn.textContent='⏳ Onaylanıyor...'}
   try{
     const {r,d}=await api('/admin/tournament/v3/subscription/approve',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({paymentId,eventId,confirm:true})
+      body:JSON.stringify({paymentId,approvalMode:'admin_condition_waiver',confirm:true})
     });
     if(!r.ok||!d?.success)throw Error(d?.error||`HTTP ${r.status}`);
+    if(wzPendingSubModalTimer){clearInterval(wzPendingSubModalTimer);wzPendingSubModalTimer=null;}
     document.getElementById('wzPendingSubOverlay')?.remove();
     await loadTournamentEntries(true);
-    if(typeof loadSupportRewardEvents==='function')await loadSupportRewardEvents().catch(()=>{});
-    const msg=d.message||'Bekleyen kayıt onaylandı, destek kodu iptal edildi.';
+    const msg=d.message||'Kayıt yönetici istisnasıyla onaylandı.';
     showStatus('tournamentEntriesStatus','✅ '+esc(msg),true);
     wzV3047TeamNotice('✅ '+msg,true);
   }catch(err){
@@ -12070,8 +12086,8 @@ function wzV3047RenderTeamDialog(entry,firstOpen=false){
             <div class="tournamentV3PaymentGrid"><div><span>Beklenen</span><b>${tournamentV3Money(expected)}</b></div><div><span>Gelen</span><b>${tournamentV3Money(received)}</b></div><div><span>Kalan</span><b>${tournamentV3Money(Math.max(0,expected-received))}</b></div><div><span>Fazla</span><b>${tournamentV3Money(Math.max(0,received-expected))}</b></div></div>
             <small class="muted">Kod: ${esc(p.reference||'-')} · ${esc(formatTournamentDate(p.createdAt||p.created_at))}</small></div>`;
         }).join('')}
-        ${subs.map(p=>`<div class="tournamentV3Payment"><b>🎟️ Abonelik / Gift · ${esc(p.payerUsername||'-')}</b><div class="muted">Durum: ${p.status==='expired_review'?'⚠️ Süre doldu; katkı nedeniyle yönetici incelemesi gerekli':esc(p.status||'-')} · Normal Abone ${Number(p.receivedDirectSubs||0)}/${Number(p.requiredDirectSubs||0)} · Gift ${Number(p.receivedGifts||0)}/${Number(p.requiredGifts||0)}</div>${
-          Number(teamSize)===1 && wzPendingSubPaymentCanApprove(p)
+        ${subs.map(p=>`<div class="tournamentV3Payment"><b>🎟️ Abonelik / Gift · ${esc(p.payerUsername||'-')}</b><div class="muted">Durum: ${p.approvedManually?'✅ Yönetici istisnasıyla onaylandı (abonelik/Gift verilmedi)':p.status==='expired_review'?'⚠️ Süre doldu; katkı nedeniyle yönetici incelemesi gerekli':esc(p.status||'-')} · Normal Abone ${Number(p.receivedDirectSubs||0)}/${Number(p.requiredDirectSubs||0)} · Gift ${Number(p.receivedGifts||0)}/${Number(p.requiredGifts||0)}</div>${
+          wzPendingSubPaymentCanApprove(p)
             ? `<button type="button" class="smallBtn secondary" style="margin-top:8px" onclick="wzPendingSubOpen('${encodeURIComponent(String(p.id))}')">✅ Kaydı Onayla (Abonelik/Gift)</button>`
             : ''}</div>`).join('')}
         ${!payments.length&&!subs.length?'<div class="wz-v3047-empty">Bu takım için ödeme hareketi yok.</div>':''}</div></section>
@@ -12152,7 +12168,7 @@ function renderTournamentV3Entries(data){
       const t=entry.team||{},ok=['ready','locked'].includes(String(t.status||''));
       const pendingApproval=(Array.isArray(data?.subscriptionPayments)?data.subscriptionPayments:[]).find(p=>
         String(p.teamId||'')===`V3:${String(t.id||'')}` && wzPendingSubPaymentCanApprove(p) &&
-        Number(t.teamSize||teamSize||1)===1);
+        true);
       const id=encodeURIComponent(String(t.id||''));
       return `<div class="wz-v3047-team-row">
         <button type="button" class="wz-v54-team-pick" onclick="wzV54OpenAdminTeam(${i})" aria-label="${esc(t.name||'Takım')} kadrosunu, davet ve ödemeleri aç">
@@ -12442,13 +12458,16 @@ function renderTournamentSubscriptionPayments(subs){
   const paid = subs.filter(s=>wzAdminSubscriptionState(s)==='paid').length;
   const expired = subs.filter(s=>wzAdminSubscriptionState(s)==='expired').length;
   const review = subs.filter(s=>wzAdminSubscriptionState(s)==='expired_review').length;
-  // Records stay in D1 for audit but expired/cancelled are not active requests.
-  const visible = subs.filter(s=>!['expired','cancelled'].includes(wzAdminSubscriptionState(s)));
+  const manual = subs.filter(s=>s.approvedManually===true).length;
+  // V31.2.01: This is the LIVE 10-minute control queue, not the audit history.
+  // Completed/expired/review records remain in D1 but never show as pending actions.
+  const visible = subs.filter(s=>wzAdminSubscriptionState(s)==='pending');
   wzScheduleAdminSubscriptionRefresh(subs);
 
   box.innerHTML = `
     <span class="tournamentPill">Bekleyen: ${pending}</span>
     <span class="tournamentPill">Tamamlanan: ${paid}</span>
+    <span class="tournamentPill">Yönetici Onayı: ${manual}</span>
     <span class="tournamentPill">Süresi Dolan: ${expired}</span>
     <span class="tournamentPill" style="color:#ffc570;border-color:#a97328">⚠️ İnceleme: ${review}</span>
   `;
@@ -12456,7 +12475,7 @@ function renderTournamentSubscriptionPayments(subs){
   const host = document.getElementById('tournamentPendingSubscriptions');
 
   if(host){
-    if(!visible.length){ host.innerHTML='<div class="tournamentEmpty">Aktif bekleyen veya tamamlanan abonelik/Gift işlemi yok. Süresi dolan kayıtlar denetim geçmişinde korunur.</div>';return; }
+    if(!visible.length){ host.innerHTML='<div class="tournamentEmpty">⏳ Şu anda 10 dakikalık süresi devam eden bekleyen abonelik/Gift kaydı yok. Süresi dolmuş veya tamamlanmış işlemler burada gösterilmez.</div>';return; }
     host.innerHTML = `
       <div class="tableWrap">
         <table>
@@ -12466,8 +12485,8 @@ function renderTournamentSubscriptionPayments(subs){
               <th>Beklenen</th>
               <th>Tamamlanan</th>
               <th>Durum</th>
-              <th>Son Tarih</th>
-              <th>Sil / İptal</th>
+              <th>Son Tarih / Kalan</th>
+              <th>Onay / İptal</th>
             </tr>
           </thead>
           <tbody>
@@ -12485,17 +12504,33 @@ function renderTournamentSubscriptionPayments(subs){
                 <td>${wzAdminSubscriptionState(s)==='expired_review'
                   ? '<strong style="color:#ffd08a">⚠️ SÜRE DOLDU — KATKI VAR / İNCELE</strong>'
                   : esc(s.status||'-')}</td>
-                <td>${esc(formatTournamentDate(s.expiresAt))}</td>
-                <td>${s.status==='pending' && Number(s.receivedDirectSubs||0)===0 && Number(s.receivedGifts||0)===0 ? `<button type="button" class="smallBtn danger" onclick="adminCancelV3Subscription('${encodeURIComponent(s.id||'')}')" title="İptal et ve listeden kaldır">🗑️ Sil</button>` : '<span class="muted">Otomatik işlem kapalı</span>'}</td>
+                <td>${esc(formatTournamentDate(s.expiresAt))}<br><b data-wz321-countdown="${esc(String(s.expiresAt||''))}" style="color:#ffd08a">⏳</b></td>
+                <td>${wzPendingSubPaymentCanApprove(s)?`<button type="button" class="smallBtn" onclick="wzPendingSubOpen('${encodeURIComponent(s.id||'')}')">✅ Onayla</button> `:''}${Number(s.receivedDirectSubs||0)===0&&Number(s.receivedGifts||0)===0?`<button type="button" class="smallBtn danger" onclick="adminCancelV3Subscription('${encodeURIComponent(s.id||'')}')" title="İptal et ve listeden kaldır">🗑️ Sil</button>`:'<span class="muted">Destek kontrolü</span>'}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
       </div>
     `;
+    wz321StartPendingCountdown();
   }
 }
-
+let wz321PendingCountdownTimer=null;
+function wz321StartPendingCountdown(){
+  if(wz321PendingCountdownTimer){clearInterval(wz321PendingCountdownTimer);wz321PendingCountdownTimer=null;}
+  const tick=()=>{
+    const els=[...document.querySelectorAll('[data-wz321-countdown]')];
+    if(!els.length){clearInterval(wz321PendingCountdownTimer);wz321PendingCountdownTimer=null;return;}
+    for(const el of els){
+      const expires=Date.parse(el.getAttribute('data-wz321-countdown')||'');
+      const remaining=Number.isFinite(expires)?Math.max(0,Math.ceil((expires-Date.now())/1000)):0;
+      el.textContent=remaining>0?('⏳ '+Math.floor(remaining/60)+':'+String(remaining%60).padStart(2,'0')):'⛔ Süre doldu';
+      if(!remaining){const tr=el.closest('tr');if(tr){tr.querySelectorAll('button').forEach(b=>b.disabled=true);}}
+    }
+  };
+  tick();
+  wz321PendingCountdownTimer=setInterval(tick,1000);
+}
 
 async function adminCancelV3Subscription(encodedId){
   const paymentId=decodeURIComponent(encodedId||'');
