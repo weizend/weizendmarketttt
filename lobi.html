@@ -341,5 +341,25 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
  #modal .formgrid{grid-template-columns:minmax(0,1fr);}
 }
 </style>
+
+<style id="wz-v31202-modal-text-legibility">
+/* WEIZEND V31.2.02 — readable popup text; presentation only, no event/API changes. */
+:where([role="dialog"],[aria-modal="true"],.modal-content,.choiceCard) :where(p,small,label,.muted,.notice,.smallprint) {
+  max-width:100%;min-width:0;overflow-wrap:anywhere;word-break:normal;
+  white-space:normal;line-height:1.55;
+}
+:where([role="dialog"],[aria-modal="true"],.modal-content,.choiceCard) :where(h2,h3,h4,strong) {
+  min-width:0;overflow-wrap:anywhere;word-break:normal;
+}
+
+#modal .dialog{box-sizing:border-box;max-width:calc(100vw - 20px);overflow-x:hidden;}
+#modal .dialog .headrow{gap:12px;min-width:0;}
+#modal .dialog .headrow h2{min-width:0;max-width:100%;margin:0!important;line-height:1.3;overflow-wrap:anywhere;}
+#modal .dialog #closeModal{flex:0 0 42px;min-width:42px;min-height:42px;}
+#modal .dialog #dialogContent{min-width:0;max-width:100%;margin-top:15px;overflow-wrap:anywhere;word-break:normal;line-height:1.55;}
+#modal .dialog :where(p,small,label,.muted,.notice){max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:normal;line-height:1.55;}
+#modal .dialog :where(input,select,textarea){max-width:100%;min-width:0;box-sizing:border-box;}
+
+</style>
 </body>
 </html>
