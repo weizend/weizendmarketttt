@@ -9914,7 +9914,8 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
             ).join('')}</ul>`;
         }
 
-        // V31.1.97: Public product data only. Never cache account, payment or support data.
+        // V31.2.00: Cache at most 15 minutes; purchases and stock are server-authoritative.
+        // Public product data only. Never cache account, payment or support data.
         const WZ_PUBLIC_MARKET_CATALOG_CACHE = 'wz_public_market_catalog_v31197';
         function wzReadPublicMarketCatalog() {
             try {
@@ -9922,7 +9923,7 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
                 if (!raw || raw.length > 600000) return null;
                 const item = JSON.parse(raw);
                 if (!item || !Array.isArray(item.products) || !Number.isFinite(item.savedAt) ||
-                    item.savedAt > Date.now() || Date.now() - item.savedAt > 24 * 60 * 60 * 1000) return null;
+                    item.savedAt > Date.now() || Date.now() - item.savedAt > 15 * 60 * 1000) return null;
                 return {success:true,products:item.products};
             } catch (_) { return null; }
         }
