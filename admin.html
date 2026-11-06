@@ -16434,5 +16434,66 @@ async function wz3103Check(encodedId){
   .wz-ux-choice-head,.dmNewMessageHead,.wz41-referee-head {margin:-15px -15px 12px;padding:10px 13px;}
 }
 </style>
+
+<style id="wz-v31202-modal-text-legibility">
+/* WEIZEND V31.2.02 — readable popup text; presentation only, no event/API changes. */
+:where([role="dialog"],[aria-modal="true"],.modal-content,.choiceCard) :where(p,small,label,.muted,.notice,.smallprint) {
+  max-width:100%;min-width:0;overflow-wrap:anywhere;word-break:normal;
+  white-space:normal;line-height:1.55;
+}
+:where([role="dialog"],[aria-modal="true"],.modal-content,.choiceCard) :where(h2,h3,h4,strong) {
+  min-width:0;overflow-wrap:anywhere;word-break:normal;
+}
+
+/* Gift: previously the sticky header occupied the subtitle's first line.
+   Avoid the negative vertical offset, and keep each recipient's data in normal flow. */
+#wz156GiftModal .wz156GiftDialog{
+  box-sizing:border-box;display:flex;flex-direction:column;
+  overflow-x:hidden;overflow-y:auto;line-height:1.55;
+}
+#wz156GiftModal .wz156GiftHead{
+  position:sticky;top:0;z-index:9;
+  box-sizing:border-box;margin:0 -20px 0!important;padding:14px 20px!important;
+  flex:0 0 auto;flex-wrap:nowrap;min-height:62px;gap:12px;
+  background:#191b22;border-bottom:1px solid #424550;
+}
+#wz156GiftModal .wz156GiftHead h3{min-width:0;flex:1 1 auto;line-height:1.35;overflow-wrap:anywhere;}
+#wz156GiftModal #wz156GiftSubtitle{
+  display:block;flex:0 0 auto;margin:14px 0 0!important;padding:0 0 1px!important;
+  color:#c4c7d0!important;font-size:.89rem!important;line-height:1.6!important;
+  white-space:normal!important;overflow-wrap:anywhere;word-break:normal;
+}
+#wz156GiftModal .wz156GiftRecipientsList{
+  min-height:72px;max-width:100%;margin:15px 0 16px;overflow-x:hidden;
+  flex:0 0 auto;
+}
+#wz156GiftModal .wz156GiftRecipient{
+  min-width:0;display:flex;flex-direction:column;align-items:stretch;
+  gap:9px;padding:12px;line-height:1.5;
+}
+#wz156GiftModal .wz156GiftRecipient strong{display:block;font-size:.95rem;line-height:1.45;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;}
+#wz156GiftModal .wz156GiftRecipient small{
+  display:block;min-width:0;max-width:100%;font-size:.82rem!important;
+  line-height:1.6!important;color:#bfc2cd!important;
+  white-space:normal!important;overflow-wrap:anywhere;word-break:normal;
+}
+#wz156GiftModal .wz156GiftRecipient > div:last-child{min-width:0;max-width:100%;row-gap:8px;}
+#wz156GiftModal .wz156GiftRecipient button{white-space:normal;line-height:1.4;min-height:40px;}
+#wz156GiftModal label[for="wz156GiftUsername"]{display:block;margin:4px 0 6px!important;line-height:1.5;min-width:0;overflow-wrap:anywhere;}
+#wz156GiftModal .wz156GiftForm{align-items:stretch;}
+#wz156GiftModal .wz156GiftForm input{min-width:0;}
+#wz156GiftModal .wz156GiftDialog > p.muted:not(#wz156GiftSubtitle){line-height:1.6!important;overflow-wrap:anywhere;}
+/* Other Admin dialogs: sticky headers must not overlap their first text row. */
+.wz-ux-choice-head,.dmNewMessageHead,.wz41-referee-head{margin-top:0!important;}
+:where(.choiceCard,.dmNewMessageCard,.wz41-dialog,.wz-v54-admin-modal,#wzg2ReelBox,#wzg66Box) :where(p,small,label,.muted){max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:normal;line-height:1.55;}
+@media(max-width:760px){
+  #wz156GiftModal .wz156GiftHead{margin:0 -20px 0!important;padding:12px 14px!important;}
+  #wz156GiftModal .wz156GiftDialog{padding:16px;}
+  #wz156GiftModal .wz156GiftHead{margin:0 -16px 0!important;}
+  #wz156GiftModal .wz156GiftHead button{min-width:82px;}
+  #wz156GiftModal .wz156GiftRecipient{padding:11px;}
+}
+
+</style>
 </body>
 </html>
