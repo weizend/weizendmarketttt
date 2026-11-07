@@ -39,8 +39,10 @@ footer{border-top:1px solid var(--line);padding:24px 0 35px;color:#b8bbc6;font-s
 *{-webkit-tap-highlight-color:transparent!important}
 @media(pointer:coarse){button:focus:not(:focus-visible),a:focus:not(:focus-visible),summary:focus:not(:focus-visible),[role="button"]:focus:not(:focus-visible){outline:none!important}}
 </style>
+  <!-- WEİZEND V31.2.03: optional, reversible presentation layer; all JS and backend unchanged -->
+  <link rel="stylesheet" href="./weizend-experience-v31203.css" id="wz-experience-v31203" />
 </head>
-<body>
+<body data-wz-experience="landing">
 <header class="top"><div class="wrap">
 <a class="logo" href="/" aria-label="WEİZEND ana sayfa"><img src="/logo-512.png" alt="" width="41" height="41"><span>WEİZEND</span></a>
 <nav class="links" aria-label="Ana gezinme">
@@ -70,4 +72,17 @@ footer{border-top:1px solid var(--line);padding:24px 0 35px;color:#b8bbc6;font-s
 </div></section>
 <div class="wrap"><section class="banner"><h2>Güncel VALORANT turnuvalarını incele</h2><p>Mevcut turnuvaları ve kayıt durumunu WEİZEND Turnuvalar sekmesinde incele. Fikstür ve maç sonuçları için Arena bağlantısını kullan.</p><a class="btn primary" href="/?wz_view=tournament">Turnuvalara git →</a></section></div></main>
 <footer><div class="wrap"><span>© WEİZEND · Oyuncu topluluğu, Market ve Arena</span><span><a href="/bilgi.html">Bilgi Merkezi</a> · <a href="/">Ana sayfaya dön</a></span><span>WEİZEND, Riot Games'in resmî sitesi değildir.</span></div></footer>
+
+<style id="wz-v31198-cross-device-ux">
+/* WEIZEND UX V31.1.98 — consistent keyboard, touch and motion accessibility. */
+:where(button, a, [role="button"], input, select, textarea):focus-visible {
+  outline:2px solid #ff858e!important;outline-offset:3px;
+}
+@media (max-width: 700px) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {font-size:max(16px,1em);}
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after {scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}
+}
+</style>
 </body></html>
