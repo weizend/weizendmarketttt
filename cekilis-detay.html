@@ -46,8 +46,10 @@ main{max-width:1350px;padding:22px 15px 60px;margin:auto}h1{font-size:clamp(22px
 *{-webkit-tap-highlight-color:transparent!important}
 @media(pointer:coarse){button:focus:not(:focus-visible),a:focus:not(:focus-visible),summary:focus:not(:focus-visible),[role="button"]:focus:not(:focus-visible){outline:none!important}}
 </style>
+  <!-- WEİZEND V31.2.03: optional, reversible presentation layer; all JS and backend unchanged -->
+  <link rel="stylesheet" href="./weizend-experience-v31203.css" id="wz-experience-v31203" />
 </head>
-<body><header><a href="https://www.weizend.com/"><strong>🎉 WEİZEND <span style="color:#fc4860">ÇEKİLİŞ MERKEZİ</span></strong></a><a class="back" href="https://www.weizend.com/?wz_view=giveaway">← Çekilişlere Dön</a></header>
+<body data-wz-experience="giveaway"><header><a href="https://www.weizend.com/"><strong>🎉 WEİZEND <span style="color:#fc4860">ÇEKİLİŞ MERKEZİ</span></strong></a><a class="back" href="https://www.weizend.com/?wz_view=giveaway">← Çekilişlere Dön</a></header>
 <main><h1 id="heading">Çekiliş Detayları</h1><p class="intro">Ödül bilgileri, katılım listesi ve kesinleşen kazananlar</p><p class="status" id="status">⏳ Çekiliş bilgileri yükleniyor...</p><button type="button" id="retryApi" hidden style="margin:0 0 17px">🔄 Tekrar Dene</button>
 <div class="cols" id="content" hidden>
 <section class="panel"><div class="cover" id="cover"></div><div class="pad"><span class="pill" id="state">Çekiliş</span><h2 style="margin-top:15px" id="title">Çekiliş</h2><div class="prize" id="prize"></div><div class="desc" id="description"></div><div class="facts"><div class="fact"><small>Katılımcı</small><strong id="count">—</strong></div><div class="fact"><small>Kazanan sayısı</small><strong id="winnerCount">—</strong></div><div class="fact"><small>Başlangıç (TSİ)</small><strong id="start">—</strong></div><div class="fact"><small>Bitiş (TSİ)</small><strong id="end">—</strong></div></div><div id="wzgDetailActions" class="wzg-detail-actions" hidden><button id="wzgDetailJoin" type="button" class="wzg-detail-join" hidden><span class="icon" id="wzgDetailJoinIcon">🎉</span><span id="wzgDetailJoinLabel">Çekilişe Katıl</span></button></div><div id="wzgDetailTimer" role="timer" aria-live="off" hidden>
@@ -208,4 +210,17 @@ $('participants').addEventListener('scroll',()=>{
 },{passive:true});
 setInterval(wzgDetailCountdown,1000);load(1,{query:''});verifySessionAndEntry();
 })();
-</script></body></html>
+</script>
+<style id="wz-v31198-cross-device-ux">
+/* WEIZEND UX V31.1.98 — consistent keyboard, touch and motion accessibility. */
+:where(button, a, [role="button"], input, select, textarea):focus-visible {
+  outline:2px solid #ff858e!important;outline-offset:3px;
+}
+@media (max-width: 700px) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {font-size:max(16px,1em);}
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after {scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}
+}
+</style>
+</body></html>
