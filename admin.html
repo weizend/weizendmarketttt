@@ -1062,6 +1062,8 @@ body.dmModalOpen{overflow:hidden}
   font-family:Consolas,monospace;
   color:#ff7777;
   white-space:nowrap;
+  font-size:.77rem;
+  user-select:text;
 }
 @media(max-width:760px){
   .supportRewardConfigGrid{grid-template-columns:1fr}
@@ -5972,9 +5974,19 @@ function renderSupportRewardEvents(){
   const fragment=document.createDocumentFragment();
   for(const item of items){
     let [statusText,statusBadge]=supportRewardStatusInfo(item.status);
-    if(item.status==='code_issued'&&item.gift_code_status==='disabled'){statusText='Kod İptal Edildi';statusBadge='bad';}
     const eventStatus=String(item.status||'');
     const giftStatus=String(item.gift_code_status||'').trim();
+    // V31.2.10: Support history must reflect the REAL code lifecycle, not only
+    // the original support event ('code_issued' can remain after redemption).
+    if(eventStatus==='ignored_tournament'){
+      statusText='Turnuva Kaydı'; statusBadge='ok';
+    }else if(giftStatus==='redeemed'){
+      statusText='Kod Kullanıldı'; statusBadge='warn';
+    }else if(giftStatus==='disabled'||giftStatus==='expired'){
+      statusText='Kod Geçersiz'; statusBadge='bad';
+    }else if(giftStatus==='unused'){
+      statusText='Kod Oluşturuldu'; statusBadge='ok';
+    }
     // A redeemed gift code has already awarded the user. Never offer cancellation then.
     const usedCode=giftStatus==='redeemed';
     const hasAssignedGift=Array.isArray(item.gift_recipients)&&item.gift_recipients.length>0;
@@ -5986,7 +5998,11 @@ function renderSupportRewardEvents(){
     const canDelete=usedCode || eventStatus==='cancelled' || eventStatus==='ignored_tournament' ||
       (eventStatus==='code_issued' && giftStatus==='disabled');
     const codeLast4=String(item.redeem_code_last4||'').trim();
-    const codeText=codeLast4 ? `••••-${codeLast4}` : '-';
+    // Full code is recovered only on the authenticated admin endpoint from
+    // its original inbox delivery and SHA-256 checked against gift_codes.
+    // Older codes whose inbox message is gone cannot be reconstructed.
+    const fullCode=String(item.gift_code_full||'').trim();
+    const codeText=fullCode || (codeLast4 ? `••••-${codeLast4}` : '-');
     const usedBy=String(item.gift_code_redeemed_by_username||'').trim();
     const usedAt=String(item.gift_code_redeemed_at||'').trim();
     // Kullanilmamis kod kirmizi; kullanilan kodda yalnizca GERCEK kullanan.
@@ -6027,7 +6043,7 @@ function renderSupportRewardEvents(){
       <td>${giftRecipientHtml}</td>
       <td><span class="supportRewardPoints">${Number(item.points_awarded||0).toLocaleString('tr-TR')} Puan</span></td>
       <td><span class="badge ${statusBadge}">${esc(statusText)}</span></td>
-      <td><span class="supportRewardCode">${esc(codeText)}</span></td>
+      <td><span class="supportRewardCode" title="${esc(fullCode ? 'Tam hediye kodu' : (codeLast4 ? 'Eski mesaj bulunamadığı için kodun yalnızca son 4 hanesi gösteriliyor' : 'Kod oluşturulmadı'))}">${esc(codeText)}</span></td>
       <td>${redeemerText}${redeemerMeta}</td>
       <td>${canCancel
         ? `<button class="smallBtn danger" onclick="cancelSupportRewardEvent('${encodeURIComponent(item.id)}')">🚫 İptal Et</button>`
