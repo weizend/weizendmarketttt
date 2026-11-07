@@ -5651,8 +5651,9 @@ function renderGiftCodes(items){
   for(const item of items){
     const status = String(item.status || 'unused');
     const appliedToTournament=String(item.source_type||'')==='support_reward' &&
-      String(item.support_event_status||'')==='ignored_tournament' && status==='disabled';
-    const statusText = appliedToTournament ? 'Turnuvada Kullanıldı' : status === 'unused'
+      String(item.support_event_status||'')==='ignored_tournament';
+    const virtualTournamentRecord=item.is_tournament_record===true;
+    const statusText = appliedToTournament ? 'Turnuva Kaydı' : status === 'unused'
       ? 'Kullanılmadı'
       : status === 'processing'
         ? 'Puan Gönderiliyor'
@@ -5669,7 +5670,7 @@ function renderGiftCodes(items){
           ? 'warn'
           : 'bad';
     const rewardType = String(item.reward_type || 'delivery');
-    const rewardText = rewardType === 'points'
+    const rewardText = virtualTournamentRecord ? '🎟️ Turnuva Hakkı' : rewardType === 'points'
       ? `🪙 ${Number(item.points_amount || 0).toLocaleString('tr-TR')} Puan`
       : '🎁 VP / Ürün Kodu';
     const tr = document.createElement('tr');
@@ -5677,20 +5678,20 @@ function renderGiftCodes(items){
       <td><strong>${esc(item.source_type === 'support_reward' ? 'Destek Ödülü' : (item.product_name || '-'))}</strong></td>
       <td><strong>${esc(item.owner_username || (item.source_type === 'support_reward' ? (item.assigned_username_norm || '-') : 'Weizend'))}</strong></td>
       <td>${esc(rewardText)}</td>
-      <td class="code">••••-${esc(item.redeem_code_last4 || '----')}</td>
-      <td><span class="badge ${badge}">${esc(statusText)}</span></td>
+      <td class="code">${virtualTournamentRecord ? '<span class="muted">Kod oluşturulmadı</span>' : '••••-'+esc(item.redeem_code_last4 || '----')}</td>
+      <td><span class="badge ${badge}">${esc(statusText)}</span>${appliedToTournament && status==='redeemed'?'<div class="muted" style="margin-top:4px;font-size:11px">Puan kullanıldı · manuel kontrol</div>':''}</td>
       <td>${esc(item.redeemed_by_username || '-')}</td>
       <td>${esc(dateText(item.created_at))}</td>
       <td>${esc(dateText(item.redeemed_at))}</td>
       <td>
         <div class="inlineActions">
-          ${status === 'processing'
+          ${virtualTournamentRecord ? '<span class="muted">Turnuva kaydı</span>' : status === 'processing'
             ? '<span class="muted">MissXss doğrulaması bekleniyor</span>'
             : ''}
-          ${status === 'processing' && rewardType === 'points'
+          ${!virtualTournamentRecord && status === 'processing' && rewardType === 'points'
             ? `<button class="smallBtn" title="BotRix sohbetini kontrol et: puan gittiyse Evet, gitmediyse Hayır" onclick="confirmGiftPoints('${encodeURIComponent(item.id)}',${Number(item.points_amount || 0)},'${encodeURIComponent(item.redeemed_by_username || '')}')">❓ Puan gönderildi mi?</button>`
             : ''}
-          ${status === 'processing'
+          ${status === 'processing' || virtualTournamentRecord
             ? ''
             : `<button class="smallBtn iconDanger" title="Admin listesinden kaldır" onclick="deleteGiftCode('${encodeURIComponent(item.id)}','${esc(status)}')">🗑</button>`}
         </div>
@@ -5903,7 +5904,7 @@ function supportRewardStatusInfo(status){
     issuing:['Kod Hazırlanıyor','warn'],
     code_issued:['Kod Oluşturuldu','ok'],
     ignored_internal_payment:['Market / Turnuva Ödemesi','bad'],
-    ignored_tournament:['Turnuvada Kullanıldı','bad'],
+    ignored_tournament:['Turnuva Kaydı','ok'],
     ignored_minimum:['Minimum Altı','bad'],
     ignored_disabled:['Ödül Kapalı','bad'],
     cancelled:['İptal Edildi','bad']
@@ -11958,24 +11959,38 @@ async function wzPendingSubOpen(encodedPaymentId){
     overlay.addEventListener('click',ev=>{if(ev.target===overlay)wzPendingSubClose()});
     document.body.appendChild(overlay);
   }
-  overlay.innerHTML=`<section role="dialog" aria-modal="true" aria-label="Bekleyen turnuva kaydını yönetici onayıyla tamamla" style="background:#16151d;color:#fff;border:1px solid #555;border-radius:15px;max-width:530px;width:100%;padding:17px;max-height:85dvh;overflow:auto;box-sizing:border-box">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h3 style="margin:0 0 12px">✅ 10 Dakika İçinde Kaydı Onayla</h3><button type="button" class="smallBtn secondary" aria-label="Pencereyi kapat" onclick="wzPendingSubClose()">×</button></div>
-    <p class="muted">Bu işlem kullanıcının başlattığı <b>mevcut kaydı</b> onaylar. Abonelik/Gift gönderilmediği hâlde <b>yönetici istisnası</b> uygulanır. Gerçek Kick aboneliği oluşturulmaz; destek kodu, puan ve diğer kullanıcı hakları değiştirilmez.</p>
-    <div id="wzPendingSubInfo" role="status">⏳ Başvurunun kalan süresi doğrulanıyor...</div>
+  overlay.innerHTML=`<section role="dialog" aria-modal="true" aria-label="Bekleyen turnuva kaydını onayla" style="background:#16151d;color:#fff;border:1px solid #555;border-radius:15px;max-width:560px;width:100%;padding:17px;max-height:85dvh;overflow:auto;box-sizing:border-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h3 style="margin:0 0 12px">✅ Turnuva Kaydını Onayla</h3><button type="button" class="smallBtn secondary" aria-label="Pencereyi kapat" onclick="wzPendingSubClose()">×</button></div>
+    <p class="muted">Kullanıcının yeniden açtığı <b>10 dakikalık başvuruyu</b> onaylıyorsun. Aynı Kick hesabına ait kullanılabilir abonelik/Gift varsa destek <b>Turnuva Kaydı</b> durumuna geçirilir. Kod önceden kullanıldıysa puanı sen manuel düzeltebilirsin. Destek yoksa yalnızca kayıt onaylanır, destek ödülü yaratılmaz.</p>
+    <div id="wzPendingSubInfo" role="status">⏳ Kayıt ve destek kanıtları kontrol ediliyor...</div>
     <div style="display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px">
       <button type="button" class="smallBtn secondary" onclick="wzPendingSubClose()">Vazgeç</button>
       <button type="button" class="smallBtn" id="wzPendingSubConfirm" disabled>✅ Kaydı Onayla</button>
     </div></section>`;
   try{
     const {r,d}=await api('/admin/tournament/v3/subscription/preview?paymentId='+encodeURIComponent(paymentId));
-    if(!r.ok||!d?.success)throw Error(d?.error||`HTTP ${r.status}`);
+    if(!r.ok||!d?.success)throw Error(d.error||`HTTP ${r.status}`);
+    // V31.2.09: Prefer real Kick support when available; otherwise an explicit
+    // support-free waiver. Any eligibility error is visible, not silently ignored.
+    let proof=null,eligibilityError='',eligibilityUnavailable=false;
+    try{
+      const out=await api('/admin/tournament/v3/subscription/eligible?paymentId='+encodeURIComponent(paymentId));
+      if(out.r.ok&&out.d?.success)proof=out.d;
+      else {eligibilityError=String(out.d?.error||`HTTP ${out.r.status}`);eligibilityUnavailable=out.r.status!==409;}
+    }catch(err){eligibilityError=String(err?.message||err);eligibilityUnavailable=true;}
+    const events=Array.isArray(proof?.events)?proof.events:[];
     const info=document.getElementById('wzPendingSubInfo');if(!info)return;
-    info.innerHTML=`<p><b>Kick hesabı:</b> ${esc(d.username||'-')}</p>
-      <p><b>Beklenen şart:</b> ${d.requiredKind==='gift_sub'?'1 abonelik hediyesi':'1 normal abonelik'}</p>
-      <p style="color:#ffc97d"><b>Son onay saati:</b> ${esc(formatTournamentDate(d.expiresAt))} · <span id="wzPendingSubRemaining">${Number(d.secondsRemaining||0)} saniye</span> kaldı.</p>
-      <p class="muted">10 dakika dolunca manuel onay kapanır ve yerine yeni bir kayıt açılması gerekir.</p>`;
+    info.innerHTML=`<p><b>Kick:</b> ${esc(d.username||'-')}</p>
+      <p><b>Beklenen şart:</b> ${d.requiredKind==='gift_sub'?'1 Gift':'1 normal abonelik'}</p>
+      <p style="color:#ffc97d"><b>Süre:</b> ${esc(formatTournamentDate(d.expiresAt))} · <span id="wzPendingSubRemaining">${Number(d.secondsRemaining||0)} saniye</span></p>
+      ${events.length?`<p style="color:#81e2a8"><b>✅ ${events.length} Kick desteği bulundu.</b> Onaylarsan seçtiğin destek Turnuva Kaydı olarak işaretlenir.</p>
+      <label>Turnuvada kullanılacak destek<select id="wzPendingSubEvent" style="width:100%;margin:8px 0 12px;background:#111;color:white;border:1px solid #555;border-radius:8px;padding:10px">${events.map(e=>`<option value="${esc(e.id)}">${esc(e.sourceKind==='gift_sub'?'Gift':e.sourceType==='subscription_renewal'?'Yenileme':'Abonelik')} · ${esc(formatTournamentDate(e.occurredAt))}${e.codeAlreadyRedeemed?' · KOD KULLANILDI — PUAN MANUEL DÜZELTİLECEK':e.codeAlreadyCancelled?' · Kod iptal edilmiş':e.codeAbsent?' · Henüz kod yok':' · Kullanılmamış kod iptal edilir'}</option>`).join('')}</select></label>
+      <p class="muted">Kullanılmış kodun puanı otomatik silinmez. Kontrol edip manuel düzeltirsin. Kullanılmamış kod iptal edilir.</p>`:
+       `<p style="color:#ffc97d">${eligibilityError?`Destek eşleştirme kontrolü: ${esc(eligibilityError)}`:'Bu başvuruyla eşleşen uygun Kick abonelik/Gift kaydı bulunamadı.'}</p>
+        <p class="muted">Destek olmadan yalnızca yönetici onayı verebilirsin; destek ödüllerine kayıt veya hediye kodu eklenmez.</p>`}
+      <input type="hidden" id="wzPendingSubMode" value="${events.length?'verified':'waiver'}">`;
     const confirmButton=document.getElementById('wzPendingSubConfirm');
-    if(confirmButton){confirmButton.disabled=false;confirmButton.onclick=()=>wzPendingSubApprove(paymentId)}
+    if(confirmButton){confirmButton.disabled=eligibilityUnavailable;confirmButton.onclick=()=>wzPendingSubApprove(paymentId)}
     wzPendingSubModalDeadline=Date.parse(d.expiresAt);
     wzPendingSubUpdateTimer();
   }catch(err){const info=document.getElementById('wzPendingSubInfo');if(info)info.textContent='❌ '+String(err.message||err)}
@@ -12000,19 +12015,29 @@ function wzPendingSubUpdateTimer(){
 }
 async function wzPendingSubApprove(paymentId){
   if(wzPendingSubBusy)return;
-  if(!confirm('Bu kayıt 10 dakika dolmadan turnuvaya kabul edilsin mi? Abonelik/Gift şartını yönetici istisnasıyla kaldırıyorsun; hiçbir gerçek destek kaydı veya puan kodu değişmeyecek.'))return;
+  const mode=String(document.getElementById('wzPendingSubMode')?.value||'waiver');
+  const eventId=String(document.getElementById('wzPendingSubEvent')?.value||'');
+  if(mode==='verified'&&!eventId)return;
+  const message=mode==='verified'
+    ?'Gerçek Kick desteğini turnuvada kullanıp, varsa kullanılmamış puan kodunu iptal ederek kaydı onaylıyor musun? Bu işlem geri alınamaz.'
+    :'Eşleşen destek kaydı olmadan yalnızca turnuva kaydını onaylıyor musun? Destek ödülü veya puan kodu oluşturulmayacak.';
+  if(!confirm(message))return;
   wzPendingSubBusy=true;
   const btn=document.getElementById('wzPendingSubConfirm');if(btn){btn.disabled=true;btn.textContent='⏳ Onaylanıyor...'}
   try{
-    const {r,d}=await api('/admin/tournament/v3/subscription/approve',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({paymentId,approvalMode:'admin_condition_waiver',confirm:true})
-    });
-    if(!r.ok||!d?.success)throw Error(d?.error||`HTTP ${r.status}`);
+    const url=mode==='verified'?'/admin/tournament/v3/subscription/verified-approve':'/admin/tournament/v3/subscription/approve';
+    const data=mode==='verified'?{paymentId,eventId,confirm:true}:
+      {paymentId,approvalMode:'admin_condition_waiver',confirm:true};
+    const {r,d}=await api(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    if(!r.ok||!d?.success)throw Error(d.error||`HTTP ${r.status}`);
     if(wzPendingSubModalTimer){clearInterval(wzPendingSubModalTimer);wzPendingSubModalTimer=null;}
     document.getElementById('wzPendingSubOverlay')?.remove();
     await loadTournamentEntries(true);
-    const msg=d.message||'Kayıt yönetici istisnasıyla onaylandı.';
+    if(mode==='verified'){
+      if(typeof loadSupportRewardEvents==='function')await loadSupportRewardEvents().catch(()=>{});
+      if(typeof loadGiftCodes==='function')await loadGiftCodes().catch(()=>{});
+    }
+    const msg=d.message||'Turnuva kaydı tamamlandı.';
     showStatus('tournamentEntriesStatus','✅ '+esc(msg),true);
     wzV3047TeamNotice('✅ '+msg,true);
   }catch(err){
