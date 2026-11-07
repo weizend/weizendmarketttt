@@ -5664,13 +5664,11 @@ function renderGiftCodes(items){
           : status === 'expired'
             ? 'Süresi Doldu'
             : 'Geçersiz';
-    const badge = appliedToTournament ? 'ok' : status === 'unused'
+    const badge = appliedToTournament ? 'warn' : status === 'unused'
       ? 'ok'
       : status === 'processing'
         ? 'warn'
-        : status === 'redeemed'
-          ? 'warn'
-          : 'bad';
+        : 'bad';
     const rewardType = String(item.reward_type || 'delivery');
     const rewardText = virtualTournamentRecord ? '🎟️ Turnuva Hakkı' : rewardType === 'points'
       ? `🪙 ${Number(item.points_amount || 0).toLocaleString('tr-TR')} Puan`
@@ -5906,7 +5904,7 @@ function supportRewardStatusInfo(status){
     issuing:['Kod Hazırlanıyor','warn'],
     code_issued:['Kod Oluşturuldu','ok'],
     ignored_internal_payment:['Market / Turnuva Ödemesi','bad'],
-    ignored_tournament:['Turnuva Kaydı','ok'],
+    ignored_tournament:['Turnuva Kaydı','warn'],
     ignored_minimum:['Minimum Altı','bad'],
     ignored_disabled:['Ödül Kapalı','bad'],
     cancelled:['İptal Edildi','bad']
@@ -5979,9 +5977,9 @@ function renderSupportRewardEvents(){
     // V31.2.10: Support history must reflect the REAL code lifecycle, not only
     // the original support event ('code_issued' can remain after redemption).
     if(eventStatus==='ignored_tournament'){
-      statusText='Turnuva Kaydı'; statusBadge='ok';
+      statusText='Turnuva Kaydı'; statusBadge='warn';
     }else if(giftStatus==='redeemed'){
-      statusText='Kod Kullanıldı'; statusBadge='warn';
+      statusText='Kod Kullanıldı'; statusBadge='bad';
     }else if(giftStatus==='disabled'||giftStatus==='expired'){
       statusText='Kod Geçersiz'; statusBadge='bad';
     }else if(giftStatus==='unused'){
