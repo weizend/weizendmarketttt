@@ -125,7 +125,9 @@ html,body{overscroll-behavior-y:auto}
 *{-webkit-tap-highlight-color:transparent!important}
 @media(pointer:coarse){button:focus:not(:focus-visible),a:focus:not(:focus-visible),summary:focus:not(:focus-visible),[role="button"]:focus:not(:focus-visible){outline:none!important}}
 </style>
-</head><body class="wz-lobby-booting">
+  <!-- WEİZEND V31.2.03: optional, reversible presentation layer; all JS and backend unchanged -->
+  <link rel="stylesheet" href="./weizend-experience-v31203.css" id="wz-experience-v31203" />
+</head><body data-wz-experience="lobby" class="wz-lobby-booting">
 <header class="top"><div class="topinner"><a class="brand" href="index.html?wz_view=players"><img src="https://i.hizliresim.com/fo5evkh4.png" alt="WEİZEND logosu" class="siteLogo"><span class="brandCopy"><span class="brandName">WEİZEND</span><small>OYUN LOBİSİ</small></span></a><a class="headerBack" href="index.html?wz_view=players">← Oyuncu Ara’ya Dön</a></div></header>
 <div id="wzLobbyBoot" role="status" aria-live="polite"><div class="wz3136-loader-card"><div class="wz3136-skeleton wz3136-skeleton-wide"></div><div class="wz3136-skeleton wz3136-skeleton-heading"></div><div class="wz3136-skeleton wz3136-skeleton-short"></div><small id="wz3136LoadingText">Lobi bilgileri alınıyor…</small></div></div>
 <main class="wrap"><div class="extra"><span class="smallprint" id="lobbyState">Lobi durumunu kontrol et</span><button id="refreshBtn" class="btn alt small" type="button">↻ Yenile</button> <button id="wz82ShareLobby" class="btn alt small" type="button">🔗 Lobiyi Paylaş</button></div>
