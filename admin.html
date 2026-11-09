@@ -4361,12 +4361,9 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
 
           <div class="tournamentDangerGrid">
             <button id="tCompleteButton" class="warn" onclick="setTournamentLifecycle('completed')">🏁 Tamamlandı Yap</button>
-            <button id="tCancelButton" class="warn" onclick="setTournamentLifecycle('cancelled')">⛔ Turnuvayı İptal Et · Hakları Koru</button>
             <button id="tDeleteButton" class="danger" onclick="deleteTournamentFromPanel()">🗑 Turnuvayı Sil</button>
           </div>
 
-          <button type="button" class="secondary" onclick="wz3111ShowRights()">🎟 Korunan Kayıt Haklarını Gör</button>
-          <div id="wz3111RightsList" class="muted" style="margin-top:8px"></div>
           <div id="tournamentStatus" class="status tournamentInlineStatus"></div>
         </div>
 
@@ -11453,10 +11450,6 @@ async function saveTournamentConfig(){
     return;
   }
   
-  const previousSize=Number(currentTournamentAdmin?.teamSize||
-    tournamentCatalogCache.find(x=>String(x.id)===String(tournamentId))?.teamSize||1);
-  const changingFormat=previousSize!==teamSize;
-  if(changingFormat && !confirm(`Bu turnuvayı ${previousSize}v${previousSize} formatından ${teamSize}v${teamSize} formatına çevirmek üzeresin.\n\nÖnceki aktif kayıtlar iptal edilecek; abonelik/Gift şartını TAMAMLAMIŞ oyunculara bir kez kullanılabilir korunan katılım hakkı verilecek.\n\nBekleyen işlemler veya başlamış maç varsa değişiklik engellenecek.\n\nDevam edilsin mi?`))return;
   wz41ConfigWriting=true;
   try{
     if(button){
@@ -11474,7 +11467,6 @@ async function saveTournamentConfig(){
         expectedConfigVersion:wz41ConfigVersion,
         name,
         teamSize,
-        confirmClearRegistrations:changingFormat,
         registrationOpen,
         capacity,
         eventDate,
@@ -11767,8 +11759,7 @@ async function setTournamentLifecycle(state){
   const labels = {
     active:'aktif yapılsın',
     passive:'pasife alınsın',
-    completed:'tamamlandı olarak işaretlensin',
-    cancelled:'İPTAL EDİLSİN; onaylanmış abonelik kayıtlarının hakları korunsun ve eski kayıtlar temizlensin'
+    completed:'tamamlandı olarak işaretlensin'
   };
 
   if(!confirm(`Turnuva ${labels[state] || 'güncellensin'} mı?`)) return;
@@ -11787,7 +11778,7 @@ async function setTournamentLifecycle(state){
     }
 
     if(currentTournamentAdmin && String(currentTournamentAdmin.id)===String(tournamentId)){
-      currentTournamentAdmin.lifecycleStatus = state==='cancelled'?'passive':state;
+      currentTournamentAdmin.lifecycleStatus = state;
     }
     updateTournamentLifecycleControls(state);
     const matching = tournamentCatalogCache.find(x=>String(x.id)===String(tournamentId));
@@ -11805,9 +11796,7 @@ async function setTournamentLifecycle(state){
         ? '✅ Turnuva aktif. Market Turnuva sekmesinde görünür.'
         : state === 'passive'
           ? '✅ Turnuva pasife alındı. Kullanıcı marketinde görünmez.'
-          : state === 'cancelled'
-            ? '✅ Turnuva iptal edildi, aktif kayıtları temizlendi. Şartı tamamlayan oyuncuların tek kullanımlık katılım hakları korundu.'
-            : '✅ Turnuva tamamlandı. Yönetim listesinden Geçmiş Turnuvalar bölümüne taşındı ve kullanıcı tarafında TAMAMLANDI olarak görünür.';
+          : '✅ Turnuva tamamlandı. Yönetim listesinden Geçmiş Turnuvalar bölümüne taşındı ve kullanıcı tarafında TAMAMLANDI olarak görünür.';
 
     const refreshedItem = tournamentCatalogCache.find(
       x => String(x?.id || '') === String(tournamentId)
@@ -11834,7 +11823,7 @@ async function deleteTournamentFromPanel(){
 
   if(!confirm(
     `"${item?.name || tournamentId}" turnuvası kullanıcı tarafında kaldırılsın mı?\n\n` +
-    `Market / Turnuva ekranından kaldırılır. Şartı TAMAMLAMIŞ abonelik/Gift katılımcılarına transfer hakkı verilir. Eski kayıtlar temizlenir. Yönetim Merkezi'nde ŞABLON olarak saklanır.`
+    `Market / Turnuva ekranından kaldırılır. Yönetim Merkezi'nde ŞABLON olarak saklanır ve aynı isimle yeni turnuva oluşturulamaz.`
   )) return;
 
   try{
@@ -11859,29 +11848,13 @@ async function deleteTournamentFromPanel(){
 
     showStatus(
       'tournamentStatus',
-      '✅ Turnuva kaldırıldı, abonelik/Gift hakkını tamamlamış oyuncuların kayıt transfer hakları korundu.',
+      '✅ Turnuva kullanıcı tarafında kaldırıldı ve Yönetim Merkezi\'nde ŞABLON olarak saklandı.',
       true
     );
 
   }catch(error){
     showStatus('tournamentStatus','❌ ' + esc(error.message || error),false);
   }
-}
-
-async function wz3111ShowRights(){
-  const tid=document.getElementById('tournamentSelect')?.value||'';
-  const host=document.getElementById('wz3111RightsList');
-  if(!tid||!host)return;
-  host.textContent='⏳ Korunan haklar yükleniyor...';
-  try{
-    const {r,d}=await api(`/admin/tournament/transfer-rights?id=${encodeURIComponent(tid)}`);
-    if(!r.ok||!d?.success)throw new Error(d?.error||'Hak listesi alınamadı');
-    const rows=Array.isArray(d.rights)?d.rights:[];
-    host.innerHTML=rows.length
-      ? `<b>🎟 ${rows.filter(x=>x.status==='available').length} kullanılabilir / ${rows.length} toplam hak</b><div style="margin-top:8px;display:grid;gap:7px">`+
-        rows.map(x=>`<div style="padding:8px;border:1px solid #444;border-radius:9px;overflow-wrap:anywhere"><b>${esc(x.username||'Oyuncu')}</b> · ${x.status==='used'?'✅ Yeni turnuvada kullanıldı':'🎟 Kullanılabilir'}<br><small>Kaynak: ${esc(x.grant_reason||'-')} ${x.target_tournament_id?'· Yeni turnuva: '+esc(x.target_tournament_id):''}</small></div>`).join('')+'</div>'
-      : 'Bu turnuva için korunmuş katılım hakkı yok.';
-  }catch(err){host.textContent='❌ '+(err.message||err);}
 }
 
 async function loadTournamentEntries(silent=false){
