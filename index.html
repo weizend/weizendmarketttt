@@ -6217,30 +6217,6 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
       </div>
     </section>
 
-    <!-- V31.2.18: verified tournament-only TL wallet and subscription rights. -->
-    <section class="wz-profile-section" id="wz18WalletProfile" aria-label="Turnuva kayıt haklarım">
-      <div class="wz-profile-section-title">🎟️ Turnuva Kayıt Haklarım</div>
-      <p style="color:#a6a6b2;margin:0 0 12px;font-size:.83rem">Yalnızca tamamlanan turnuva kayıtlarından doğan haklar. Market ve yayın bağışları dahil değildir.</p>
-      <div class="wz-profile-info-row"><span>💳 Kullanılabilir TL kayıt bakiyesi</span><strong id="wz18WalletAvailable">—</strong></div>
-      <div class="wz-profile-info-row"><span>⏳ İade / kayıt için ayrılmış</span><strong id="wz18WalletHeld">—</strong></div>
-      <div class="wz-profile-info-row"><span>⭐ Kullanılabilir abonelik kayıt hakkı</span><strong id="wz18WalletSubs">—</strong></div>
-      <p style="color:#aaa;font-size:.76rem;margin:10px 0">TL bakiyeni yeni ücretli turnuvada kullanmayı kayıt sırasında seçebilirsin veya manuel iade talep edebilirsin. Abonelik/Gift hakkı yalnızca yeni abonelik turnuvasında kullanılır; nakit çekilemez.</p>
-      <div id="wz18WalletEntries" style="display:grid;gap:8px" aria-live="polite">Bilgiler yükleniyor...</div>
-      <button type="button" class="wz-profile-action" style="margin-top:10px;width:100%;justify-content:center" onclick="window.wz18WalletRefresh?.(true)">↻ Turnuva Haklarını Yenile</button>
-    </section>
-
-    <!-- V31.2.19: verified tournament and giveaway rewards; delivered entries kept only in history. -->
-    <section class="wz-profile-section" id="wz19PrizesProfile" aria-label="Kazandığım ödüller">
-      <div class="wz-profile-section-title">🏆 Ödüllerim</div>
-      <p style="font-size:.8rem;color:#aaa;margin:4px 0 12px">Kesinleşmiş turnuva ve çekiliş ödüllerin. Teslim edilenler geçmişte saklanır.</p>
-      <div id="wz19PrizeLive" style="display:grid;gap:9px" aria-live="polite">Ödüller kontrol ediliyor...</div>
-      <details style="margin-top:12px;border:1px solid #3e3e45;padding:10px;border-radius:9px">
-        <summary style="cursor:pointer;font-weight:700">📜 Teslim Edilen Ödüller / Geçmiş</summary>
-        <div id="wz19PrizeHistory" style="display:grid;gap:8px;margin-top:10px"></div>
-      </details>
-      <button type="button" class="wz-profile-action" style="width:100%;margin-top:10px;justify-content:center" onclick="window.wz19PrizeRefresh?.(true)">↻ Ödüllerimi Yenile</button>
-    </section>
-
     <div class="wz-profile-section">
       <div class="wz-profile-section-title">Hızlı İşlemler</div>
       <div class="wz-profile-actions">
@@ -13381,7 +13357,6 @@ return;
         }
 
         const body = {teamId:team.id,slotIds};
-        if(String(rule.entryMode||'').toLowerCase()==='tl')body.useWallet=await window.wz18AskWallet?.()===true;
 
         if (rule.entryMode === 'subscription') {
             const ownSlot = (me.slots || []).find(s =>
@@ -13389,11 +13364,11 @@ return;
             );
             if (ownSlot && slotIds.includes(ownSlot.id)) {
                 const state = document.getElementById('tv2SelfSubscriptionState')?.value || '';
-                if (!state && !(slotIds.length===1 && await wz3111MayUseTransfer())) {
+                if (!state) {
                     showStatusToast('⚠️ Kendi katılımın seçili. Abone olup olmadığını seçmelisin.',4500);
                     return;
                 }
-                if(state)body.selfSubscriptionState = state;
+                body.selfSubscriptionState = state;
             }
         }
 
@@ -13413,10 +13388,6 @@ return;
                 body:JSON.stringify(body)
             });
 
-            if(data.mode==='wallet'){
-                showStatusToast('✅ Korunan TL kayıt bakiyen kullanıldı; yeni bağış gerekmiyor.',4000);
-                await tv2ReloadMe();await tv2LoadCatalog(false);window.wz18WalletRefresh?.(true);return;
-            }
             if (data.mode === 'tl') {
                 const payment = data.payment;
                 const reference = data?.instructions?.reference || payment?.reference || '';
@@ -13457,11 +13428,6 @@ return;
                 if (p?.id) tv2RefreshSubscription(p.id);
                 tv2OpenKickChannel();
                 return;
-            }
-
-            if (data.mode === 'transfer') {
-                showStatusToast('🎟 Korunan turnuva hakkın kullanıldı. Tekrar abone olman gerekmiyor.',4500);
-                await tv2ReloadMe();await tv2LoadCatalog(false);return;
             }
 
             if (data.mode === 'free') {
@@ -13814,12 +13780,11 @@ return;
             return;
         }
 
-        if (entryMode === 'subscription' && !['not_subscribed','already_subscribed'].includes(selfSubscriptionState) && !(await wz3111MayUseTransfer())) {
+        if (entryMode === 'subscription' && !['not_subscribed','already_subscribed'].includes(selfSubscriptionState)) {
             if (status) status.innerHTML = '<div class="tv2-message error">Abonelik durumunu seç.</div>';
             return;
         }
 
-        const useWallet=entryMode==='tl' && await window.wz18AskWallet?.()===true;
         try {
             if (status) status.innerHTML = '<div class="tv2-message">⏳ Turnuva kaydın oluşturuluyor...</div>';
 
@@ -13831,15 +13796,12 @@ return;
                     riotId:gameId,
                     gameId,
                     ...instagramContact,
-                    termsAccepted:true,useWallet,
+                    termsAccepted:true,
                     selfSubscriptionState:entryMode === 'subscription' ? selfSubscriptionState : undefined
                 })
             });
 
-            if (data.walletPaid===true) {
-                showStatusToast('✅ Korunan TL bakiye kullanıldı, kayıt ücretin ödendi.',4300);
-                window.wz18WalletRefresh?.(true);
-            } else if (data.payment?.id) {
+            if (data.payment?.id) {
                 const reference = data.instructions?.reference || data.payment.reference;
                 localStorage.setItem(TV2_PENDING_TL_KEY,JSON.stringify({
                     tournamentId:tv2State.tournamentId,
@@ -14589,11 +14551,7 @@ return;
                 </div>
             </div>
         `;
-        if(mode==='subscription'){
-            const node=document.getElementById('tv2FormStatus');
-            if(node)node.innerHTML='<div class="tv2-message">🎟 İptal edilen ya da formatı değiştirilen bir turnuvadan korunmuş hakkın varsa, kayıt sırasında otomatik kullanılır; yeni abonelik/Gift gerekmez.</div>';
-            tv3LoadOwnSubscriptionStatus('tv3CreateSubscriptionState');
-        }
+        if (mode === 'subscription') tv3LoadOwnSubscriptionStatus('tv3CreateSubscriptionState');
     }
 
     async function tv2SubmitCreate() {
@@ -14621,7 +14579,7 @@ return;
             tv2SetFormStatus('Devam etmek için bilgileri ve turnuva şartlarını onaylamalısın.');
             return;
         }
-        if (mode === 'subscription' && !['not_subscribed','already_subscribed'].includes(selfSubscriptionState) && !(await wz3111MayUseTransfer())) {
+        if (mode === 'subscription' && !['not_subscribed','already_subscribed'].includes(selfSubscriptionState)) {
             tv2SetFormStatus('Kick abonelik durumunu seçmelisin.');
             return;
         }
@@ -14630,7 +14588,6 @@ return;
             return;
         }
 
-        const useWallet=mode==='tl' && await window.wz18AskWallet?.()===true;
         tv2State.busy = true;
         const btn = document.getElementById('tv2CreateTeamButton');
         if (btn) { btn.disabled = true; btn.textContent = '⏳ İŞLEM HAZIRLANIYOR...'; }
@@ -14642,7 +14599,7 @@ return;
                     tournamentId:tv2State.tournamentId,
                     teamName,
                     gameId,
-                    paySeats,useWallet,
+                    paySeats,
                     selfSubscriptionState:mode === 'subscription' ? selfSubscriptionState : undefined,
                     ...instagramContact,
                     termsAccepted:true
@@ -14789,12 +14746,11 @@ return;
         const selfSubscriptionState = mode === 'subscription'
             ? String(document.getElementById('tv3JoinSubscriptionState')?.value || '')
             : '';
-        if (mode === 'subscription' && !['not_subscribed','already_subscribed'].includes(selfSubscriptionState) && !(await wz3111MayUseTransfer())) {
+        if (mode === 'subscription' && !['not_subscribed','already_subscribed'].includes(selfSubscriptionState)) {
             showStatusToast('⚠️ Kick abonelik durumunu seçmelisin.', 3500);
             return;
         }
 
-        const useWallet=mode==='tl' && await window.wz18AskWallet?.()===true;
         tv2State.busy = true;
         try {
             const data = await tv2AuthFetch('/tournament/v3/team/join/payment/start', {
@@ -14803,7 +14759,7 @@ return;
                 body:JSON.stringify({
                     tournamentId:tv2State.tournamentId,
                     draftId:draft.id,
-                    paySeats,useWallet,
+                    paySeats,
                     selfSubscriptionState:mode === 'subscription' ? selfSubscriptionState : undefined
                 })
             });
@@ -14816,19 +14772,7 @@ return;
         }
     }
 
-    async function wz3111MayUseTransfer(){
-        try{
-            const data=await tv2AuthFetch('/tournament/transfer-rights');
-            return Number(data?.available||0)>0;
-        }catch(_){return false;}
-    }
-
     async function tv3HandleStartResponse(data = {}, context = {}) {
-        if (data.mode === 'wallet') {
-            showStatusToast('✅ Korunan TL kayıt bakiyenle ödeme tamamlandı. Yeni bağış gerekmiyor!',5000);
-            await tv2ReloadMe();await tv2LoadCatalog(false);
-            window.wz18WalletRefresh?.(true);return;
-        }
         if (data.mode === 'tl' && data.payment?.id) {
             const p = data.payment;
             const reference = String(data?.instructions?.reference || p.reference || '');
@@ -14857,9 +14801,7 @@ return;
             return;
         }
 
-        if (data.mode === 'transfer') {
-            showStatusToast('🎟 Korunan turnuva hakkın kullanıldı. Yeni abonelik/Gift gerekmiyor!', 5000);
-        } else if (data.mode === 'prepaid') {
+        if (data.mode === 'prepaid') {
             showStatusToast('✅ Bu koltuk önceden ödenmişti. Takıma katılımın tamamlandı.', 4000);
         } else if (data.mode === 'free') {
             showStatusToast('✅ Katılımın tamamlandı.', 3500);
@@ -20360,159 +20302,5 @@ return;
 }
 
 </style>
-
-<script id="wz-v31218-tournament-wallet">
-(function(){
- 'use strict';
- const apiBase='https://www.weizend.com/api',key='weizend_market_session_secure_v2';
- const money=c=>(Number(c||0)/100).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})+' TL';
- let inflight=null,last=0;
- async function call(path,body){
-   const token=localStorage.getItem(key)||'';if(!token)throw Error('Önce Kick hesabını doğrula.');
-   const options={cache:'no-store',headers:{Authorization:'Bearer '+token,Accept:'application/json'}};
-   if(body!==undefined){options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(body)}
-   const res=await fetch(apiBase+path,options),data=await res.json();
-   if(!res.ok||!data.success)throw Error(data.error||'İşlem gerçekleştirilemedi.');
-   if(localStorage.getItem(key)!==token)throw Error('Oturum değişti.');
-   return data;
- }
- window.wz18AskWallet=async function(){
-   try{
-     const data=await call('/tournament/wallet');
-     const available=Number(data.availableCents||0);
-     if(available<=0)return false;
-     return window.confirm('🎟 '+money(available)+' korunmuş turnuva kayıt bakiyen var. Bu kayıtta kullanmak ister misin?\\n\\nTamam = kullan (kalan fark için BynoGame kodu oluşturulur)\\nİptal = bakiyeni sakla ve kayıt ücretinin tamamını öde');
-   }catch(error){console.warn('WZ18_WALLET_CONSENT_READ',error);return false}
- };
- function el(tag,text){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n}
- async function refresh(force=false){
-   const panel=document.getElementById('wz18WalletProfile');if(!panel)return;
-   const token=localStorage.getItem(key)||'';if(!token)return;
-   if(inflight)return inflight;if(!force&&Date.now()-last<12000)return;
-   last=Date.now();
-   inflight=(async()=>{
-     const host=document.getElementById('wz18WalletEntries');
-     try{
-       const data=await call('/tournament/wallet');
-       document.getElementById('wz18WalletAvailable').textContent=money(data.availableCents);
-       document.getElementById('wz18WalletHeld').textContent=money(Number(data.reservedCents||0)+Number(data.refundPendingCents||0));
-       document.getElementById('wz18WalletSubs').textContent=String(Number(data.subscriptionAvailable||0));
-       host.replaceChildren();
-       for(const c of data.credits||[]){
-         const item=el('div');item.style.cssText='border:1px solid #383b45;border-radius:10px;padding:10px;background:#15151a';
-         const name=el('strong',(c.source_tournament_name||'Eski turnuva')+' · '+money(c.available_cents));
-         item.append(name,el('div','Asıl kayıt bedeli: '+money(c.original_cents)+' · Bekleyen iade: '+money(c.refund_pending_cents)));
-         if(Number(c.available_cents)>0){
-           const btn=el('button','💸 Bu bakiyeden iade talep et');btn.type='button';btn.className='wz-profile-action';
-           btn.style.cssText='width:100%;margin-top:8px;justify-content:center';
-           btn.addEventListener('click',async()=>{
-             const max=Number(c.available_cents);
-             const entered=prompt('İade istediğin miktar (TL). En fazla: '+money(max),String(max/100));
-             if(entered===null)return;
-             const normalized=entered.trim().replace(',','.');
-             if(!/^\d+(?:\.\d{1,2})?$/.test(normalized)){alert('Lütfen geçerli TL tutarı gir.');return;}
-             const cents=Math.round(Number(normalized)*100);
-             if(!Number.isSafeInteger(cents)||cents<=0||cents>max){alert('İade tutarı bakiyeyi aşamaz.');return;}
-             if(!confirm(money(cents)+' için manuel iade talebi oluşturulsun mu? Onaylanana kadar bu tutarı yeni kayıtta kullanamazsın.'))return;
-             btn.disabled=true;
-             try{await call('/tournament/wallet/refund/request',{creditId:c.id,amountCents:cents});alert('İade talebin yöneticiye gönderildi.');await refresh(true)}
-             catch(e){alert('İade talebi oluşturulamadı: '+e.message)}finally{btn.disabled=false}
-           });item.append(btn);
-         }
-         host.append(item);
-       }
-       for(const r of data.refunds||[]){
-         if(!['pending','processing'].includes(r.status))continue;
-         const item=el('div');item.style.cssText='border:1px solid #856133;border-radius:10px;padding:10px';
-         item.append(el('strong',(r.status==='processing'?'🔒 İşleme alınmış iade: ':'⏳ Bekleyen iade talebi: ')+money(r.amount_cents)));
-         if(r.status==='processing'){item.append(el('small','Yönetici iade sürecini başlattığı için bu talep artık iptal edilemez.'));host.append(item);continue;}
-         const btn=el('button','İade talebini iptal et');btn.type='button';btn.className='wz-profile-action';
-         btn.addEventListener('click',async()=>{
-           if(!confirm('Yönetici iadeyi henüz yapmadıysa talebi iptal edip bakiyeyi geri açmak istiyor musun?'))return;
-           btn.disabled=true;try{await call('/tournament/wallet/refund/cancel',{refundId:r.id});await refresh(true)}catch(e){alert(e.message)}finally{btn.disabled=false}
-         });item.append(btn);host.append(item);
-       }
-       const rights=(data.subscriptionRights||[]).filter(r=>r.status==='available');
-       for(const r of rights){const item=el('div','⭐ 1 abonelik kayıt hakkı · '+(r.source_tournament_name||r.source_tournament_id));
-         item.style.cssText='padding:10px;border:1px solid #383b45;border-radius:10px';host.append(item)}
-       if(!host.children.length)host.append(el('small','Şu an korunmuş kayıt bakiyen veya hakkın bulunmuyor.'));
-     }catch(e){host.textContent='❌ '+e.message}
-   })().finally(()=>{inflight=null});
-   return inflight;
- }
- window.wz18WalletRefresh=refresh;
- const maybe=()=>{if(document.body.classList.contains('wz-view-profile'))refresh()};
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',maybe,{once:true});else maybe();
- new MutationObserver(maybe).observe(document.body,{attributes:true,attributeFilter:['class']});
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)maybe()});
-})();
-</script>
-
-<script id="wz-v31219-prize-profile">
-(function(){
- 'use strict';
- const host=document.getElementById('wz19PrizesProfile');if(!host)return;
- const apiRoot='https://www.weizend.com/api',sessionKey='weizend_market_session_secure_v2';
- const live=document.getElementById('wz19PrizeLive'),history=document.getElementById('wz19PrizeHistory');
- let inflight=null,loadedAt=0;
- const element=(tag,value)=>{const node=document.createElement(tag);if(value!==undefined)node.textContent=String(value);return node};
- async function api(path,body){
-   const token=localStorage.getItem(sessionKey)||'';if(!token)throw Error('Ödülleri görmek için Kick hesabınla giriş yap.');
-   const opts={cache:'no-store',headers:{Authorization:'Bearer '+token,Accept:'application/json'}};
-   if(body!==undefined){opts.method='POST';opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body)}
-   const res=await fetch(apiRoot+path,opts),data=await res.json();
-   if(!res.ok||!data.success)throw Error(data.error||'Ödül işlemi başarısız.');
-   if(localStorage.getItem(sessionKey)!==token)throw Error('Oturum değişti. Yeniden giriş yap.');
-   return data;
- }
- function renderAward(award){
-   const card=element('div');card.style.cssText='border:1px solid #44414c;background:#121216;padding:12px;border-radius:12px;overflow-wrap:anywhere';
-   const label=award.source_type==='giveaway'?'🎁 Çekiliş':'🏆 Turnuva';
-   const head=element('strong',label+' · '+award.source_name);card.append(head);
-   const title=element('div',award.rank+'. sıra · '+award.prize_title);title.style.cssText='font-size:.95rem;margin-top:7px;color:#fff;font-weight:750';card.append(title);
-   const status=element('div',award.status==='available'?'🟢 Talep edilebilir':award.status==='requested'?'🟠 Teslimat bekleniyor':'✅ Teslim edildi');
-   status.style.cssText='font-size:.8rem;margin-top:7px;color:#d1d1d8';card.append(status);
-   if(Number(award.team_award)){
-     const shared=element('small','Bu ödül takımın tamamı içindir. Tek teslimat talebini takım kaptanı açar.');shared.style.cssText='display:block;margin-top:5px;color:#b4b4bd';card.append(shared);
-   }
-   if(award.status==='available'&&Number(award.can_claim)===1){
-     const btn=element('button','📨 Talep Et');btn.type='button';btn.className='wz-profile-action';
-     btn.style.cssText='width:100%;margin-top:10px;justify-content:center';
-     btn.addEventListener('click',async()=>{
-       const message=prompt('Ödülünü teslim almak için yöneticiye göndermek istediğin mesajı yaz (en az 5 karakter). Teslimat bilgilerini yalnızca gerektiğinde paylaş.','Merhaba, kazandığım ödülü teslim almak istiyorum.');
-       if(message===null)return;
-       const note=message.trim();if(note.length<5||note.length>1200){alert('Mesaj 5–1200 karakter olmalı.');return}
-       if(!confirm('Bu ödül için tek seferlik teslimat talebi göndermek istediğine emin misin?'))return;
-       btn.disabled=true;
-       try{await api('/prizes/claim',{awardId:award.id,message:note});alert('Talebin mesaj kutusundan yöneticiye ulaştı.');await refresh(true)}
-       catch(err){alert('Ödül talebi gönderilemedi: '+err.message)}finally{btn.disabled=false}
-     });card.append(btn);
-   }
-   return card;
- }
- async function refresh(force=false){
-   if(!document.body.classList.contains('wz-view-profile'))return;
-   if(inflight)return inflight;
-   if(!force&&Date.now()-loadedAt<15000)return;
-   loadedAt=Date.now();
-   inflight=(async()=>{
-     try{
-       const data=await api('/prizes/my');live.replaceChildren();history.replaceChildren();
-       const entries=Array.isArray(data.awards)?data.awards:[];
-       const current=entries.filter(x=>x.status!=='delivered'),delivered=entries.filter(x=>x.status==='delivered');
-       for(const x of current)live.append(renderAward(x));
-       for(const x of delivered)history.append(renderAward(x));
-       if(!current.length)live.append(element('small','Şu anda teslim bekleyen bir turnuva veya çekiliş ödülün yok.'));
-       if(!delivered.length)history.append(element('small','Teslim edilmiş ödül geçmişin henüz yok.'));
-     }catch(error){live.replaceChildren(element('small','❌ '+error.message))}
-   })().finally(()=>{inflight=null});return inflight;
- }
- window.wz19PrizeRefresh=refresh;
- const maybe=()=>{if(document.body.classList.contains('wz-view-profile'))refresh()};
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',maybe,{once:true});else maybe();
- new MutationObserver(maybe).observe(document.body,{attributes:true,attributeFilter:['class']});
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)maybe()});
-})();
-</script>
 </body>
 </html>
