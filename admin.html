@@ -5685,15 +5685,18 @@ function renderGiftCodes(items){
       <td>${esc(dateText(item.redeemed_at))}</td>
       <td>
         <div class="inlineActions">
-          ${virtualTournamentRecord ? '<span class="muted">Turnuva kaydı</span>' : status === 'processing'
+          ${virtualTournamentRecord ? '<span class="muted">Turnuvada kullanıldı</span>' : status === 'processing'
             ? '<span class="muted">MissXss doğrulaması bekleniyor</span>'
             : ''}
           ${!virtualTournamentRecord && status === 'processing' && rewardType === 'points'
             ? `<button class="smallBtn" title="BotRix sohbetini kontrol et: puan gittiyse Evet, gitmediyse Hayır" onclick="confirmGiftPoints('${encodeURIComponent(item.id)}',${Number(item.points_amount || 0)},'${encodeURIComponent(item.redeemed_by_username || '')}')">❓ Puan gönderildi mi?</button>`
             : ''}
-          ${status === 'processing' || virtualTournamentRecord
-            ? ''
-            : `<button class="smallBtn iconDanger" title="Admin listesinden kaldır" onclick="deleteGiftCode('${encodeURIComponent(item.id)}','${esc(status)}')">🗑</button>`}
+          ${virtualTournamentRecord
+            ? (/^TOURNAMENT_SUPPORT:[A-Za-z0-9_-]{1,140}$/.test(String(item.id||''))
+              ? `<button type="button" class="smallBtn iconDanger" title="Yalnızca bu panelden gizle; turnuva kaydı ve destek hakları korunur" aria-label="Turnuva destek kaydını listeden kaldır" onclick="hideTournamentGiftRecord('${encodeURIComponent(item.id)}')">🗑</button>` : '')
+            : status === 'processing'
+              ? ''
+              : `<button class="smallBtn iconDanger" title="Admin listesinden kaldır" onclick="deleteGiftCode('${encodeURIComponent(item.id)}','${esc(status)}')">🗑</button>`}
         </div>
       </td>`;
     body.appendChild(tr);
@@ -5737,6 +5740,22 @@ async function resolveGiftPointsDelivery(ctx,choice){
     }
   }catch(error){
     showStatus('giftCodeStatus','❌ '+esc(error.message || error),false);
+  }
+}
+
+async function hideTournamentGiftRecord(encodedId){
+  const id=decodeURIComponent(String(encodedId||''));
+  if(!/^TOURNAMENT_SUPPORT:[A-Za-z0-9_-]{1,140}$/.test(id))return;
+  if(!confirm('Bu turnuvada kullanılmış destek kaydı yalnızca Oluşturulan Hediye Kodları listesinden gizlensin mi?\n\nKullanıcının turnuva kaydı, abonelik/Gift geçmişi, puanları ve katılım hakları KORUNUR. Bu işlem gerçek bir kodu veya turnuva kaydını silmez.'))return;
+  try{
+    const {r,d}=await api('/admin/gift-codes/hide-tournament-record',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})
+    });
+    if(!r.ok||!d?.success)throw new Error(d?.error||`HTTP ${r.status}`);
+    await loadGiftCodes();
+    showStatus('giftCodeStatus','✅ Kayıt yalnızca bu panelden gizlendi. Turnuva ve destek hakları korundu.',true);
+  }catch(error){
+    showStatus('giftCodeStatus','❌ '+esc(error.message||error),false);
   }
 }
 
