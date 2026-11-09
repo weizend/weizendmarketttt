@@ -13364,11 +13364,11 @@ return;
             );
             if (ownSlot && slotIds.includes(ownSlot.id)) {
                 const state = document.getElementById('tv2SelfSubscriptionState')?.value || '';
-                if (!state && !(slotIds.length===1 && await wz3111MayUseTransfer())) {
+                if (!state) {
                     showStatusToast('⚠️ Kendi katılımın seçili. Abone olup olmadığını seçmelisin.',4500);
                     return;
                 }
-                if(state)body.selfSubscriptionState = state;
+                body.selfSubscriptionState = state;
             }
         }
 
@@ -13428,11 +13428,6 @@ return;
                 if (p?.id) tv2RefreshSubscription(p.id);
                 tv2OpenKickChannel();
                 return;
-            }
-
-            if (data.mode === 'transfer') {
-                showStatusToast('🎟 Korunan turnuva hakkın kullanıldı. Tekrar abone olman gerekmiyor.',4500);
-                await tv2ReloadMe();await tv2LoadCatalog(false);return;
             }
 
             if (data.mode === 'free') {
@@ -14556,11 +14551,7 @@ return;
                 </div>
             </div>
         `;
-        if(mode==='subscription'){
-            const node=document.getElementById('tv2FormStatus');
-            if(node)node.innerHTML='<div class="tv2-message">🎟 İptal edilen ya da formatı değiştirilen bir turnuvadan korunmuş hakkın varsa, kayıt sırasında otomatik kullanılır; yeni abonelik/Gift gerekmez.</div>';
-            tv3LoadOwnSubscriptionStatus('tv3CreateSubscriptionState');
-        }
+        if (mode === 'subscription') tv3LoadOwnSubscriptionStatus('tv3CreateSubscriptionState');
     }
 
     async function tv2SubmitCreate() {
@@ -14588,7 +14579,7 @@ return;
             tv2SetFormStatus('Devam etmek için bilgileri ve turnuva şartlarını onaylamalısın.');
             return;
         }
-        if (mode === 'subscription' && !['not_subscribed','already_subscribed'].includes(selfSubscriptionState) && !(await wz3111MayUseTransfer())) {
+        if (mode === 'subscription' && !['not_subscribed','already_subscribed'].includes(selfSubscriptionState)) {
             tv2SetFormStatus('Kick abonelik durumunu seçmelisin.');
             return;
         }
@@ -14755,7 +14746,7 @@ return;
         const selfSubscriptionState = mode === 'subscription'
             ? String(document.getElementById('tv3JoinSubscriptionState')?.value || '')
             : '';
-        if (mode === 'subscription' && !['not_subscribed','already_subscribed'].includes(selfSubscriptionState) && !(await wz3111MayUseTransfer())) {
+        if (mode === 'subscription' && !['not_subscribed','already_subscribed'].includes(selfSubscriptionState)) {
             showStatusToast('⚠️ Kick abonelik durumunu seçmelisin.', 3500);
             return;
         }
@@ -14779,13 +14770,6 @@ return;
         } finally {
             tv2State.busy = false;
         }
-    }
-
-    async function wz3111MayUseTransfer(){
-        try{
-            const data=await tv2AuthFetch('/tournament/transfer-rights');
-            return Number(data?.available||0)>0;
-        }catch(_){return false;}
     }
 
     async function tv3HandleStartResponse(data = {}, context = {}) {
@@ -14817,9 +14801,7 @@ return;
             return;
         }
 
-        if (data.mode === 'transfer') {
-            showStatusToast('🎟 Korunan turnuva hakkın kullanıldı. Yeni abonelik/Gift gerekmiyor!', 5000);
-        } else if (data.mode === 'prepaid') {
+        if (data.mode === 'prepaid') {
             showStatusToast('✅ Bu koltuk önceden ödenmişti. Takıma katılımın tamamlandı.', 4000);
         } else if (data.mode === 'free') {
             showStatusToast('✅ Katılımın tamamlandı.', 3500);
