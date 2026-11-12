@@ -20122,6 +20122,10 @@ return;
   show('wzSp103Countdown',countdownPreview);
   if(countdownPreview)count();
   set('wzSp103Note',info.note||'MissXss şu anda erişilemiyor; aktif abonelik doğrulanamadı.');
+  // V31.2.20: When the list is unavailable and no verified history exists,
+  // do NOT claim the user is unsubscribed. Still offer the legitimate Kick CTA.
+  // A stored subscription history keeps its own prior display and no CTA.
+  showCta(months===0?'new':null);
  }
  function count(){
   if((!active&&!countdownPreview)||!nextAt)return;
@@ -20160,9 +20164,18 @@ return;
     if(info.status==='unverified_account'){
      set('wzSp103Months',info.display||'Kontrol edilemedi');
      set('wzSp103Note',info.note||'Abonelik durumu kontrol edilemedi.');
+     // Account/session not verified: do not assert absence of subscription.
+     showCta('new');
      return;
     }
-    set('wzSp103Note',info.note||'Henüz doğrulanmış aboneliğin bulunmuyor.');
+    // Positive, successful lookup with no active subscription:
+    // restore the original non-subscriber card and subscribe action.
+    const confirmedNotSubscribed=info.sourceLiveAvailable===true&&info.source==='none';
+    set('wzSp103Months',confirmedNotSubscribed?'Abone Değilsin':
+     (info.display&&info.display!=='Yok'?info.display:'Doğrulama bekleniyor'));
+    set('wzSp103Note',confirmedNotSubscribed
+     ?'Aktif aboneliğin bulunamadı. Kick üzerinden abone olabilirsin.'
+     :'Abonelik durumun şu anda doğrulanamadı. Abone olmak veya yeniden kontrol etmek için Kick bağlantısını kullanabilirsin.');
     showCta('new');return;
    }
    active=true;show('wzSp103HistoryRow',false);showCta(null);const source=String(info.source||'').toLowerCase();const isGift=info.isGift===true||['verified_admin_gift','kick_verified_gift','gift','kick_gift'].includes(source),isManual=source==='admin_manual';isGiftMode=isGift;isAdminMode=isManual;
