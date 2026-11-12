@@ -15840,13 +15840,35 @@ function wzg66Finished(){
  const b=document.createElement('button');b.className='primary';b.textContent='✅ Kapat';b.onclick=()=>{wzg66StopTimer();wzg66$('wzg66Overlay').hidden=true;document.body.style.overflow='';wzg2AdminRefresh()};box.append(b);
 }
 
+// V31.2.09 UI-only fix: the read-only Participants preview must fetch confirmed
+// winners too. The clip editor already reads the same D1 winner records.
+let wzg66RosterPreviewSequence=0;
 async function wzg66RosterPreview(id,title){
- wzg66Make();wzg66.id=id;wzg66.title=title;
+ wzg66Make();wzg66StopTimer();
+ const previewSequence=++wzg66RosterPreviewSequence;
+ wzg66.id=id;wzg66.title=title;wzg66.roster=null;wzg66.session=null;wzg66.candidate=null;
  wzg66$('wzg66Overlay').hidden=false;document.body.style.overflow='hidden';
  wzg66$('wzg66Title').textContent='👥 '+title;wzg66$('wzg93PrizeRow').hidden=true;
- wzg66$('wzg66Pre').hidden=false;wzg66$('wzg66Stage').hidden=true;wzg66$('wzg66Start').hidden=true;
- try{wzg66.roster=await wzg66Get('/admin/giveaway/participants?id='+encodeURIComponent(id));wzg66FillRoster()}
- catch(e){wzg66$('wzg66Roster').textContent='❌ '+e.message}
+ wzg66$('wzg66Pre').hidden=false;wzg66$('wzg66Stage').hidden=true;wzg66$('wzg66After').hidden=true;wzg66$('wzg66Start').hidden=true;
+ wzg66$('wzg66Roster').textContent='⏳ Katılımcılar yükleniyor...';
+ wzg66$('wzg66WinnersList').textContent='⏳ Kazananlar yükleniyor...';
+ // Keep participants visible if the separate, read-only winner lookup fails.
+ const [rosterResult,sessionResult]=await Promise.allSettled([
+  wzg66Get('/admin/giveaway/participants?id='+encodeURIComponent(id)),
+  wzg66Get('/admin/giveaway/draw/session?id='+encodeURIComponent(id))
+ ]);
+ // Prevent a late response from populating a different/closed giveaway popup.
+ if(previewSequence!==wzg66RosterPreviewSequence||wzg66.id!==id||wzg66$('wzg66Overlay').hidden)return;
+ if(rosterResult.status==='fulfilled'){
+  wzg66.roster=rosterResult.value;wzg66FillRoster();
+ }else{
+  wzg66$('wzg66Roster').textContent='❌ Katılımcılar yüklenemedi: '+String(rosterResult.reason?.message||rosterResult.reason);
+ }
+ if(sessionResult.status==='fulfilled'){
+  wzg66.session=sessionResult.value;wzg66RenderWinners();
+ }else{
+  wzg66$('wzg66WinnersList').textContent='❌ Kazananlar yüklenemedi: '+String(sessionResult.reason?.message||sessionResult.reason);
+ }
 }
 const wzg66OriginalOpenReel=wzg2OpenReel;
 wzg2OpenReel=async function(id,title){wzg66Make();wzg66$('wzg66Start').hidden=false;return wzg66OriginalOpenReel(id,title)};
