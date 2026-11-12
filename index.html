@@ -20108,7 +20108,9 @@ return;
   const from=String(info.giftFrom||'').trim().replace(/^@+/,'');
   const savedGift=info.source==='saved_gift_history'&&Boolean(from)&&from.length<=80;
   reset();
-  set('wzSp103Months',months?months+' AY':(info.display||'Doğrulama bekleniyor'));
+  // V31.2.21: No recorded subscription history -> old 'Yok' label.
+  // API outage is still explained in the note; this is NOT proof of inactivity.
+  set('wzSp103Months',months?months+' AY':'Yok');
   show('wzSp103GiftFromRow',savedGift);
   set('wzSp103GiftFrom',savedGift?from:'–');
   set('wzSp103RenewLabel',savedGift?'Gift Gönderilme Tarihi':'Son Abonelik / Yenileme');
@@ -20124,8 +20126,11 @@ return;
   set('wzSp103Note',info.note||'MissXss şu anda erişilemiyor; aktif abonelik doğrulanamadı.');
   // V31.2.20: When the list is unavailable and no verified history exists,
   // do NOT claim the user is unsubscribed. Still offer the legitimate Kick CTA.
-  // A stored subscription history keeps its own prior display and no CTA.
-  showCta(months===0?'new':null);
+  // A stored subscription history keeps its previous display. If its
+  // latest estimated renewal date has passed, offer renewal as an OPTION,
+  // without claiming that the subscription is definitely expired.
+  const estimatePassed=months>0&&Number.isFinite(nextAt)&&nextAt>0&&nextAt<=Date.now();
+  showCta(months===0?'new':estimatePassed?'renew':null);
  }
  function count(){
   if((!active&&!countdownPreview)||!nextAt)return;
@@ -20168,14 +20173,13 @@ return;
      showCta('new');
      return;
     }
-    // Positive, successful lookup with no active subscription:
-    // restore the original non-subscriber card and subscribe action.
+    // V31.2.21: restore the original 'Yok' label and subscribe CTA.
+    // When the provider is down, keep uncertainty visible in the note.
     const confirmedNotSubscribed=info.sourceLiveAvailable===true&&info.source==='none';
-    set('wzSp103Months',confirmedNotSubscribed?'Abone Değilsin':
-     (info.display&&info.display!=='Yok'?info.display:'Doğrulama bekleniyor'));
+    set('wzSp103Months','Yok');
     set('wzSp103Note',confirmedNotSubscribed
      ?'Aktif aboneliğin bulunamadı. Kick üzerinden abone olabilirsin.'
-     :'Abonelik durumun şu anda doğrulanamadı. Abone olmak veya yeniden kontrol etmek için Kick bağlantısını kullanabilirsin.');
+     :'Şu anda aktif abonelik kontrolü yapılamıyor. Kayıtlı abonelik bulunamadı; bir aboneliğin varsa daha sonra tekrar kontrol et.');
     showCta('new');return;
    }
    active=true;show('wzSp103HistoryRow',false);showCta(null);const source=String(info.source||'').toLowerCase();const isGift=info.isGift===true||['verified_admin_gift','kick_verified_gift','gift','kick_gift'].includes(source),isManual=source==='admin_manual';isGiftMode=isGift;isAdminMode=isManual;
