@@ -20109,7 +20109,7 @@ return;
   const savedGift=info.source==='saved_gift_history'&&Boolean(from)&&from.length<=80;
   reset();
   // V31.2.21: No recorded subscription history -> old 'Yok' label.
-  // API outage is still explained in the note; this is NOT proof of inactivity.
+  // Arayüzde yalnızca kayıtlı durum gösterilir; aktiflik kontrolü Worker'da kalır.
   set('wzSp103Months',months?months+' AY':'Yok');
   show('wzSp103GiftFromRow',savedGift);
   set('wzSp103GiftFrom',savedGift?from:'–');
@@ -20119,11 +20119,14 @@ return;
   nextAt=info.estimatedNextRenewal?Date.parse(info.estimatedNextRenewal):0;
   countdownPreview=months>0&&Number.isFinite(nextAt)&&nextAt>Date.now();
   set('wzSp103CountdownLabel',savedGift
-   ?'Kayıtlı Gift bitişine kalan süre (tahmini; aktiflik doğrulanamadı)'
-   :'Son bilinen yenilemeye kalan süre (tahmini; aktiflik doğrulanamadı)');
+   ?'Kayıtlı Gift bitişine kalan süre (tahmini)'
+   :'Son bilinen yenilemeye kalan süre (tahmini)');
   show('wzSp103Countdown',countdownPreview);
   if(countdownPreview)count();
-  set('wzSp103Note',info.note||'MissXss şu anda erişilemiyor; aktif abonelik doğrulanamadı.');
+  // V31.2.22: Teknik MissXss bağlantı uyarısını yalnızca profil arayüzünde gizle.
+  // Worker abonelik doğrulaması, `active` değeri, haklar ve sayacın hesabı DEĞİŞMEZ.
+  // Boş paragraf, "Abone Ol / Aboneliği Yenile" düğmesini sağda tutar.
+  set('wzSp103Note','');
   // V31.2.20: When the list is unavailable and no verified history exists,
   // do NOT claim the user is unsubscribed. Still offer the legitimate Kick CTA.
   // A stored subscription history keeps its previous display. If its
