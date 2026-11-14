@@ -20120,7 +20120,9 @@ return;
   countdownPreview=months>0&&Number.isFinite(nextAt)&&nextAt>Date.now();
   set('wzSp103CountdownLabel',savedGift
    ?'Kayıtlı Gift bitişine kalan süre (tahmini)'
-   :'Son bilinen yenilemeye kalan süre (tahmini)');
+   :info.estimatedNextRenewalSource==='kick_webhook'
+     ?'Kick bildirimindeki bitişe kalan süre'
+     :'Son bilinen yenilemeye kalan süre (tahmini)');
   show('wzSp103Countdown',countdownPreview);
   if(countdownPreview)count();
   // V31.2.22: Teknik MissXss bağlantı uyarısını yalnızca profil arayüzünde gizle.
@@ -20192,7 +20194,7 @@ return;
    show('wzSp103GiftFromRow',hasGiftGiver);
    set('wzSp103GiftFrom',hasGiftGiver?giftGiver:'–');
    set('wzSp103RenewLabel',isGift?'Gift Gönderilme Tarihi':isManual?'Abonelik Başlangıcı':'Son Abonelik / Yenileme');
-   set('wzSp103CountdownLabel',isGift?'Hediye aboneliğin bitişine kalan süre (tahmini)':isManual?'Abonelik bitişine kalan süre':'Bir sonraki yenilemeye kalan süre (tahmini)');
+   set('wzSp103CountdownLabel',isGift?'Hediye aboneliğin bitişine kalan süre (tahmini)':isManual?'Abonelik bitişine kalan süre':info.estimatedNextRenewalSource==='kick_webhook'?'Kick bildirimindeki bitişe kalan süre':'Bir sonraki yenilemeye kalan süre (tahmini)');
    const date=info.lastRenewal?new Date(info.lastRenewal):null;
    const valid=date&&Number.isFinite(date.getTime());
    show('wzSp103RenewRow',!!valid);
