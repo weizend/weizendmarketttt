@@ -12753,8 +12753,10 @@ return;
                     ? workerDetail
                     : (publicError || workerDetail || `HTTP ${response.status}`);
 
-            const err = new Error(message);
+            const requestId=String(data?.requestId||'').trim();
+            const err = new Error(requestId ? `${message} (Hata kodu: ${requestId})` : message);
             err.status = response.status;
+            err.requestId = requestId;
             err.data = data;
             throw err;
         }
@@ -14272,7 +14274,21 @@ return;
         const body = document.getElementById('tv2ModalBody');
         if (body && !tv2State.me) body.innerHTML = '<div class="tv2-empty">⏳ Turnuva hesabın kontrol ediliyor...</div>';
         try {
-            const [pub, me, detail] = await Promise.all([
+            // V31.2.25: Do not start three schema-heavy GETs together.
+            // The authoritative registration state must load first.
+            let me;
+            try {
+                me=await tv2AuthFetch(`/tournament/v3/me?id=${encodeURIComponent(id)}&_=${Date.now()}`);
+            } catch (firstError) {
+                // A single retry is safe ONLY for this read-only GET. Never retry
+                // POST registration/payment requests automatically.
+                const code=Number(firstError?.status||0);
+                if (code < 500 || code > 504) throw firstError;
+                await new Promise(resolve=>setTimeout(resolve,650));
+                me=await tv2AuthFetch(`/tournament/v3/me?id=${encodeURIComponent(id)}&_=${Date.now()}`);
+            }
+            if (sequence !== tv3ReloadSequence || String(tv2State.tournamentId) !== String(id)) return;
+            const [pub, detail] = await Promise.all([
                 fetch(`${MARKET_WORKER}/tournament/v3/public?id=${encodeURIComponent(id)}&_=${Date.now()}`, {
                     headers:{'Accept':'application/json'}, cache:'no-store', signal:AbortSignal.timeout(18000)
                 }).then(async r => {
@@ -14288,7 +14304,6 @@ return;
                     console.warn('V3 public liste alınamadı:',error);
                     return tv2State.publicData || {};
                 }),
-                tv2AuthFetch(`/tournament/v3/me?id=${encodeURIComponent(id)}&_=${Date.now()}`),
                 tv2FetchPublicDetail(id).catch(()=>null)
             ]);
 
