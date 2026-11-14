@@ -12753,10 +12753,8 @@ return;
                     ? workerDetail
                     : (publicError || workerDetail || `HTTP ${response.status}`);
 
-            const requestId=String(data?.requestId||'').trim();
-            const err = new Error(requestId ? `${message} (Hata kodu: ${requestId})` : message);
+            const err = new Error(message);
             err.status = response.status;
-            err.requestId = requestId;
             err.data = data;
             throw err;
         }
@@ -14274,21 +14272,7 @@ return;
         const body = document.getElementById('tv2ModalBody');
         if (body && !tv2State.me) body.innerHTML = '<div class="tv2-empty">⏳ Turnuva hesabın kontrol ediliyor...</div>';
         try {
-            // V31.2.25: Do not start three schema-heavy GETs together.
-            // The authoritative registration state must load first.
-            let me;
-            try {
-                me=await tv2AuthFetch(`/tournament/v3/me?id=${encodeURIComponent(id)}&_=${Date.now()}`);
-            } catch (firstError) {
-                // A single retry is safe ONLY for this read-only GET. Never retry
-                // POST registration/payment requests automatically.
-                const code=Number(firstError?.status||0);
-                if (code < 500 || code > 504) throw firstError;
-                await new Promise(resolve=>setTimeout(resolve,650));
-                me=await tv2AuthFetch(`/tournament/v3/me?id=${encodeURIComponent(id)}&_=${Date.now()}`);
-            }
-            if (sequence !== tv3ReloadSequence || String(tv2State.tournamentId) !== String(id)) return;
-            const [pub, detail] = await Promise.all([
+            const [pub, me, detail] = await Promise.all([
                 fetch(`${MARKET_WORKER}/tournament/v3/public?id=${encodeURIComponent(id)}&_=${Date.now()}`, {
                     headers:{'Accept':'application/json'}, cache:'no-store', signal:AbortSignal.timeout(18000)
                 }).then(async r => {
@@ -14304,6 +14288,7 @@ return;
                     console.warn('V3 public liste alınamadı:',error);
                     return tv2State.publicData || {};
                 }),
+                tv2AuthFetch(`/tournament/v3/me?id=${encodeURIComponent(id)}&_=${Date.now()}`),
                 tv2FetchPublicDetail(id).catch(()=>null)
             ]);
 
@@ -20135,9 +20120,7 @@ return;
   countdownPreview=months>0&&Number.isFinite(nextAt)&&nextAt>Date.now();
   set('wzSp103CountdownLabel',savedGift
    ?'Kayıtlı Gift bitişine kalan süre (tahmini)'
-   :info.estimatedNextRenewalSource==='kick_webhook'
-     ?'Kick bildirimindeki bitişe kalan süre'
-     :'Son bilinen yenilemeye kalan süre (tahmini)');
+   :'Son bilinen yenilemeye kalan süre (tahmini)');
   show('wzSp103Countdown',countdownPreview);
   if(countdownPreview)count();
   // V31.2.22: Teknik MissXss bağlantı uyarısını yalnızca profil arayüzünde gizle.
@@ -20209,7 +20192,7 @@ return;
    show('wzSp103GiftFromRow',hasGiftGiver);
    set('wzSp103GiftFrom',hasGiftGiver?giftGiver:'–');
    set('wzSp103RenewLabel',isGift?'Gift Gönderilme Tarihi':isManual?'Abonelik Başlangıcı':'Son Abonelik / Yenileme');
-   set('wzSp103CountdownLabel',isGift?'Hediye aboneliğin bitişine kalan süre (tahmini)':isManual?'Abonelik bitişine kalan süre':info.estimatedNextRenewalSource==='kick_webhook'?'Kick bildirimindeki bitişe kalan süre':'Bir sonraki yenilemeye kalan süre (tahmini)');
+   set('wzSp103CountdownLabel',isGift?'Hediye aboneliğin bitişine kalan süre (tahmini)':isManual?'Abonelik bitişine kalan süre':'Bir sonraki yenilemeye kalan süre (tahmini)');
    const date=info.lastRenewal?new Date(info.lastRenewal):null;
    const valid=date&&Number.isFinite(date.getTime());
    show('wzSp103RenewRow',!!valid);
