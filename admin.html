@@ -2951,13 +2951,14 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
         <div class="grid2">
 
           <div class="field" id="pointsPriceBox">
-            <label class="title">Puan Fiyatı</label>
+            <label class="title">Puan Fiyatı (Kick komutu dahil)</label>
             <input
               id="pPricePoints"
               type="number"
               min="1"
               step="1"
-              placeholder="Örn: 50000">
+              placeholder="Örn: 10000">
+            <div class="muted" style="margin-top:6px;">Yayın / Kick Komutu ürünlerinde bu tutar markette gösterilecek puan fiyatıdır. Kick sohbetindeki gerçek puan kesintisi ayrıca yayın botunun komut ayarlarında belirlenir.</div>
           </div>
 
           <div class="field hidden" id="tlPriceBox">
@@ -3074,6 +3075,13 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
           </button>
         </div>
 
+        <div class="box" style="margin:0 0 13px;padding:12px;border:1px solid #4c3530;border-radius:11px;background:#171111">
+          <div style="font-weight:800;margin-bottom:6px">🧩 Eski Market ürünlerini yönetilebilir hale getir</div>
+          <div class="muted" style="margin-bottom:10px">index.html içindeki eski ürünleri gerçek D1 kayıtlarına bir defa aktarmak için kullan. Var olan ürünleri ve silinmiş kayıtları DEĞİŞTİRMEZ. Silinmiş bir ürünü aşağıdaki listeden Düzenle ile geri getirebilirsin.</div>
+          <button class="secondary" id="wzLegacyImportBtn" style="width:auto" onclick="wzLegacyImportMissingProducts()">📥 Eksik sabit ürünleri D1'e aktar</button>
+          <div id="wzLegacyImportState" class="muted" style="margin-top:8px" aria-live="polite"></div>
+        </div>
+        <script type="application/json" id="wzLegacyMarketProductTemplates">[{"id":"alsapka","name":"Siyah Bez Şapka","category":"Fiziksel Ürün","paymentType":"points","pricePoints":155000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"physical","description":"Renk: Siyah Standart ebat ölçüye sahip Pamuklu kumaşıyla rahat kullanım Nefes alan ve terletmeyen dokudadır Siperlik kısmı deformasyona karşı dirençlidir Estetik, spor ve şık görünüme sahiptir Arka kısımda cırtlı ayar bölgesi bulunur Kafa ölçünüze göre kolayca ayarlayabilirsiniz Gündelik kullanım ve spor faaliyetleriniz için idealdir 30°C’de tersten, elde yıkayınız ve asarak kurutunuz Ekonomik fiyatıyla promosyon ürün olarak tercih edilebilir","images":["https://i.hizliresim.com/scvyurdk.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"almousepad","name":"Mouse Pad","category":"Fiziksel Ürün","paymentType":"points","pricePoints":100000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"physical","description":"175x210 mm ebatlar 2 mm kalınlık Polyester dayanıklılık kaplaması Kaydırmaz hammadde özelliklerine sahiptir Sağlığa zararlı kimyasalların dağıtımı yapıdadır","images":["https://i.hizliresim.com/beb4m3ta.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"alyastıkklıfı","name":"Yastık Kılıfı","category":"Fiziksel Ürün","paymentType":"points","pricePoints":125000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"physical","description":"Renk: Beyaz Ebat: 38x38 cm Saten kumaşa sahiptir İçten gizli dikiş formu bulunur Fermuarlı yapısıyla kolay kullanım sunar Sağlığa zararsız, sertifikalı, özel mürekkep kullanılır 30°C kısa programda, tersten, ağartıcı kullanmadan yıkayabilirsiniz Ürün, kurutma makinesine ve kuru temizlemeye uygun değildir Eğer ütüleme yapılacaksa tersten ve düşük ısıda yapılmalıdır Ürün sadece kılıf olarak gelmektedir, iç kısmı yoktur","images":["https://i.hizliresim.com/3xvtef5k.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"altshirt","name":"Siyah Erkek Tişört","category":"Fiziksel Ürün","paymentType":"points","pricePoints":280000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"physical","description":"Beden kesimlerinden dolayı bir beden büyük almanız tavsiye edilir Beden tablosuna dikkat ediniz Renk: Siyah %100 pamuklu kumaş yapısı Estetik, spor ve şık bir duruşa sahiptir Hava alan ve terletmeyen kumaş dokusu Kolay kırışmayan esnek kumaş yapısı bulunur Sağlığa zarar vermeyen özel mürekkep kullanılır 30°C’de kısa programda ve tersten yıkanmalıdır Kuru temizlemeye ve kurutma makinesine uygun değildir Düşük ısıda ve tersten ütüleme yapılmalıdır","images":["https://i.hizliresim.com/v3dcbfps.jpg","https://i.hizliresim.com/4qjxy0gw.jpg","https://i.hizliresim.com/e12ap6ck.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"alayıcık","name":"Kahverengi Peluş Ayıcık","category":"Fiziksel Ürün","paymentType":"points","pricePoints":190000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"physical","description":"Renk: Kahverengi 22x12x20 cm boyutlarda Sağlığa zararsız peluş kumaş Kaliteli elyaf dolgu malzemesi Sempatik ve tatlı bir hediyelik ürün Baskı yapılan alan ılık suda ve elde yıkanmalıdır","images":["https://i.hizliresim.com/jvm31sgk.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"alsweatshirt","name":"Kapüşonlu Kanguru Cepli Siyah Sweatshirt","category":"Fiziksel Ürün","paymentType":"points","pricePoints":405000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"physical","description":"Renk: Siyah Uzun kollu dan kapüşonlu formda Kanguru cepli şık tasarımıyla ön plana çıkar Şardonlu kumaşıyla sıcak tutan yapıdadır Polyester katkılı pamuklu kumaş yapısı Kolay kırışmayan esnek kumaş yapısı bulunur Hava alan ve terletmeyen dokuya sahiptir Unisex ürünüdür, erkek ve kadınlar kullanabilir Her yaştan bireyin kullanımına uygundur Estetik, spor ve şık bir duruşa sahiptir S, M, L, XL olmak üzere dört farklı bedeni bulunur Sağlığa zarar vermeyen özel mürekkep kullanılır 30°C’de kısa programda ve tersten yıkanmalıdır Kuru temizlemeye ve kurutma makinesine uygun değildir Düşük ısıda ve tersten ütüleme yapınız Hediyelik ürün veya promosyon olarak da tercih edilebilir","images":["https://i.hizliresim.com/zuhelzqa.png","https://i.hizliresim.com/jcbegwjq.png","https://i.hizliresim.com/lvkogmqn.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"alpowerbank","name":"Siyah Powerbank","category":"Fiziksel Ürün","paymentType":"points","pricePoints":255000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"physical","description":"Siyah renktedir 70x140x14 mm boyutlara sahiptir Uzun ömürlü lityum polimer batarya tipi Darbeye dirençli mat ABS plastik kasa tasarımı 5V-2A mikro USB giriş bağlantı noktasına sahiptir 2 adet USB-A çıkış portu ve 1 adet Type-C giriş portu bulunur Aynı anda iki cihazı birden şarj edebilmesiyle ön plana çıkmaktadır 10.000 mAh pil kapasitesine sahip oldukça işlevsel bir güç bankasıdır 4 adet LED ışığı sayesinde batarya durumunu kolayca görebilirsiniz Uçak yolculuğu güvenliği için gerekli seyahat sertifikası bulunur Ergonomik, estetik, dekoratif ve kompakt tasarımı ile fazla yer işgal etmez Kısa devre koruması ve aşırı akım koruması ile güvenli kullanım sunar Uluslararası RoHS, CE, FCC sertifikalarına sahip, nitelikli bir güç bankasıdır Ürünle birlikte 20 cm uzunlukta USB-Type C şarj kablosu gelmektedir Ev, ofis, iş yeri, seyahat, kamp ve açık alan etkinliklerinde tercih edilebilir","images":["https://i.hizliresim.com/twgj1q8q.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"alsaat","name":"Siyah Masa Saati – Ahşap Standlı","category":"Fiziksel Ürün","paymentType":"points","pricePoints":165000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"physical","description":"20x10 cm Şık siyah masa saati tasarımı Ahşap masa standı Dekoratif ve kullanışlı tasarım Ev ve ofis kullanımına uygun Sevgiliye ve sevdiklerinize özel hediye alternatifi","images":["https://i.hizliresim.com/ddzlvrx3.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"alketenkalemlik","name":"Keten Kalemlik / Makyaj Çantası","category":"Fiziksel Ürün","paymentType":"points","pricePoints":120000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"physical","description":"Renk: Bej Ebat: 7x6x20 cm Baskı alanı: 7x12 cm Tek gözlü kullanım Bozulmaya dirençli fermuar Paslanmaz metal fermuar sapları Fermuar üzerinde şık kumaş detaylar Nefes alabilen ham keten kumaş Deformasyona dirençli yapıda Kullanışlı geniş iç hacim Non-toxic, astarsız kumaş yapısı Fonksiyonel kullanım özellikleri Kalıcı süblimasyon baskı tekniği","images":["https://i.hizliresim.com/0pjcynbp.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"alkupabardak","name":"Porselen Bella Beyaz Kupa Bardak","category":"Fiziksel Ürün","paymentType":"points","pricePoints":145000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"physical","description":"8 cm bardak ağız çapı 9,5 cm yüksekliğe sahiptir 3,5 cm kulp parmak açıklığı Yaklaşık 325 ml iç hacim sunar 7.5x20 cm baskı alanı bulunur Estetik ve dekoratif görünüme sahiptir Beyaz renkte yüksek kalite seramik malzeme Sağlığa zararlı kimyasallar içermeyen yapıdadır Çamaşır makinesinde yıkamaya uygun değildir 30°C ılık su ve elde yıkamanız daha uzun süreler dayanan baskılar sağlar CMYK süblimasyon baskı sayesinde uzun yıllar renklerini kaybetmez","images":["https://i.hizliresim.com/54xh3kbw.jpg","https://i.hizliresim.com/jz5rodes.jpg","https://i.hizliresim.com/bx5uveba.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"altermos","name":"Paslanmaz Çelik Siyah Termos 500Ml","category":"Fiziksel Ürün","paymentType":"points","pricePoints":305000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"physical","description":"Mat siyah renkte dış yüzey 19,5 cm yükseklğe sahiptir 8 cm ağız çapı bulunur 7 cm çapta taban genişliği sunar Tabana doğru daralan formdadır 500 ml geniş iç hacmiyle işlevseldir Ürünün iç yüzeyi SUS 304 paslanmaz çeliktir Ürünün dış yüzeyi SUS 201 paslanmaz çeliktir Sıcak ve soğuk içecekleriniz için ısı yalıtımı sağlar İçeceklerinizin ısısını yaklaşık 3-4 saat muhafaza eder Pratik aç-kapa ağızlık tasarımıyla rahat kullanım sağlar Ergonomik, estetik ve dekoratif bir görünüm sunar Kapak yapısı sızdırmaz nitelikte silikon contaya sahiptir Ağızlık kısmı tamamen sızdırmaz değildir, dik taşımanız önerilir Bireysel, hediyelik ve promosyon amaçlı kullanımlara uygundur Sağlığa zararlı BPA, fitalat ve azo boyar madde içermez Ürün bulaşık makinesinde yıkamaya uygun değildir Elde ve düşük sıcaklıkta yıkanmalıdır","images":["https://i.hizliresim.com/bsjhkxee.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"alvalorant375vp","name":"375 VP KODU Valorant Points","category":"Valorant","paymentType":"points","pricePoints":50000,"streamCommand":"","stock":2,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"digital_code","description":"Riot Games - Valorant TR sunucularında geçerlidir.","images":["https://i.hizliresim.com/npqe9gqv.png"],"ticketUnits":1,"shareSlug":""},{"id":"alvalorant825vp","name":"825 VP KODU Valorant Points","category":"Valorant","paymentType":"points","pricePoints":105000,"streamCommand":"","stock":2,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"digital_code","description":"Riot Games - Valorant TR sunucularında geçerlidir.","images":["https://i.hizliresim.com/wn2mxmkr.png"],"ticketUnits":1,"shareSlug":""},{"id":"alvalorant1700vp","name":"1.700 VP KODU Valorant Points","category":"Valorant","paymentType":"points","pricePoints":210000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"digital_code","description":"Riot Games - Valorant TR sunucularında geçerlidir.","images":["https://i.hizliresim.com/8u85rolc.png"],"ticketUnits":1,"shareSlug":""},{"id":"alsteam5usd","name":"5 USD Steam Cüzdan Kodu","category":"Steam","paymentType":"points","pricePoints":115000,"streamCommand":"","stock":3,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"digital_code","description":"Steam TR hesaplarında geçerlidir.","images":["https://i.hizliresim.com/tbbn5il5.png"],"ticketUnits":1,"shareSlug":""},{"id":"alsteam20usd","name":"20 USD Steam Cüzdan Kodu","category":"Steam","paymentType":"points","pricePoints":460000,"streamCommand":"","stock":1,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"digital_code","description":"Anında teslim.","images":["https://i.hizliresim.com/u9j3b2lc.jpg"],"ticketUnits":1,"shareSlug":""},{"id":"alsteam10usd","name":"10 USD Steam Cüzdan Kodu","category":"Steam","paymentType":"points","pricePoints":230000,"streamCommand":"","stock":2,"unlimited":false,"webPurchase":true,"active":true,"deliveryType":"digital_code","description":"Anında teslim.","images":["https://i.hizliresim.com/6ibndvmu.png"],"ticketUnits":1,"shareSlug":""},{"id":"albombaoyunu","name":"Bomba İmha Oyunu","category":"Şans Oyunları","paymentType":"stream","pricePoints":40000,"streamCommand":"!albombaoyunu","stock":null,"unlimited":true,"webPurchase":false,"active":true,"deliveryType":"manual","description":"Kick canlı yayınlarımızdaki bomba imha oyununa katılım hakkı sağlar. Kick sohbetimize !albombaoyunu yazdığın anda ekranda 5 adet kablo belirir. Seçmek istediğin kablonun üzerinde ki numarayı sohbete yazıp kabloyu kesebilirsin. Seçtiğin kablo doğru çıkarsa TAMAM ve DEVAM ekranı gelir seçim yapman istenir. Sohbete TAMAM yazarsan kazandığın ödül senin olur DEVAM yazarsan tekrar tekrar bir kablo kesmen istebir bu sefer 4 kablo olur ve ödül daha yüksek olur. İkinci kez kazandığın zaman tekrar seçim yapman istenir TAMAM veya DEVAM yazarsın. Devam yazarsan bu sefer ekranda 3 kablo olur, doğru kabloyu kestikten sonra son kez büyük ödül için seçim ekranı çıkar. Unutma büyük risk büyük ödül kazandırır. Kazandığında ödülünü teslim alabilmek için İnstagram @weizendtv adresinden bizimle iletişime geçmelisin!","images":["https://i.hizliresim.com/usvyjkpd.png"],"ticketUnits":1,"shareSlug":""},{"id":"alkartoyunu","name":"Kart Oyunu","category":"Şans Oyunları","paymentType":"stream","pricePoints":10000,"streamCommand":"!alkartoyunu","stock":null,"unlimited":true,"webPurchase":false,"active":true,"deliveryType":"manual","description":"Kick canlı yayınlarımızdaki kart oyununa katılım hakkı sağlar. Kick sohbetimize !alkartoyunu yazdığın anda ekranda 4 adet kapalı kart belirir. Seçmek istediğin kartın üzerinde ki numarayı sohbete yazıp kartı açabilirsin. Seçtiğin kartın içinden ödül çıkarsa TAMAM ve DEVAM ekranı gelir seçim yapman istenir. Sohbete TAMAM yazarsan kazandığın ödül senin olur DEVAM yazarsan tekrar kart oyununa girersin bu sefer 3 kart olur ve ödül daha yüksek olur. İkinci kez kazandığın zaman son kez seçim yapman istenir TAMAM veya DEVAM yazarsın. Devam yazarsan bu sefer ekranda 2 kart olur ve 1 tanesinde büyük ödül olur. Unutma büyük risk büyük ödül kazandırır. Kazandığında ödülünü teslim alabilmek için İnstagram @weizendtv adresinden bizimle iletişime geçmelisin!","images":["https://i.hizliresim.com/uynn5ttt.jpg"],"ticketUnits":1,"shareSlug":""}]</script>
         <div class="searchBox">
           <label class="title">Ürün Ara</label>
           <input id="productSearch" type="text" autocomplete="off"
@@ -6325,6 +6333,60 @@ async function loadSupportRewardAdmin(force=false){
   await Promise.allSettled([configTask,loadSupportRewardEvents()]);
 }
 
+/* V31.2.xx — Yönetilebilir Market Ürünleri: index.html eski ürünlerini D1'e bir kez aktar */
+function wzLegacyReadTemplates(){
+  try {
+    const el=document.getElementById('wzLegacyMarketProductTemplates');
+    const items=JSON.parse(el?.textContent||'[]');
+    return Array.isArray(items)?items:[];
+  }catch(error){console.error('WZ_LEGACY_TEMPLATES',error);return []}
+}
+async function wzLegacyImportMissingProducts(){
+  const button=document.getElementById('wzLegacyImportBtn');
+  const info=document.getElementById('wzLegacyImportState');
+  if(button?.disabled)return;
+  if(button)button.disabled=true;
+  let created=0,skipped=0;
+  try {
+    // ALWAYS refresh server state first; never infer deletion from cached UI.
+    const fresh=await api('/admin/products');
+    if(!fresh.r.ok||!fresh.d?.success||!Array.isArray(fresh.d.products))
+      throw Error(fresh.d?.error||`HTTP ${fresh.r.status}`);
+    const exists=new Set(fresh.d.products.map(p=>String(p.id||'').toLocaleLowerCase('tr-TR')));
+    const templates=wzLegacyReadTemplates();
+    if(!templates.length)throw Error('Eski ürün şablonları okunamadı.');
+    const missing=templates.filter(p=>!exists.has(String(p.id||'').toLocaleLowerCase('tr-TR')));
+    const deleted=fresh.d.products.filter(p=>p.deleted===true && templates.some(t=>t.id===p.id));
+    if(!missing.length){
+      if(info)info.textContent=`✅ Tüm sabit ürünlerin D1 kayıtları mevcut. ${deleted.length} silinmiş ürün varsa listeden Düzenle / Geri Getir ile açabilirsin.`;
+      await loadProducts();return;
+    }
+    if(!confirm(`${missing.length} eksik sabit ürünü D1'e eklemek istiyor musun? Var olan / silinmiş ürünlere dokunulmaz. Yeni eklenen ürünler kendi fiyat ve stok bilgileriyle aktif olacaktır.\n\n${missing.map(p=>p.name).join('\n')}`)) return;
+    for(const template of missing){
+      if(info)info.textContent=`📥 Aktarılıyor: ${created+1}/${missing.length} — ${template.name}`;
+      const {r,d}=await api('/admin/products',{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(template)
+      });
+      if(r.status===409){
+        // Yalnızca gerçekten başka bir oturum aynı ID'yi oluşturduysa atla.
+        // Başka paylaşım koduyla çakışmayı sessizce gizleme.
+        const recheck=await api('/admin/products');
+        if(recheck.r.ok && recheck.d?.success && Array.isArray(recheck.d.products) &&
+           recheck.d.products.some(p=>String(p.id||'').toLocaleLowerCase('tr-TR')===String(template.id||'').toLocaleLowerCase('tr-TR'))){
+          skipped++;continue;
+        }
+      }
+      if(!r.ok||!d?.success)throw Error(`${template.name}: ${d?.error||`HTTP ${r.status}`}`);
+      created++;
+    }
+    if(info)info.textContent=`✅ ${created} ürün oluşturuldu; ${skipped} çakışma atlandı. Silinmiş ürünler otomatik geri getirilmedi. Yayın botunun gerçek puan fiyatını ayrıca kontrol et.`;
+    await loadProducts();
+  }catch(error){
+    if(info)info.textContent=`❌ ${created} ürün aktarıldı, kalanlar tamamlanamadı: ${String(error.message||error)}. Yeniden denediğinde kayıtlı ürünler atlanır.`;
+    await loadProducts().catch(()=>{});
+  }finally{if(button)button.disabled=false}
+}
+
 /* =========================================================
    PRODUCTS
 ========================================================= */
@@ -6380,24 +6442,11 @@ function renderProducts(){
     .trim()
     .toLocaleLowerCase('tr-TR');
 
-  const normalProducts =
-    productsCache.filter(p =>
-      String(p.category || '').trim().toLocaleLowerCase('tr-TR') !== 'turnuva' &&
-      p.deleted !== true
-    );
-
-  // Kart Oyunu, eski Market index.html dosyasinda sabit bir Kick komutudur.
-  // products/D1 listesinde bulunmaz: ayni urunu ikinci defa olusturmayiz.
-  const kartInD1=normalProducts.some(p=>
-    String(p.id||'').toLocaleLowerCase('tr-TR')==='alkartoyunu' ||
-    String(p.name||'').trim().toLocaleLowerCase('tr-TR')==='kart oyunu'
+  // Only true D1 records are shown. No fake / resurrecting Kart Oyunu row.
+  // Soft-deleted records remain visible with a clear restore/edit route.
+  const normalProducts = productsCache.filter(p =>
+    String(p.category || '').trim().toLocaleLowerCase('tr-TR') !== 'turnuva'
   );
-  if(!kartInD1)normalProducts.push({
-    id:'alkartoyunu',name:'Kart Oyunu',category:'Şans Oyunları',
-    paymentType:'stream',deliveryType:'manual',
-    metadata:{streamCommand:'!alkartoyunu'},active:true,unlimited:true,
-    __wzLegacyCardGame:true
-  });
 
   const items =
     normalProducts.filter(p => {
@@ -6412,7 +6461,7 @@ function renderProducts(){
   document
     .getElementById('productCount')
     .innerText =
-      `${items.length} / ${normalProducts.length} ürün`;
+      `${items.length} / ${normalProducts.length} ürün (silinmiş kayıtlar dahil)`;
 
   if(items.length === 0){
     body.innerHTML = `<tr><td colspan="8" class="muted">Ürün bulunamadı.</td></tr>`;
@@ -6430,7 +6479,7 @@ function renderProducts(){
         : p.paymentType === 'tl'
           ? tlFromCents(p.priceTlCents)
           : p.paymentType === 'stream'
-            ? (p.metadata?.streamCommand || 'Kick Komutu')
+            ? ((p.pricePoints != null ? points(p.pricePoints) : 'Puan fiyatı tanımsız') + ' · ' + (p.metadata?.streamCommand || 'Kick Komutu'))
             : p.paymentType === 'free'
               ? 'Ücretsiz'
               : '-';
@@ -6441,14 +6490,16 @@ function renderProducts(){
         : String(p.stock ?? 0);
 
     const active =
-      !p.active
-        ? '<span class="badge bad">PASİF</span>'
-        : '<span class="badge ok">AKTİF</span>';
+      p.deleted === true
+        ? '<span class="badge bad">SİLİNMİŞ</span>'
+        : !p.active
+          ? '<span class="badge bad">PASİF</span>'
+          : '<span class="badge ok">AKTİF</span>';
 
     tr.innerHTML = `
       <td>${esc(p.id)}</td>
 
-      <td>${esc(p.name)}${p.__wzLegacyCardGame ? '<div class="muted" style="color:#e3b867">Önce D1 ürün kaydı kurulmalı • Kick komutu</div>' : ''}${p.deliveryType==='giveaway_ticket' ? `<div class="muted" style="color:#8be4a3">🎟️ ${Number(p.ticketUnits||1)} Bilet / paket</div>` : ''}${p.popularTag ? `<div class="muted" style="color:${p.popularTag==='top'?'#ff697c':'#eeb64b'}">${p.popularTag==='top'?'🔥 EN POPÜLER':'⭐ POPÜLER'} · ${Number(p.soldCount||0)} satış</div>` : ''}</td>
+      <td>${esc(p.name)}${p.deleted === true ? '<div class="muted" style="color:#e3b867">Kayıt D1’de korunuyor; düzenleyip yeniden etkinleştirebilirsin.</div>' : ''}${p.deliveryType==='giveaway_ticket' ? `<div class="muted" style="color:#8be4a3">🎟️ ${Number(p.ticketUnits||1)} Bilet / paket</div>` : ''}${p.popularTag ? `<div class="muted" style="color:${p.popularTag==='top'?'#ff697c':'#eeb64b'}">${p.popularTag==='top'?'🔥 EN POPÜLER':'⭐ POPÜLER'} · ${Number(p.soldCount||0)} satış</div>` : ''}</td>
 
       <td>${esc(p.category)}</td>
 
@@ -6461,14 +6512,13 @@ function renderProducts(){
       <td>${active}</td>
 
       <td>
-        ${p.__wzLegacyCardGame ?
-          '<span class="badge warn">Sabit / Kick</span><div class="muted" style="margin-top:7px;max-width:260px">D1 kaydı eklenene kadar bu kart bilgilendirme amaçlıdır. Kurulum SQL’inden sonra standart Sil ve Pasife Al seçenekleri açılır.</div>' : `
         <button
           class="smallBtn secondary"
           onclick="editProduct('${encodeURIComponent(p.id)}')">
-          Düzenle
+          ${p.deleted === true ? '✏️ Düzenle / Geri Getir' : 'Düzenle'}
         </button>
 
+        ${p.deleted === true ? '<div class="muted" style="max-width:240px;margin-top:7px">Düzenle → Ürün aktif seç → Kaydet. Ürünü silen işlem geri alınmadan otomatik görünmez.</div>' : `
         <button
           class="smallBtn ${p.active ? 'danger' : 'success'}"
           style="margin-top:6px"
@@ -6600,7 +6650,7 @@ function updatePriceFields(){
     .getElementById('pointsPriceBox')
     .classList.toggle(
       'hidden',
-      type !== 'points'
+      type !== 'points' && type !== 'stream'
     );
 
   document
@@ -6709,7 +6759,7 @@ function editProduct(encodedId){
 
   document.getElementById('pId').value = p.id;
   // The generated product ID is also the default share slug; show it when editing.
-  document.getElementById('pShareSlug').value = p.metadata?.shareSlug || p.id;
+  document.getElementById('pShareSlug').value = p.metadata?.shareSlug || (/^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$/.test(String(p.id || '')) ? p.id : '');
 
 document.getElementById(
   'productCodePreview'
@@ -6720,8 +6770,9 @@ document.getElementById(
   document.getElementById('pCategory').value = p.category || '';
   document.getElementById('pPaymentType').value = p.paymentType || 'points';
 
+  const legacyTemplate = wzLegacyReadTemplates().find(x => x.id === p.id);
   document.getElementById('pPricePoints').value =
-    p.pricePoints ?? '';
+    p.pricePoints ?? (p.deleted === true ? legacyTemplate?.pricePoints ?? '' : '');
 
   document.getElementById('pPriceTl').value =
     p.priceTlCents == null
@@ -6729,7 +6780,7 @@ document.getElementById(
       : Number(p.priceTlCents) / 100;
 
   document.getElementById('pStreamCommand').value =
-    p.metadata?.streamCommand || '';
+    p.metadata?.streamCommand || (p.deleted === true ? legacyTemplate?.streamCommand || '' : '');
 
   document.getElementById('pUnlimited').checked =
     !!p.unlimited;
@@ -6750,12 +6801,12 @@ document.getElementById(
   document.getElementById('pTicketUnits').value = p.ticketUnits || p.metadata?.ticketUnits || 1;
 
   document.getElementById('pDescription').value =
-    p.metadata?.description || '';
+    p.metadata?.description || (p.deleted === true ? legacyTemplate?.description || '' : '');
 
   document.getElementById('pImages').value =
-    Array.isArray(p.metadata?.images)
+    Array.isArray(p.metadata?.images) && p.metadata.images.length
       ? p.metadata.images.join('\n')
-      : '';
+      : (p.deleted === true ? (legacyTemplate?.images || []).join('\n') : '');
 
   updateProductCategoryFields();
   wzTicketDeliveryChanged();
@@ -6888,6 +6939,11 @@ async function saveProduct(){
 
   }else if(paymentType === 'stream'){
 
+    // Yayın komutlu üründe de gösterilen puan fiyatını Worker'a gönder.
+    // Ödeme, siteden değil Kick sohbetinden yapılmaya devam eder.
+    product.pricePoints =
+      Number(document.getElementById('pPricePoints').value);
+
     product.streamCommand =
       document
         .getElementById('pStreamCommand')
@@ -6906,6 +6962,9 @@ async function saveProduct(){
 
   const button =
     document.getElementById('saveProductButton');
+
+  const wasDeleted = Boolean(productsCache.find(x => x.id === editingProductId)?.deleted);
+  if(wasDeleted && !confirm('Bu ürün daha önce silinmiş. Kaydedince silinmiş durumu kaldırılacak. Aktif seçtiysen tekrar markette görünecek. Devam edilsin mi?')) return;
 
   try{
 
