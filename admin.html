@@ -2951,7 +2951,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
         <div class="grid2">
 
           <div class="field" id="pointsPriceBox">
-            <label class="title">Puan Fiyatı</label>
+            <label class="title" id="pPricePointsLabel">Puan Fiyatı</label>
             <input
               id="pPricePoints"
               type="number"
@@ -2977,7 +2977,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
               type="text"
               maxlength="120"
               placeholder="Örn: !alkartoyunu">
-            <div class="muted" style="margin-top:6px;">Yayın tipi seçildiğinde kullanıcıya bu komut kopyalanır ve 3 saniye sonra Kick sohbetine yönlendirilir.</div>
+            <div class="muted" style="margin-top:6px;">Komut kullanıcıya kopyalanır ve Kick sohbetine yönlendirilir. Puan fiyatı yalnızca Market'te bilgi olarak gösterilir; site üzerinden otomatik puan düşülmez.</div>
           </div>
 
           <div class="field">
@@ -6047,10 +6047,19 @@ function renderSupportRewardEvents(){
         ? new Date(Date.parse(giftStartAt)+30*24*60*60*1000).toISOString()
         : ''
     ));
+    // V31.2.23: The support-event timestamp is the REAL MissXss subscription
+    // or renewal date. subscriptionState.startsAt is the separate admin-defined
+    // entitlement start, which must never masquerade as the renewal date.
+    const supportEventAt=item.occurred_at||item.created_at||'';
+    const eventMs=Date.parse(supportEventAt);
+    const validSupportEvent=Number.isFinite(eventMs)&&eventMs<=Date.now()+300000;
+    const liveEventStart=validSupportEvent?new Date(eventMs).toISOString():'';
+    const adminStart=item.subscriptionState?.source==='manual'?item.subscriptionState.startsAt:'';
+    const adminEnd=item.subscriptionState?.expiresAt||'';
     const giftRecipientHtml=rewardType==='gift_subscription'
       ? `<button class="smallBtn wz156GiftBtn" type="button" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.gift_manage_id||item.id).replace(/'/g,'%27')}')">🎁 Alıcıları Yönet (${recipients.length}/${giftQty})</button>${giftStartAt?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç: ${esc(dateText(giftStartAt))}</div>`:''}${giftExpiresAt?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Bitiş: ${esc(dateText(giftExpiresAt))}</div>`:''}`
       : ['subscription','subscription_renewal'].includes(rewardType)
-      ? `<button class="smallBtn" type="button" onclick="wz158EditSubscriberMonths('${encodeURIComponent(userName)}','${encodeURIComponent(String(item.occurred_at||item.created_at||''))}',${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))})">✏️ Ayı Yönet · ${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))} AY</button>${item.subscriptionState?.startsAt?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç: ${esc(dateText(item.subscriptionState.startsAt))}</div>`:''}${item.subscriptionState?.expiresAt?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Bitiş: ${esc(dateText(item.subscriptionState.expiresAt))}</div>`:''}`
+      ? `<button class="smallBtn" type="button" onclick="wz158EditSubscriberMonths('${encodeURIComponent(userName)}','${encodeURIComponent(String(adminStart||liveEventStart||''))}',${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))})">✏️ Ayı Yönet · ${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))} AY</button>${liveEventStart?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç (bu işlem): ${esc(wz154AdminDate(liveEventStart))}</div>`:''}${adminStart?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Yönetici kayıt başlangıcı: ${esc(wz154AdminDate(adminStart))}</div>`:''}${adminEnd?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">${adminStart?'Yönetici hak bitişi':'Bitiş'}: ${esc(wz154AdminDate(adminEnd))}</div>`:''}`
       : '<span class="muted">-</span>';
     const tr=document.createElement('tr');
     tr.innerHTML=`
@@ -6386,18 +6395,7 @@ function renderProducts(){
       p.deleted !== true
     );
 
-  // Kart Oyunu, eski Market index.html dosyasinda sabit bir Kick komutudur.
-  // products/D1 listesinde bulunmaz: ayni urunu ikinci defa olusturmayiz.
-  const kartInD1=normalProducts.some(p=>
-    String(p.id||'').toLocaleLowerCase('tr-TR')==='alkartoyunu' ||
-    String(p.name||'').trim().toLocaleLowerCase('tr-TR')==='kart oyunu'
-  );
-  if(!kartInD1)normalProducts.push({
-    id:'alkartoyunu',name:'Kart Oyunu',category:'Şans Oyunları',
-    paymentType:'stream',deliveryType:'manual',
-    metadata:{streamCommand:'!alkartoyunu'},active:true,unlimited:true,
-    __wzLegacyCardGame:true
-  });
+  // Yalnızca gerçek veritabanı ürünleri listelenir; silinen oyun geri eklenmez.
 
   const items =
     normalProducts.filter(p => {
@@ -6430,7 +6428,9 @@ function renderProducts(){
         : p.paymentType === 'tl'
           ? tlFromCents(p.priceTlCents)
           : p.paymentType === 'stream'
-            ? (p.metadata?.streamCommand || 'Kick Komutu')
+            ? (Number(p.pricePoints || p.metadata?.streamPricePoints || 0) > 0
+                ? points(p.pricePoints || p.metadata?.streamPricePoints) + ' · ' + (p.metadata?.streamCommand || 'Kick Komutu')
+                : (p.metadata?.streamCommand || 'Kick Komutu'))
             : p.paymentType === 'free'
               ? 'Ücretsiz'
               : '-';
@@ -6600,8 +6600,18 @@ function updatePriceFields(){
     .getElementById('pointsPriceBox')
     .classList.toggle(
       'hidden',
-      type !== 'points'
+      type !== 'points' && type !== 'stream'
     );
+  const label = document.getElementById('pPricePointsLabel');
+  if(label) label.textContent = type === 'stream' ? 'Yayın Oyunu Puan Fiyatı' : 'Puan Fiyatı';
+  const delivery = document.getElementById('pDeliveryType');
+  if(delivery){
+    if(type === 'stream') {
+      delivery.value = 'manual';
+      wzTicketDeliveryChanged(); // Eski çekiliş-bilet form alanlarını gizle.
+    }
+    delivery.disabled = type === 'stream';
+  }
 
   document
     .getElementById('tlPriceBox')
@@ -6721,7 +6731,7 @@ document.getElementById(
   document.getElementById('pPaymentType').value = p.paymentType || 'points';
 
   document.getElementById('pPricePoints').value =
-    p.pricePoints ?? '';
+    p.pricePoints ?? p.metadata?.streamPricePoints ?? '';
 
   document.getElementById('pPriceTl').value =
     p.priceTlCents == null
@@ -6888,6 +6898,12 @@ async function saveProduct(){
 
   }else if(paymentType === 'stream'){
 
+    product.pricePoints = Number(document.getElementById('pPricePoints').value);
+    if(!Number.isSafeInteger(product.pricePoints) || product.pricePoints <= 0){
+      showStatus('productFormStatus','❌ Yayın ürünü için geçerli bir puan fiyatı gir.',false);
+      return;
+    }
+    product.deliveryType = 'manual';
     product.streamCommand =
       document
         .getElementById('pStreamCommand')
@@ -7047,8 +7063,8 @@ async function deleteProduct(encodedId,isTournament=false){
   const message = isTournament
     ? 'Bu turnuva ürünlerden kaldırılacak, kayıtları kapatılacak ve Turnuva sekmesinden gizlenecek. Geçmiş turnuva kayıtları güvenlik için veritabanında korunur. Devam edilsin mi?'
     : String(productForDeletion?.paymentType||'')==='stream'
-      ? 'Bu Yayın / Kick Komutu ürünü Market vitrinden kaldırılacak. BotRix/MissXss sohbet komutu otomatik silinmez; onu ayrıca kapatmalısın. Devam edilsin mi?'
-      : 'Bu ürün marketten kaldırılsın mı? Eski sipariş geçmişi korunacaktır.';
+      ? 'Bu Yayın / Kick Komutu ürünü Market ve Admin Ürünler listesinden silinecek. BotRix/MissXss sohbet komutu otomatik silinmez; onu ayrıca kapatmalısın. Devam edilsin mi?'
+      : 'Bu ürün Market ve Admin Ürünler listesinden silinecek. Satın alma ve teslimat geçmişleri güvenlik için korunacaktır. Devam edilsin mi?';
 
   if(!confirm(message)) return;
 
