@@ -1781,54 +1781,6 @@ body.wz-view-profile #wzMobileProfileView{display:block}
 .wz-product-info-body b,.wz-product-info-body strong{color:#fff}
 .wz-product-info-body a{color:#ff5a5a}
 
-/* V31.2.16 — Yayın/Kick oyunları: temiz, alt alta oyun detayları.
-   Sadece yayın ürününün Detaylar içeriğini etkiler. */
-.wz-product-info-body .wz-stream-detail{display:grid;gap:16px}
-.wz-product-info-body .wz-stream-detail-head{
-  display:flex;align-items:center;gap:12px;padding:14px 15px;
-  background:linear-gradient(110deg,rgba(227,27,27,.13),rgba(227,27,27,.025));
-  border:1px solid rgba(227,67,67,.29);border-radius:15px
-}
-.wz-product-info-body .wz-stream-detail-emoji{
-  display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;
-  background:#220e12;border:1px solid #68292f;border-radius:12px;font-size:1.4rem
-}
-.wz-product-info-body .wz-stream-detail-head strong{
-  display:block;color:#fff;font-size:1.03rem;line-height:1.4
-}
-.wz-product-info-body .wz-stream-detail-head span:not(.wz-stream-detail-emoji){
-  display:block;margin-top:2px;color:#b9a4a7;font-size:.8rem;line-height:1.5
-}
-.wz-product-info-body .wz-stream-detail-steps ul,
-.wz-product-info-body .wz-stream-detail-steps ol{
-  display:grid;gap:10px;counter-reset:wzStreamStep;margin:0;padding:0;list-style:none
-}
-.wz-product-info-body .wz-stream-detail-steps ul>li,
-.wz-product-info-body .wz-stream-detail-steps ol>li{
-  display:grid;grid-template-columns:32px minmax(0,1fr);align-items:start;column-gap:12px;
-  counter-increment:wzStreamStep;margin:0;padding:12px 13px;
-  background:#141417;border:1px solid #303037;border-radius:12px;
-  line-height:1.65;overflow-wrap:anywhere;color:#d0d0d7
-}
-.wz-product-info-body .wz-stream-detail-steps ul>li::before,
-.wz-product-info-body .wz-stream-detail-steps ol>li::before{
-  content:counter(wzStreamStep);display:grid;place-items:center;
-  width:30px;height:30px;border-radius:9px;
-  background:#3a1116;color:#ff9b9b;border:1px solid #6b262c;
-  font-size:.85rem;font-weight:900;line-height:1
-}
-.wz-product-info-body .wz-stream-detail-steps>p{
-  background:#141417;border:1px solid #303037;border-radius:12px;
-  padding:13px 15px;margin:0 0 10px;line-height:1.7
-}
-@media(max-width:520px){
-  .wz-product-info-body .wz-stream-detail-head{padding:12px;gap:10px}
-  .wz-product-info-body .wz-stream-detail-steps ul>li,
-  .wz-product-info-body .wz-stream-detail-steps ol>li{padding:10px;column-gap:9px;grid-template-columns:28px minmax(0,1fr)}
-  .wz-product-info-body .wz-stream-detail-steps ul>li::before,
-  .wz-product-info-body .wz-stream-detail-steps ol>li::before{width:26px;height:26px}
-}
-
 /* ---------- View state ---------- */
 body:not(.wz-view-profile) #wzMobileProfileView{display:none}
 body.wz-view-profile #wzProfileTopBtn{display:none!important}
@@ -5696,7 +5648,7 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
   try{
     if((window.__WZ_INITIAL_VIEW__||'market')!=='market' || window.__WZ_SHARED_PRODUCT_ID__) return;
 
-    const key='weizend_market_shell_refreshfix_v22_stream_details';
+    const key='weizend_market_shell_refreshfix_v21_authcta';
     const raw=sessionStorage.getItem(key);
     if(!raw) return;
 
@@ -10190,7 +10142,7 @@ urun.deliveryType = String(
             return parseInt(stokDegeri) || 0;
         }
 
-        const MARKET_SHELL_CACHE_KEY = 'weizend_market_shell_refreshfix_v22_stream_details';
+        const MARKET_SHELL_CACHE_KEY = 'weizend_market_shell_refreshfix_v21_authcta';
 
         function cacheMarketShell() {
             try {
@@ -10316,18 +10268,14 @@ urun.deliveryType = String(
                     tukendiOverlayHTML = `<div class="out-of-stock-overlay"><div class="out-of-stock-text">TÜKENDİ</div></div>`;
                 }
 
-                // V31.2.16: Yayın / Kick Komutu ürünleri oyun katılımı içindir;
-                // teslimat türü "manual" kayıtlı olsa bile kargo/teslimat kutusu yok.
-                const paymentType = String(urun.paymentType || (webPurchase ? 'points' : 'stream')).toLowerCase();
-                const isStreamProduct = paymentType === 'stream';
                 let teslimatKutusuHTML = '';
 
 const deliveryType = String(urun.deliveryType || '').toLowerCase();
 
-if (!isStreamProduct && (
+if (
     deliveryType === 'physical' ||
     (!deliveryType && urun.kategori === 'Fiziksel Ürün')
-)) {
+) {
     const yazi = webPurchase
         ? `Ürünü siteden satın aldıktan sonra size özel bir <b style="color:var(--weizend-red);">teslimat kodu</b> gösterilir. Bu kodu İnstagram <b><a href="https://instagram.com/weizendtv" target="_blank" rel="noopener noreferrer" style="color:var(--weizend-red);">@weizendtv</a></b> adresinden yayıncıya ileterek teslimat işlemlerini tamamlayabilirsiniz.<br><br><b>🚚 Ne Zaman Kargolanır?</b><br>En geç 5 iş gününde kargoda. Tüm ürünlerde kargo ücreti bize aittir.`
         : `Ürünü Kick sohbetimizden <b><span style="color:var(--weizend-red);">${escapeHtml(urun.komut)}</span></b> yazıp aldıktan sonra İnstagram <b><a href="https://instagram.com/weizendtv" target="_blank" rel="noopener noreferrer" style="color:var(--weizend-red);">@weizendtv</a></b> adresine mesaj atarak teslimat işlemlerini tamamlayabilirsiniz.<br><br><b>🚚 Ne Zaman Kargolanır?</b><br>En geç 5 iş gününde kargoda. Tüm ürünlerde kargo ücreti bize aittir.`;
@@ -10340,10 +10288,10 @@ if (!isStreamProduct && (
     `;
 }
 
-else if (!isStreamProduct && (
+else if (
     deliveryType === 'digital_code' ||
     (!deliveryType && (urun.kategori === 'Valorant' || urun.kategori === 'Steam'))
-)) {
+) {
     const yazi = webPurchase
         ? `Ürünü siteden satın aldıktan sonra size özel bir <b style="color:var(--weizend-red);">teslimat kodu</b> gösterilir. Bu kodu Discord üzerinden yetkililere veya İnstagram <b><a href="https://instagram.com/weizendtv" target="_blank" rel="noopener noreferrer" style="color:var(--weizend-red);">@weizendtv</a></b> adresine ileterek dijital ürününüzü teslim alabilirsiniz.`
         : `Ürünü Kick sohbetimizden <b><span style="color:var(--weizend-red);">${escapeHtml(urun.komut)}</span></b> yazıp aldıktan sonra Discord üzerinden yetkililere veya İnstagram <b><a href="https://instagram.com/weizendtv" target="_blank" rel="noopener noreferrer" style="color:var(--weizend-red);">@weizendtv</a></b> adresine ulaşarak dijital ürününüzü teslim alabilirsiniz.`;
@@ -10356,7 +10304,7 @@ else if (!isStreamProduct && (
     `;
 }
 
-else if (!isStreamProduct && deliveryType === 'manual') {
+else if (deliveryType === 'manual') {
     const yazi = webPurchase
         ? `Ürünü siteden satın aldıktan sonra size özel bir <b style="color:var(--weizend-red);">teslimat kodu</b> gösterilir. Bu kodu İnstagram <b><a href="https://instagram.com/weizendtv" target="_blank" rel="noopener noreferrer" style="color:var(--weizend-red);">@weizendtv</a></b> adresinden yayıncıya veya Discord üzerinden yetkililere ileterek manuel teslimat işlemini tamamlayabilirsiniz.`
         : `Ürünü Kick sohbetimizden <b><span style="color:var(--weizend-red);">${escapeHtml(urun.komut)}</span></b> yazıp aldıktan sonra İnstagram <b><a href="https://instagram.com/weizendtv" target="_blank" rel="noopener noreferrer" style="color:var(--weizend-red);">@weizendtv</a></b> adresinden yayıncıya veya Discord üzerinden yetkililere ulaşarak manuel teslimat işlemini tamamlayabilirsiniz.`;
@@ -10371,27 +10319,10 @@ else if (!isStreamProduct && deliveryType === 'manual') {
 
                 const komutClass = tukendiMi ? "command disabled" : "command";
                 const accountRestricted = marketAuthenticated && currentAccountStatus === 'blocked';
+                const paymentType = String(urun.paymentType || (webPurchase ? 'points' : 'stream')).toLowerCase();
                 const streamCommand = String(urun.streamCommand || urun.komut || '').trim();
+                const isStreamProduct = paymentType === 'stream';
                 const isSiteProduct = ['points','tl','free'].includes(paymentType) && webPurchase;
-
-                // Yayın oyunlarında yalnızca Detaylar bulunur. İçerik adminin
-                // girdiği açıklamadan veya mevcut oyun kurallarından okunur.
-                const isStreamGame = isStreamProduct && (
-                    String(urun.kategori || '').toLocaleLowerCase('tr-TR').includes('oyun') ||
-                    String(urun.ad || '').toLocaleLowerCase('tr-TR').includes('oyun')
-                );
-                const detaylarHTML = isStreamProduct ? `
-                    <div class="wz-stream-detail">
-                        <div class="wz-stream-detail-head">
-                            <span class="wz-stream-detail-emoji" aria-hidden="true">${isStreamGame ? '🎮' : '📺'}</span>
-                            <div>
-                                <strong>${isStreamGame ? 'Oyun Hakkında' : 'Yayın Ürünü Hakkında'}</strong>
-                                <span>${isStreamGame ? 'Nasıl oynanır? Kuralları adım adım keşfet.' : 'Yayın ürününün açıklaması ve detayları.'}</span>
-                            </div>
-                        </div>
-                        <div class="wz-stream-detail-steps">${urun.ozellikler || '<p>Henüz açıklama eklenmemiş.</p>'}</div>
-                    </div>
-                ` : urun.ozellikler;
 
                 const actionBtnClass = accountRestricted
                     ? "action-btn disabled account-blocked"
@@ -10455,7 +10386,7 @@ else if (!isStreamProduct && deliveryType === 'manual') {
 
                         <details data-detail-key="urun-${urun.orijinalId}-detaylar">
                             <summary>Detaylar</summary>
-                            <div class="details-content">${detaylarHTML}</div>
+                            <div class="details-content">${urun.ozellikler}</div>
                         </details>
                         
                         ${teslimatKutusuHTML}
