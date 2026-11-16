@@ -6155,7 +6155,7 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
          {
                 durum: "on", stok: "Sınırsız", kategori: "Şans Oyunları",
                 ad: "Kart Oyunu",
-                puan: "10.000 Puan", komut: "!alkartoyunu",
+                puan: "20.000 Puan", komut: "!alkartoyunu",
                 tukenmeZamani: "2024-05-15",
                 gorseller: ["https://i.hizliresim.com/uynn5ttt.jpg"],
                 ozellikler: `<ul>
@@ -6175,13 +6175,12 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
             urun.orijinalId = index;
             urun.productId = String(urun.komut || '').replace(/^!/, '').toLowerCase();
             urun.webPurchase = ['Fiziksel Ürün', 'Valorant', 'Steam'].includes(urun.kategori) && /Puan/i.test(urun.puan || '');
-            // Oyun komutları yalnızca gerçek D1 ürün kaydı aktifse Market'te görünür.
-            // Silinen oyun, eski sabit fiyat/ürün kodundan kendiliğinden geri gelmez.
-            if (urun.productId === 'alkartoyunu' || urun.productId === 'albombaoyunu') {
+            // V31.0.57: Kart Oyunu now has an Admin-managed D1 product record.
+            // The live Kick command still belongs to BotRix; deleting this record hides only the Market listing.
+            if (urun.productId === 'alkartoyunu') {
                 urun.catalogManaged = true;
                 urun.paymentType = 'stream';
                 urun.deliveryType = 'manual';
-                urun.durum = 'off'; // API katalog yükleyince gerçek aktif kayıt tekrar açılır.
             }
         });
     </script>
@@ -9755,9 +9754,9 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
                 return tl.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
             }
             if (type === 'stream') {
-                const price=Number(product?.pricePoints);
-                // Yayın fiyatını yalnızca D1'de açıkça kayıtlıysa göster.
-                return Number.isSafeInteger(price) && price>0 ? formatPoints(price) : 'Puan fiyatı belirlenmedi';
+                // V31.0.57: Keep the original Kart Oyunu price label after D1 catalog hydration.
+                if (String(product?.id || '').toLowerCase() === 'alkartoyunu') return '10.000 Puan';
+                return 'Yayın Ürünü';
             }
             if (type === 'free') return 'Ücretsiz';
             return '-';
