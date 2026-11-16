@@ -9754,8 +9754,14 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
                 return tl.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
             }
             if (type === 'stream') {
-                // V31.0.57: Keep the original Kart Oyunu price label after D1 catalog hydration.
-                if (String(product?.id || '').toLowerCase() === 'alkartoyunu') return '10.000 Puan';
+                // Stream products show their information-only point cost, not a site purchase.
+                const supplied = Number(product?.pricePoints ?? product?.metadata?.streamPricePoints);
+                if (Number.isSafeInteger(supplied) && supplied > 0)
+                    return supplied.toLocaleString('tr-TR') + ' Puan';
+                const command = String(product?.metadata?.streamCommand || '').trim().toLowerCase();
+                const name = String(product?.name || '').trim().toLocaleLowerCase('tr-TR');
+                if (command === '!alkartoyunu' || name === 'kart oyunu') return '20.000 Puan';
+                if (command === '!albombaoyunu' || name === 'bomba imha oyunu') return '40.000 Puan';
                 return 'Yayın Ürünü';
             }
             if (type === 'free') return 'Ücretsiz';
@@ -9981,7 +9987,8 @@ body:not(.wz-view-market) #wzMarketAuthHeader{display:none!important}
             const activeServerIds = new Set(data.products.map(p=>String(p.id || '').toLowerCase()));
             for (const item of URUNLER) {
                 const id=String(item.productId || '').toLowerCase();
-                if (id && !activeServerIds.has(id) && (item.webPurchase || item.catalogManaged)) item.durum='off';
+                // D1 is authoritative: deleted items cannot reappear from embedded legacy cards.
+                if (id && !activeServerIds.has(id)) item.durum='off';
             }
             for (const serverProduct of data.products) {
                 const productId = String(serverProduct.id || '').toLowerCase();
@@ -10270,10 +10277,11 @@ urun.deliveryType = String(
                 let teslimatKutusuHTML = '';
 
 const deliveryType = String(urun.deliveryType || '').toLowerCase();
+const isKickStreamDelivery = String(urun.paymentType || '').toLowerCase() === 'stream';
 
 if (
-    deliveryType === 'physical' ||
-    (!deliveryType && urun.kategori === 'Fiziksel Ürün')
+    !isKickStreamDelivery && (deliveryType === 'physical' ||
+    (!deliveryType && urun.kategori === 'Fiziksel Ürün'))
 ) {
     const yazi = webPurchase
         ? `Ürünü siteden satın aldıktan sonra size özel bir <b style="color:var(--weizend-red);">teslimat kodu</b> gösterilir. Bu kodu İnstagram <b><a href="https://instagram.com/weizendtv" target="_blank" rel="noopener noreferrer" style="color:var(--weizend-red);">@weizendtv</a></b> adresinden yayıncıya ileterek teslimat işlemlerini tamamlayabilirsiniz.<br><br><b>🚚 Ne Zaman Kargolanır?</b><br>En geç 5 iş gününde kargoda. Tüm ürünlerde kargo ücreti bize aittir.`
@@ -10288,8 +10296,8 @@ if (
 }
 
 else if (
-    deliveryType === 'digital_code' ||
-    (!deliveryType && (urun.kategori === 'Valorant' || urun.kategori === 'Steam'))
+    !isKickStreamDelivery && (deliveryType === 'digital_code' ||
+    (!deliveryType && (urun.kategori === 'Valorant' || urun.kategori === 'Steam')))
 ) {
     const yazi = webPurchase
         ? `Ürünü siteden satın aldıktan sonra size özel bir <b style="color:var(--weizend-red);">teslimat kodu</b> gösterilir. Bu kodu Discord üzerinden yetkililere veya İnstagram <b><a href="https://instagram.com/weizendtv" target="_blank" rel="noopener noreferrer" style="color:var(--weizend-red);">@weizendtv</a></b> adresine ileterek dijital ürününüzü teslim alabilirsiniz.`
@@ -10303,18 +10311,7 @@ else if (
     `;
 }
 
-else if (deliveryType === 'manual') {
-    const yazi = webPurchase
-        ? `Ürünü siteden satın aldıktan sonra size özel bir <b style="color:var(--weizend-red);">teslimat kodu</b> gösterilir. Bu kodu İnstagram <b><a href="https://instagram.com/weizendtv" target="_blank" rel="noopener noreferrer" style="color:var(--weizend-red);">@weizendtv</a></b> adresinden yayıncıya veya Discord üzerinden yetkililere ileterek manuel teslimat işlemini tamamlayabilirsiniz.`
-        : `Ürünü Kick sohbetimizden <b><span style="color:var(--weizend-red);">${escapeHtml(urun.komut)}</span></b> yazıp aldıktan sonra İnstagram <b><a href="https://instagram.com/weizendtv" target="_blank" rel="noopener noreferrer" style="color:var(--weizend-red);">@weizendtv</a></b> adresinden yayıncıya veya Discord üzerinden yetkililere ulaşarak manuel teslimat işlemini tamamlayabilirsiniz.`;
-
-    teslimatKutusuHTML = `
-        <details data-detail-key="urun-${urun.orijinalId}-teslimat">
-            <summary>Teslimat Bilgileri</summary>
-            <div class="details-content">${yazi}</div>
-        </details>
-    `;
-}
+// Manuel teslimat ve Kick yayın komutları için teslimat akordeonu gösterilmez.
 
                 const komutClass = tukendiMi ? "command disabled" : "command";
                 const accountRestricted = marketAuthenticated && currentAccountStatus === 'blocked';
@@ -20207,7 +20204,7 @@ return;
    const hasGiftGiver=Boolean(giftGiver)&&giftGiver.length<=80;
    show('wzSp103GiftFromRow',hasGiftGiver);
    set('wzSp103GiftFrom',hasGiftGiver?giftGiver:'–');
-   set('wzSp103RenewLabel',isGift?'Gift Gönderilme Tarihi':isManual?'Abonelik Başlangıcı':'Son Abonelik / Yenileme');
+   set('wzSp103RenewLabel',isGift?'Gift Gönderilme Tarihi':isManual&&!info.lastVerifiedRenewal?'Abonelik Başlangıcı':'Son Abonelik / Yenileme');
    set('wzSp103CountdownLabel',isGift?'Hediye aboneliğin bitişine kalan süre (tahmini)':isManual?'Abonelik bitişine kalan süre':'Bir sonraki yenilemeye kalan süre (tahmini)');
    const date=info.lastRenewal?new Date(info.lastRenewal):null;
    const valid=date&&Number.isFinite(date.getTime());
