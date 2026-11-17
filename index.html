@@ -20051,7 +20051,7 @@ return;
 
 <script id="wzsp103-profile-script">
 (()=>{
- let lastFetch=0,fetchInFlight=false,nextAt=0,active=false,countdownPreview=false,isGiftMode=false,isAdminMode=false,lastToken='',wasProfileVisible=false;
+ let lastFetch=0,fetchInFlight=false,nextAt=0,active=false,countdownPreview=false,isGiftMode=false,isAdminMode=false,isManualCycleEstimate=false,lastToken='',wasProfileVisible=false;
  const el=id=>document.getElementById(id),set=(id,v)=>{const x=el(id);if(x)x.textContent=v};
  const show=(id,yes)=>{const x=el(id);if(x){x.hidden=!yes;x.style.display=yes?'':'none'}};
  const KICK_SUBSCRIBE_URL='https://kick.com/weizend/subscribe';
@@ -20097,7 +20097,7 @@ return;
   const months=Number(info.lastSubscriptionMonths||info.months||0);
   const from=String(info.giftFrom||'').trim().replace(/^@+/,'');
   const isExpiredGift=info.status==='gift_expired'&&Boolean(from)&&from.length<=80;
-  active=false;countdownPreview=false;isGiftMode=false;isAdminMode=false;nextAt=0;
+  active=false;countdownPreview=false;isGiftMode=false;isAdminMode=false;isManualCycleEstimate=false;nextAt=0;
   set('wzSp103Months','Süresi Doldu');
   show('wzSp103Countdown',false);
   if(months>0){
@@ -20154,6 +20154,15 @@ return;
   if(countdownPreview && Date.now()>=nextAt){
    countdownPreview=false;show('wzSp103Countdown',false);return;
   }
+  // Only the profile estimate ended, NOT the admin-granted entitlement.
+  // Never mark an active 3-month admin record as expired after 30 days.
+  if(isAdminMode && isManualCycleEstimate && Date.now()>=nextAt){
+   isManualCycleEstimate=false;nextAt=0;
+   show('wzSp103Countdown',false);
+   set('wzSp103Note','Tahmini 30 günlük abonelik dönemi tamamlandı. Yönetici tarafından tanımlanan hakların bitiş tarihi değişmedi.');
+   showCta('renew');
+   return;
+  }
   if(!countdownPreview && (isGiftMode||isAdminMode) && Date.now()>=nextAt){
    const adminExpired=isAdminMode;reset();set('wzSp103Months','Yenilenmeyi bekliyor');
    set('wzSp103Note',adminExpired?'Yönetici tanımlı aboneliğin süresi sona erdi. Çekilişte kazanılan hakların korunur.':'Hediye aboneliğin süresi sona erdi. Önceden kazanılan çekiliş hakların korunur.');
@@ -20163,7 +20172,7 @@ return;
   const hrs=Math.floor(ms%86400000/3600000),mins=Math.floor(ms%3600000/60000),secs=Math.floor(ms%60000/1000);
   set('wzSp103Timer',days+' gün '+String(hrs).padStart(2,'0')+' saat '+String(mins).padStart(2,'0')+' dk '+String(secs).padStart(2,'0')+' sn');
  }
- function reset(){active=false;countdownPreview=false;isGiftMode=false;isAdminMode=false;nextAt=0;set('wzSp103Months','Yok');set('wzSp103Note','Doğrulanmış abonelik bulunamadı.');show('wzSp103RenewRow',false);show('wzSp103HistoryRow',false);show('wzSp103CtaRow',false);show('wzSp103GiftFromRow',false);set('wzSp103GiftFrom','–');show('wzSp103Countdown',false)}
+ function reset(){active=false;countdownPreview=false;isGiftMode=false;isAdminMode=false;isManualCycleEstimate=false;nextAt=0;set('wzSp103Months','Yok');set('wzSp103Note','Doğrulanmış abonelik bulunamadı.');show('wzSp103RenewRow',false);show('wzSp103HistoryRow',false);show('wzSp103CtaRow',false);show('wzSp103GiftFromRow',false);set('wzSp103GiftFrom','–');show('wzSp103Countdown',false)}
  async function fetchProfile(force=false){
   const token=localStorage.getItem('weizend_market_session_secure_v2')||'';
   if(!token){lastToken='';reset();return}
@@ -20198,23 +20207,45 @@ return;
      :'Şu anda aktif abonelik kontrolü yapılamıyor. Kayıtlı abonelik bulunamadı; bir aboneliğin varsa daha sonra tekrar kontrol et.');
     showCta('new');return;
    }
-   active=true;show('wzSp103HistoryRow',false);showCta(null);const source=String(info.source||'').toLowerCase();const isGift=info.isGift===true||['verified_admin_gift','kick_verified_gift','gift','kick_gift'].includes(source),isManual=source==='admin_manual';isGiftMode=isGift;isAdminMode=isManual;
+   active=true;show('wzSp103HistoryRow',false);showCta(null);const source=String(info.source||'').toLowerCase();const isGift=info.isGift===true||['verified_admin_gift','kick_verified_gift','gift','kick_gift'].includes(source),isManual=source==='admin_manual';isGiftMode=isGift;isAdminMode=isManual;isManualCycleEstimate=false;
    set('wzSp103Months',isGift?(info.display||'Hediye • 1 AY'):String(info.months||1)+' AY');
    const giftGiver=isGift&&typeof info.giftFrom==='string'?info.giftFrom.trim().replace(/^@+/,''):'';
    const hasGiftGiver=Boolean(giftGiver)&&giftGiver.length<=80;
    show('wzSp103GiftFromRow',hasGiftGiver);
    set('wzSp103GiftFrom',hasGiftGiver?giftGiver:'–');
    set('wzSp103RenewLabel',isGift?'Gift Gönderilme Tarihi':isManual&&!info.lastVerifiedRenewal?'Abonelik Başlangıcı':'Son Abonelik / Yenileme');
-   set('wzSp103CountdownLabel',isGift?'Hediye aboneliğin bitişine kalan süre (tahmini)':isManual?'Abonelik bitişine kalan süre':'Bir sonraki yenilemeye kalan süre (tahmini)');
+   set('wzSp103CountdownLabel',isGift?'Hediye aboneliğin bitişine kalan süre (tahmini)':isManual?'Son abonelik / yenilemeye göre kalan süre (30 gün, tahmini)':'Bir sonraki yenilemeye kalan süre (tahmini)');
    const date=info.lastRenewal?new Date(info.lastRenewal):null;
    const valid=date&&Number.isFinite(date.getTime());
    show('wzSp103RenewRow',!!valid);
    if(valid)set('wzSp103Renew',date.toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}));
-   nextAt=info.estimatedNextRenewal?Date.parse(info.estimatedNextRenewal):0;
+   if(isManual){
+    // Profile timer is a SINGLE 30-day subscription period, not the admin
+    // entitlement window (which may have been set to 3+ months).
+    const verifiedStart=Date.parse(info.lastVerifiedRenewal||'');
+    const manualStart=Date.parse(info.manualStartsAt||'');
+    const cycleStart=Number.isFinite(verifiedStart)?verifiedStart:manualStart;
+    const adminEnd=Date.parse(info.manualExpiresAt||'');
+    const validCycle=Number.isFinite(cycleStart)&&cycleStart<=Date.now()+300000;
+    const thirtyDaysMs=30*24*60*60*1000;
+    const cycleEnd=validCycle?cycleStart+thirtyDaysMs:0;
+    nextAt=cycleEnd>0&&Number.isFinite(adminEnd)?Math.min(cycleEnd,adminEnd):cycleEnd;
+    isManualCycleEstimate=validCycle&&Number.isFinite(nextAt)&&nextAt>0;
+   }else{
+    nextAt=info.estimatedNextRenewal?Date.parse(info.estimatedNextRenewal):0;
+   }
    show('wzSp103Countdown',Number.isFinite(nextAt)&&nextAt>Date.now());count();
    set('wzSp103Note',isGift
     ? (info.note||'Hediye abonelik yönetici tarafından eşleştirildi.')
-    : (info.note||'Yenileme sayacı ödeme tarihinden tahmin edilir; kesin bitiş tarihi değildir.'));
+    : isManual
+     ? (nextAt>Date.now()
+        ? (info.lastVerifiedRenewal
+           ? 'Sayaç son doğrulanmış Kick yenilemesinden itibaren 30 gün için tahminidir. Yönetici abonelik hakları ve bitişi değişmez.'
+           : 'Sayaç yönetici başlangıcına göre 30 günlük tahmindir; son Kick yenilemesi doğrulanmadı. Yönetici hakları değişmez.')
+        : (info.lastVerifiedRenewal
+           ? 'Son doğrulanmış 30 günlük dönem tamamlandı; yeni yenileme kaydı bekleniyor. Yönetici hakları değişmez.'
+           : 'Son Kick yenilemesi doğrulanamadığı için güncel 30 günlük sayaç gösterilmiyor. Yönetici hakları değişmez.'))
+     : (info.note||'Yenileme sayacı ödeme tarihinden tahmin edilir; kesin bitiş tarihi değildir.'));
   }catch(err){showCta(null);show('wzSp103HistoryRow',false);show('wzSp103GiftFromRow',false);set('wzSp103GiftFrom','–');set('wzSp103Months','Kontrol edilemedi');set('wzSp103Note','Abonelik servisine ulaşılamadı. Tekrar deneyebilirsiniz.');show('wzSp103Countdown',false)}
   finally{fetchInFlight=false}
  }
