@@ -434,6 +434,16 @@ html,body{overscroll-behavior-y:auto}
 </style>
   <!-- WEİZEND V31.2.03: optional, reversible presentation layer; all JS and backend unchanged -->
   <link rel="stylesheet" href="./weizend-experience-v31203.css" id="wz-experience-v31203" />
+<style id="wztg-leaderboard-scroll">
+.wztg-rank-search{width:100%;margin:8px 0;padding:10px;background:#111;color:#fff;border:1px solid #444;border-radius:8px}
+.wztg-rank-scroll{max-height:430px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;overflow-x:auto}
+.wztg-rank-scroll .tPredictionLeaderRow,.wztg-rank-scroll .tPredictionLeaderHead{box-sizing:border-box;height:39px;min-height:39px;max-height:39px;line-height:1.3;padding:5px 7px}
+.wztg-rank-scroll .tPredictionLeaderHead,.wztg-rank-scroll thead th{position:sticky;top:0;z-index:1;background:#17191f}
+.wztg-rank-scroll table{width:100%;border-collapse:collapse}
+.wztg-rank-scroll .leaderboard tr{height:39px;min-height:39px}
+.wztg-rank-scroll .leaderboard td,.wztg-rank-scroll .leaderboard th{padding:5px 6px;white-space:nowrap;line-height:1.2;max-width:190px;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}
+.wztg-rank-count,.wztg-my-rank{font-size:12px;color:#bbb;margin:6px 0}
+</style>
 </head>
 <body data-wz-experience="arena">
 <header class="wz-market-header"><div class="top">
@@ -1033,10 +1043,9 @@ $('participants').addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&wz622TeamDialog){e.preventDefault();e.stopPropagation();wz622CloseTeamDialog();}},true);
 
-function renderBoard(){if(!state.pred){$('predictionBoard').textContent='Tahmin sıralaması yükleniyor...';return;}
- const list=state.pred.leaderboard||[];if(!list.length){$('predictionBoard').textContent='Henüz tahmin yapan yok.';return;}
- $('predictionBoard').innerHTML=`<table class="leaderboard"><thead><tr><th>#</th><th>Kick Kullanıcısı</th><th>Puan</th><th>Doğru</th></tr></thead><tbody>`+list.slice(0,50).map(x=>`<tr><td>${Number(x.rank)||0}</td><td>${esc(x.username)}</td><td class="count">${Number(x.score)||0}</td><td class="count">${Number(x.correctCount)||0}</td></tr>`).join('')+'</tbody></table>';
-}
+function renderBoard(){const host=$('predictionBoard');if(!state.pred){host.textContent='Tahmin sıralaması yükleniyor...';return;}const list=state.pred.leaderboard||[];if(!list.length){host.textContent='Henüz tahmin yapan yok.';return;}wztgRankArena(host,list,state.pred.myRank);}
+function wztgRankArena(host,list,myRank){if(!host.querySelector('.wztg-rank-search'))host.innerHTML='<input class="wztg-rank-search" placeholder="Kick kullanıcı adı ara…" aria-label="Tahmin sıralamasında kullanıcı ara"><div class="wztg-rank-count"></div><div class="wztg-rank-scroll" tabindex="0" aria-label="Tahmin sıralaması"></div><div class="wztg-my-rank"></div>';const input=host.querySelector('.wztg-rank-search'),scroll=host.querySelector('.wztg-rank-scroll'),count=host.querySelector('.wztg-rank-count'),own=host.querySelector('.wztg-my-rank');const draw=(reset=false)=>{const top=reset?0:scroll.scrollTop,q=input.value.trim().toLowerCase(),shown=list.filter(x=>String(x.username||'').toLowerCase().includes(q));count.textContent=shown.length+' / '+list.length+' katılımcı';scroll.innerHTML='<table class="leaderboard"><thead><tr><th>#</th><th>Kick Kullanıcısı</th><th>Puan</th><th>Doğru</th></tr></thead><tbody>'+shown.map(x=>`<tr><td>${['','🥇','🥈','🥉'][Number(x.rank)]||Number(x.rank)||0}</td><td title="${esc(x.username)}">${esc(x.username)}</td><td class="count">${Number(x.score)||0}</td><td class="count">${Number(x.correctCount)||0}</td></tr>`).join('')+'</tbody></table>';scroll.scrollTop=top;};input.oninput=()=>draw(true);draw();own.textContent=myRank?'Senin sıralaman: '+Number(myRank.rank)+' / '+list.length+' · '+Number(myRank.score||0)+' puan':'';}
+
 
 // V28: captain creates the room; each registered player confirms individually.
 let lobbyCache=null,lobbySelected='',lobbySeq=0,lobbySaving=false;
