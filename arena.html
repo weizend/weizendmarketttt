@@ -460,9 +460,9 @@ html,body{overscroll-behavior-y:auto}
 </section>
 <div id="alert" class="notice" role="status" hidden></div><button class="btn" type="button" id="v30ActiveMatch" style="display:none;margin:0 0 12px">🎮 Aktif Maçıma Dön</button>
 <div class="grid" id="content">
-<section class="panel"><div class="toolbar"><h2>🏆 Turnuva Fikstürü</h2><button class="btn secondary" type="button" id="refreshBtn">↻ Yenile</button></div>
+<section class="panel" id="wzArenaFixturePanel"><div class="toolbar"><h2>🏆 Turnuva Fikstürü</h2><div class="wz-fit-top"><button class="btn secondary" type="button" id="refreshBtn">↻ Yenile</button><button class="btn secondary" type="button" id="wzFitFull" aria-pressed="false" disabled>⛶ Tam Ekran</button></div></div>
 <div class="wz-fixture-tabs" role="tablist" aria-label="Fikstür görünümü"><button type="button" id="wzMatchesTab" class="wz-fixture-tab" role="tab" aria-selected="true" aria-controls="bracket">⚔️ MAÇLAR</button><button type="button" id="wzPredictionsTab" class="wz-fixture-tab" role="tab" aria-selected="false" aria-controls="bracket" tabindex="-1">🎯 TAHMİNLER</button></div>
-<p id="wzBracketHint" class="hint">Gerçek eşleşmeler ve kesinleşen skorlar. Henüz oynanmayan turlarda önceki maçların kazananları beklenir.</p><div id="bracket" class="bracket-viewport" role="tabpanel" aria-labelledby="wzMatchesTab"><div class="empty">Fikstür bilgileri alınıyor...</div></div></section>
+<p id="wzBracketHint" class="hint">Gerçek eşleşmeler ve kesinleşen skorlar. Henüz oynanmayan turlarda önceki maçların kazananları beklenir.</p><div id="wzFitTools" class="wz-fit-tools" hidden><button type="button" class="btn secondary" id="wzFitReset">⊡ Ekrana Sığdır</button><button type="button" class="btn secondary" id="wzFitMinus" aria-label="Uzaklaştır">−</button><span id="wzFitPercent">100%</span><button type="button" class="btn secondary" id="wzFitPlus" aria-label="Yakınlaştır">+</button><button type="button" class="btn secondary" id="wzFitDetail" hidden>Maç / Tahmin Bilgisi ↗</button><button type="button" class="btn secondary" id="wzDirectEdit" hidden>Tahminleri Düzenle</button><button type="button" class="btn secondary" id="wzDirectConfirm" hidden>Tahminleri Onayla</button></div><p id="wzDirectStatus" role="status" hidden></p><p id="wzFitHint" hidden>Yakınlaştır ve sürükle; tam ekranda iki parmakla veya fare tekerleğiyle büyütebilirsin. Maçı seçip Maç / Tahmin Bilgisi düğmesiyle detayına geçebilirsin.</p><div id="bracket" class="bracket-viewport" role="tabpanel" aria-labelledby="wzMatchesTab"><div class="empty">Fikstür bilgileri alınıyor...</div></div></section>
 <aside class="panel"><h2 id="wzFixtureFocusTitle">🎮 Maç Bilgisi</h2><div id="matchInfo" class="match-focus">Maç seçilmesi bekleniyor.</div>
 <div id="arenaPredictionAward" class="arena-prediction-award" hidden aria-live="polite">
   <div class="arena-prediction-award-icon" aria-hidden="true">🎯</div>
@@ -535,7 +535,7 @@ document.querySelectorAll('[data-wz-market-view]').forEach(link=>{
 });
 
 function token(){try{return localStorage.getItem(TOKEN_KEY)||''}catch{return ''}}
-function toast(message,kind=''){$('alert').hidden=false;$('alert').textContent=message;$('alert').className='notice '+kind;}
+function toast(message,kind=''){if($('wzDirectStatus')&&wzFit.full){$('wzDirectStatus').hidden=false;$('wzDirectStatus').textContent=message;} $('alert').hidden=false;$('alert').textContent=message;$('alert').className='notice '+kind;}
 function lobbyToast(message,kind=''){const inline=$('v30InlineStatus');if(!roomDialog.hidden&&lobbyCache?.v30&&inline){inline.hidden=false;inline.textContent=message;inline.className='notice '+kind;inline.scrollIntoView({block:'nearest'});}else toast(message,kind);}
 function hideToast(){$('alert').hidden=true;}
 async function api(path,auth=false,data=null){const c=new AbortController(),timer=setTimeout(()=>c.abort(),16000);try{
@@ -708,13 +708,13 @@ function wz637MatchStatus(m){
  if(String(m?.status||'')==='completed'||stage==='completed')return {text:'🏁 SONUÇLANDI',kind:'completed'};
  if(stage==='referee_review')return {text:'⚖️ HAKEM İNCELEMESİ',kind:'review'};
  if(stage==='finalizing')return {text:'⏳ SONUÇ İŞLENİYOR',kind:'pending'};
- if(stage==='result_pending')return {text:'⏳ MAÇ SONUÇLANIYOR',kind:'pending'};
+ if(stage==='result_pending')return {text:state.t?.broadcastEnabled?'🟡 SONUÇ BEKLENİYOR':'⏳ MAÇ SONUÇLANIYOR',kind:'pending'};
  if(stage==='playing')return {text:'🟢 MAÇ OYNANIYOR',kind:'playing'};
  if(stage==='starting')return {text:'🔵 MAÇ BAŞLIYOR',kind:'starting'};
  if(stage==='preparing')return {text:'🟠 TAKIMLAR HAZIRLANIYOR',kind:'preparing'};
  if(stage==='called'||stage==='invited'||m?.lobbyCalledAt)return {text:'🟡 ÇAĞRI GÖNDERİLDİ',kind:'called'};
  // A manually queued but NOT YET DELIVERED invitation must not be called sent.
- return {text:'⚪ ÇAĞRI BEKLİYOR',kind:'waiting'};
+ return {text:state.t?.broadcastEnabled?'⚪ MAÇ BEKLİYOR':'⚪ ÇAĞRI BEKLİYOR',kind:'waiting'};
 }
 let wz629BracketSignature='';
 const wzFixtureScroll={matches:0,predictions:0};
@@ -724,14 +724,14 @@ function renderBracket(){
  tabM.setAttribute('aria-selected',String(!isPred));tabP.setAttribute('aria-selected',String(isPred));
  tabM.tabIndex=isPred?-1:0;tabP.tabIndex=isPred?0:-1;
  bracketEl.setAttribute('aria-labelledby',isPred?'wzPredictionsTab':'wzMatchesTab');
- $('wzBracketHint').textContent=isPred?'Tahmin kuponundaki olası eşleşmeler burada gösterilir. Yeşil doğru, kırmızı yanlış tahmini belirtir. Gerçek fikstürü MAÇLAR sekmesinden izle.':'Gerçek eşleşmeler ve kesinleşen skorlar. Sonraki tur, önceki maçlar sonuçlandıkça oluşur.';
+ $('wzBracketHint').textContent=isPred?'Oyuncunun veya takımın adına dokunarak doğrudan tahmin yap. Mavi seçimin, yeşil doğru, kırmızı yanlış tahminindir.':'Gerçek eşleşmeler ve kesinleşen skorlar. Sonraki tur, önceki maçlar sonuçlandıkça oluşur.';
  $('picksBox').hidden=!isPred;
  $('wzFixtureFocusTitle').textContent=isPred?'🎯 Tahmin Bilgisi':'🎮 Maç Bilgisi';
  const bracketSignature=JSON.stringify({matches:state.detail?.matches||[],selected:state.selected,mode,picks:state.pred?.myPicks||[]});
  if(bracketSignature===wz629BracketSignature&&bracketEl?.querySelector('.rounds'))return;
- const oldBracketScroll=bracketEl?.scrollLeft||0;
+ const oldBracketScroll=bracketEl?.scrollLeft||0,oldBracketTop=bracketEl?.scrollTop||0;
  const matches=state.detail?.matches||[];
- if(!matches.length){bracketEl.innerHTML='<div class="empty">Henüz fikstür yayımlanmadı. Katılımlar tamamlanıp eşleşmeler oluşturulduğunda burada görünecek.</div>';wz629BracketSignature='';return;}
+ if(!matches.length){bracketEl.innerHTML='<div class="empty">Henüz fikstür yayımlanmadı. Katılımlar tamamlanıp eşleşmeler oluşturulduğunda burada görünecek.</div>';wz629BracketSignature='';wzFitEmpty();return;}
  const picks=predMap(),maxRound=Math.max(0,...matches.filter(m=>(m.matchKind||'main')==='main').map(m=>Number(m.roundNumber)||0));
  bracketEl.innerHTML='<div class="rounds">'+rounds(matches).map(r=>'<section class="round"><h3>'+(r.kind==='third_place'?'🥉 Üçüncülük':r.round===maxRound?'🏆 Final':r.round===1?'1. Tur':r.round+'. Tur')+' • '+r.matches.length+' maç</h3><div class="round-matches">'+r.matches.map(m=>{
    const aId=wzFixtureSlot(m,'a',mode),bId=wzFixtureSlot(m,'b',mode);
@@ -746,14 +746,123 @@ function renderBracket(){
      const value=displayName(m,which,mode),none=!id,slotInvalid=isPred&&!!id&&!wzPredictedSlotStillPossible(m,which,id);
      const scorePart=score?`<span class="wz-fixture-score">${which==='a'?score.a:score.b}</span>`:(forfeit&&won?'<span class="wz-fixture-score" style="font-size:10px">HÜKMEN</span>':`<span>${isPred&&picked?'★':!isPred&&won?'✓':''}</span>`);
      const classList=[]; if(none)classList.push('wz-fixture-placeholder'); if(isPred&&picked)classList.push('wz-fixture-picked',verdict||'pending'); if(slotInvalid)classList.push('wz-fixture-invalid');
-     return `<div class="side ${!isPred&&won?'winner':isPred&&picked?'predicted':''}"><strong class="${classList.join(' ')}">${esc(value)}</strong>${scorePart}</div>`;
+     const inner=`<strong class="${classList.join(' ')}">${esc(value)}</strong>${scorePart}`;
+     if(isPred&&id)return `<button type="button" class="side wz-direct-pick ${picked?'predicted':''}" data-wz-pick="${esc(id)}" aria-pressed="${picked}" aria-label="${esc(value)} tahmini">${inner}</button>`;
+     return `<div class="side ${!isPred&&won?'winner':isPred&&picked?'predicted':''}">${inner}</div>`;
    }
-   return `<button class="match ${state.selected===m.id?'active':''}" type="button" data-mid="${esc(m.id)}"><div class="match-head"><span>${esc(wzFixtureMatchLabel(m))}</span><span class="wz637-stage ${isPred?'wz-fixture-outcome '+stageClass:'wz637-'+stageClass}">${stage}</span></div>${side('a',aId,aPicked,aWon)}${side('b',bId,bPicked,bWon)}</button>`;
+   const tag=isPred?'div':'button';
+   return `<${tag} class="match ${state.selected===m.id?'active':''}" ${isPred?'role="group"':'type="button"'} data-mid="${esc(m.id)}"><div class="match-head"><span>${esc(wzFixtureMatchLabel(m))}</span><span class="wz637-stage ${isPred?'wz-fixture-outcome '+stageClass:'wz637-'+stageClass}">${stage}</span></div>${side('a',aId,aPicked,aWon)}${side('b',bId,bPicked,bWon)}</${tag}>`;
  }).join('')+'</div></section>').join('')+'</div>';
- bracketEl.querySelectorAll('[data-mid]').forEach(btn=>btn.addEventListener('click',()=>{state.selected=btn.dataset.mid;state.fixtureSelections[mode]=state.selected;renderBracket();renderMatch();}));
+ bracketEl.querySelectorAll('[data-mid]').forEach(btn=>btn.addEventListener('click',e=>{
+   if(state.saving||state.loading)return;
+   state.selected=btn.dataset.mid;state.fixtureSelections[mode]=state.selected;
+   const pick=e.target.closest('[data-wz-pick]');
+   if(isPred&&pick){const m=activeMatch(),id=pick.dataset.wzPick;
+     if(!state.authed){toast('Tahmin yapmak için Kick hesabını doğrula.','error');renderMatch();return;}
+     if(state.pred?.prediction?.open!==true||(state.pred?.submission?.submitted&&!state.editMode)){toast('Tahminler kilitli. Açık kuponu düzenlemek için Tahminleri Düzenle düğmesini kullan.','error');return;}
+     if(optionsFor(m).length!==2){toast('Önce önceki tur tahminlerini tamamla.','error');return;}
+     void savePick(null,id);return;
+   }
+   renderBracket();renderMatch();
+ }));
  wz629BracketSignature=bracketSignature;
- bracketEl.scrollLeft=oldBracketScroll;
+ wzFitBuild(matches);
+ bracketEl.scrollLeft=oldBracketScroll;bracketEl.scrollTop=oldBracketTop;
 }
+// Arena fixture fit/zoom: read-only presentation of the existing server matches.
+const wzFit={ratio:1,scale:1,width:0,height:0,full:false,points:new Map(),gesture:null,blockClickUntil:0};
+function wzFitRoot(){return $('bracket');}
+function wzFitApply(anchor){
+ const root=wzFitRoot(),stage=root.querySelector('.wz-fit-stage'),layout=root.querySelector('.wz-fit-layout');
+ if(!stage||!layout||!wzFit.width||!wzFit.height)return;
+ const w=Math.max(1,root.clientWidth-2),h=Math.max(1,root.clientHeight-2);
+ const base=Math.min(1,w/wzFit.width,wzFit.full?h/wzFit.height:1);
+ const next=Math.min(3,base*wzFit.ratio),old=wzFit.scale||next;
+ const oldX=root.scrollLeft,oldY=root.scrollTop;
+ stage.style.width=Math.ceil(wzFit.width*next)+'px';stage.style.height=Math.ceil(wzFit.height*next)+'px';
+ layout.style.transform=`scale(${next})`;wzFit.scale=next;
+ root.classList.toggle('wz-fit-pan',wzFit.full||wzFit.ratio>1.001);
+ $('wzFitPercent').textContent=Math.round(next*100)+'%';
+ $('wzFitMinus').disabled=wzFit.ratio<=1.001;$('wzFitPlus').disabled=next>=2.999;
+ if(anchor){const newLeft=stage.offsetLeft;root.scrollLeft=Math.max(0,(oldX+anchor.x-anchor.left)*next/old+newLeft-anchor.x);root.scrollTop=Math.max(0,(oldY+anchor.y)*next/old-anchor.y);}
+}
+function wzFitZoom(factor,clientX,clientY){
+ const root=wzFitRoot(),stage=root.querySelector('.wz-fit-stage');if(!stage)return;
+ const box=root.getBoundingClientRect();const x=clientX==null?root.clientWidth/2:clientX-box.left,y=clientY==null?(wzFit.full?root.clientHeight/2:Math.min(root.clientHeight/2,120)):clientY-box.top;
+ wzFit.ratio=Math.max(1,Math.min(300,wzFit.ratio*factor));wzFitApply({x,y,left:stage.offsetLeft});
+}
+function wzFitReset(){wzFit.ratio=1;wzFitApply();const root=wzFitRoot();root.scrollLeft=0;root.scrollTop=0;}
+function wzFitBuild(matches){
+ const root=wzFitRoot(),layout=root.querySelector('.rounds');if(!layout)return;
+ const groups=rounds(matches),sections=[...layout.querySelectorAll(':scope > .round')];
+ const mains=groups.map((g,i)=>({g,i})).filter(x=>x.g.kind!=='third_place');
+ const cols=Math.max(1,mains.length),colStep=248,cardWidth=214,head=44,baseTop=6;
+ const pos=new Map();const cardById=new Map([...layout.querySelectorAll('[data-mid]')].map(b=>[String(b.dataset.mid),b]));
+ const stage=document.createElement('div');stage.className='wz-fit-stage';root.insertBefore(stage,layout);stage.appendChild(layout);
+ layout.classList.add('wz-fit-layout');root.classList.add('wz-fit-ready');$('wzFitTools').hidden=false;$('wzFitHint').hidden=false;$('wzFitFull').disabled=false;
+ // Measure original wrapping before positioning. Shared height prevents overlap for long team names.
+ const cardHeight=Math.max(86,...[...cardById.values()].map(b=>b.offsetHeight));
+ const pitch=cardHeight+22;let bottom=head+cardHeight;const finalCol=cols-1;
+ function place(m,b,x,y,sectionTop){b.style.top=Math.round(y-sectionTop-head)+'px';b.style.height=cardHeight+'px';pos.set(String(m.id),{x,y,w:cardWidth,h:cardHeight});bottom=Math.max(bottom,y+cardHeight+9);}
+ mains.forEach(({g,i},col)=>{
+  const section=sections[i],x=6+col*colStep;section.style.left=x+'px';section.style.top=baseTop+'px';
+  section.classList.toggle('wz-fit-final',col===finalCol);
+  let prevY=-Infinity;
+  g.matches.forEach((m,j)=>{
+   const b=cardById.get(String(m.id));if(!b)return;
+   const predecessors=['a','b'].map(k=>wzFixturePrevMatch(m,k)).map(p=>p&&pos.get(String(p.id))).filter(Boolean);
+   const fallback=baseTop+head+(j+.5)*pitch*Math.pow(2,Math.min(col,16))-pitch/2;
+   const preferred=predecessors.length?predecessors.reduce((a,p)=>a+p.y,0)/predecessors.length:fallback;
+   const y=Math.max(baseTop+head,preferred,prevY+pitch);
+   place(m,b,x,y,baseTop);prevY=y;
+  });
+ });
+ // The medal match shares the final column, directly below its final card.
+ let thirdTop=Math.max(baseTop+head,...[...pos.values()].filter(p=>p.x===6+finalCol*colStep).map(p=>p.y+p.h+20));
+ groups.forEach((g,i)=>{if(g.kind!=='third_place')return;
+  const section=sections[i],x=6+finalCol*colStep;section.classList.add('wz-fit-third');section.style.left=x+'px';section.style.top=thirdTop+'px';
+  g.matches.forEach((m,j)=>{const b=cardById.get(String(m.id));if(b)place(m,b,x,thirdTop+head+j*pitch,thirdTop);});thirdTop=bottom+12;
+ });
+ // Header is 32px followed by a 12px gap; section absolute child origin is 44px.
+ const width=6+finalCol*colStep+cardWidth+6,height=Math.ceil(bottom+4);
+ const ns='http://www.w3.org/2000/svg',lines=document.createElementNS(ns,'svg');lines.classList.add('wz-fit-lines');lines.setAttribute('width',width);lines.setAttribute('height',height);lines.setAttribute('aria-hidden','true');
+ for(const m of matches){const dest=pos.get(String(m.id));if(!dest)continue;const third=(m.matchKind||'main')==='third_place';
+  for(const k of ['a','b']){const previous=wzFixturePrevMatch(m,k),src=previous&&pos.get(String(previous.id));if(!src||src.x>=dest.x)continue;
+   const sx=src.x+src.w,sy=src.y+src.h/2,dy=dest.y+dest.h/2,dx=dest.x,mid=sx+(dx-sx)*(third ? .72 : .40);
+   const p=document.createElementNS(ns,'path');p.setAttribute('d',`M${sx} ${sy} H${mid} V${dy} H${dx}`);p.setAttribute('fill','none');p.setAttribute('stroke',third?'#be936d':'#747986');p.setAttribute('stroke-width',third?'1.7':'1.5');if(third)p.setAttribute('stroke-dasharray','4 3');lines.appendChild(p);
+  }
+ }
+ layout.prepend(lines);layout.style.width=width+'px';layout.style.height=height+'px';wzFit.width=width;wzFit.height=height;wzFitApply();
+}
+function wzFitSetFull(open,focus=true){
+ const panel=$('wzArenaFixturePanel');if(open&&!wzFitRoot().querySelector('.wz-fit-stage'))return;
+ wzFit.full=!!open;panel.classList.toggle('wz-fit-full',wzFit.full);document.body.classList.toggle('wz-arena-fixture-open',wzFit.full);
+ $('wzFitFull').textContent=open?'✕ Tam Ekrandan Çık':'⛶ Tam Ekran';$('wzFitFull').setAttribute('aria-pressed',String(!!open));
+ $('wzFitDetail').hidden=!open;if(!open)$('wzDirectStatus').hidden=true;wzFitReset();if(focus)$('wzFitFull').focus({preventScroll:true});
+}
+function wzFitEmpty(){if(wzFit.full)wzFitSetFull(false,false);wzFitRoot().classList.remove('wz-fit-ready','wz-fit-pan');$('wzFitTools').hidden=true;$('wzFitHint').hidden=true;$('wzFitFull').disabled=true;wzFit.width=0;wzFit.height=0;}
+function wzFitInit(){
+ const root=wzFitRoot(),panel=$('wzArenaFixturePanel');
+ $('wzFitFull').onclick=()=>wzFitSetFull(!wzFit.full);
+ $('wzFitReset').onclick=wzFitReset;$('wzFitPlus').onclick=()=>wzFitZoom(1.4);$('wzFitMinus').onclick=()=>wzFitZoom(1/1.4);
+ $('wzFitDetail').onclick=()=>{wzFitSetFull(false,false);$('wzFixtureFocusTitle').scrollIntoView({block:'start',behavior:'instant'});$('wzFixtureFocusTitle').setAttribute('tabindex','-1');$('wzFixtureFocusTitle').focus({preventScroll:true});};
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&wzFit.full&&$('roomDialog').hidden){e.preventDefault();wzFitSetFull(false);}});
+ root.addEventListener('wheel',e=>{if(!root.classList.contains('wz-fit-ready')||(!e.ctrlKey&&!e.metaKey&&!wzFit.full))return;e.preventDefault();wzFitZoom(Math.exp(Math.max(-80,Math.min(80,-e.deltaY))*.005),e.clientX,e.clientY);},{passive:false});
+ // Drag and two-pointer pinch use the original cards, not copied buttons.
+ root.addEventListener('pointerdown',e=>{if(!root.classList.contains('wz-fit-pan')||e.button!==0)return;wzFit.points.set(e.pointerId,{x:e.clientX,y:e.clientY});if(wzFit.points.size===1)wzFit.gesture={x:e.clientX,y:e.clientY,sx:root.scrollLeft,sy:root.scrollTop,moved:false,dist:0};else if(wzFit.points.size===2){const [a,b]=wzFit.points.values();wzFit.gesture.dist=Math.hypot(a.x-b.x,a.y-b.y);wzFit.gesture.moved=true;} });
+ window.addEventListener('pointermove',e=>{if(!wzFit.points.has(e.pointerId)||!wzFit.gesture)return;wzFit.points.set(e.pointerId,{x:e.clientX,y:e.clientY});const g=wzFit.gesture;
+  if(wzFit.points.size===2){const [a,b]=wzFit.points.values(),d=Math.hypot(a.x-b.x,a.y-b.y);if(g.dist>0&&d>0)wzFitZoom(d/g.dist,(a.x+b.x)/2,(a.y+b.y)/2);g.dist=d;g.moved=true;}
+  else if(wzFit.points.size===1){const dx=e.clientX-g.x,dy=e.clientY-g.y;if(g.moved||Math.hypot(dx,dy)>7){g.moved=true;root.scrollLeft=g.sx-dx;root.scrollTop=g.sy-dy;}}
+  if(g.moved){root.classList.add('wz-fit-dragging');wzFit.blockClickUntil=Date.now()+350;if(e.cancelable)e.preventDefault();}
+ },{passive:false});
+ function end(e){if(!wzFit.points.has(e.pointerId))return;wzFit.points.delete(e.pointerId);const g=wzFit.gesture;if(g?.moved)wzFit.blockClickUntil=Date.now()+350;if(wzFit.points.size===1){const [a]=wzFit.points.values();wzFit.gesture={x:a.x,y:a.y,sx:root.scrollLeft,sy:root.scrollTop,moved:true,dist:0};}else if(!wzFit.points.size){wzFit.gesture=null;root.classList.remove('wz-fit-dragging');}}
+ window.addEventListener('pointerup',end);window.addEventListener('pointercancel',end);window.addEventListener('blur',()=>{wzFit.points.clear();wzFit.gesture=null;root.classList.remove('wz-fit-dragging');});
+ root.addEventListener('click',e=>{if(e.detail!==0&&Date.now()<wzFit.blockClickUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
+ let lastW=-1,lastH=-1;
+ const resize=()=>{const w=root.clientWidth,h=wzFit.full?root.clientHeight:0;if(w===lastW&&h===lastH)return;lastW=w;lastH=h;wzFitApply();};
+ if(typeof ResizeObserver==='function')new ResizeObserver(resize).observe(panel);window.addEventListener('resize',resize);
+}
+
 function renderCouponControls(){
  const sub=state.pred?.submission||{},list=wzPredictionOrder(),expected=Number(sub.expectedCount||list.length||0),selected=Number(sub.selectedCount||0);
  const submitted=sub.submitted===true,open=state.pred?.prediction?.open===true;
@@ -773,6 +882,8 @@ function renderCouponControls(){
  confirm.disabled=!state.authed||!open||selected!==expected||state.saving;
  confirm.textContent=state.editMode?'✓ Değişiklikleri Kaydet':'✓ Tahminleri Onayla';
  edit.textContent=state.editMode?'✓ Düzenlemeyi Kapat':'✎ Tahminleri Düzenle';
+ const editDirect=$('wzDirectEdit'),confirmDirect=$('wzDirectConfirm');
+ if(editDirect&&confirmDirect){editDirect.hidden=state.fixtureView!=='predictions'||edit.style.display==='none';editDirect.textContent=edit.textContent;editDirect.disabled=state.saving;confirmDirect.hidden=state.fixtureView!=='predictions'||confirm.style.display==='none';confirmDirect.disabled=confirm.disabled;}
  $('pickProgress').textContent=expected===0?'Fikstür bekleniyor.':
    submitted?`✓ ${selected}/${expected} tahmin onaylandı · Kuponun kilitlendi. ${Number(state.pred?.stats?.participantCount||0)} kişi onayladı.`:
    `${selected}/${expected} tahmin · ${Number(state.pred?.stats?.participantCount||0)} kişi kuponunu onayladı. ${!open?'Tahminler kilitli.':'Eksik tahminler sıralamaya katılmaz.'}`;
@@ -1524,9 +1635,9 @@ async function refresh(initial=false){if(state.loading)return;arenaKnownAuthToke
     }
   }
 }
-async function savePick(i){
+async function savePick(i,directId=null){
  const m=activeMatch();if(!m||state.saving||!state.authed||state.pred?.prediction?.open!==true||(state.pred?.submission?.submitted&&!state.editMode))return;
- const id=(i===0?$('pickA'):$('pickB')).dataset.winner;if(!id)return;
+ const id=directId||(i===0?$('pickA'):$('pickB')).dataset.winner;const valid=optionsFor(m);if(!id||valid.length!==2||!valid.includes(String(id))||m.status==='completed'||state.loading)return;
  state.saving=true;renderMatch();
  try{
    state.pred=await api('/tournament/predictions/pick',true,{tournamentId:tid,matchId:m.id,winnerId:id});
@@ -1587,6 +1698,27 @@ async function wzCheckPredictionLock(){
  finally{wzLockCheckPending=false;}
 }
 setInterval(()=>{void wzCheckPredictionLock()},60000);
+// Visible live fixture: read-only polling; no match actions or AFK changes.
+let wzLiveReadBusy=false,wzLiveLastRead=0,wzLivePredRetry=false;
+async function wzLiveRead(){
+ if(wzLiveReadBusy||document.hidden||state.loading||state.saving||!state.detail||!state.t?.broadcastEnabled||!state.detail.matches?.length||(!wzLivePredRetry&&state.detail.matches.every(m=>['completed','bye'].includes(m.status))))return;
+ if(!$('roomDialog').hidden)return;
+ if(state.t.lifecycleStatus!=='in_progress'&&Date.now()-wzLiveLastRead<28000)return;
+ const base=state.detail,predBase=state.pred,authToken=token();wzLiveReadBusy=true;wzLiveLastRead=Date.now();
+ try{
+  const detail=await api('/tournament/public?id='+encodeURIComponent(tid));
+  if(state.loading||state.saving||state.detail!==base||state.pred!==predBase||token()!==authToken||detail?.tournament?.id!==tid)return;
+  if(!wzLivePredRetry&&JSON.stringify(detail.matches)===JSON.stringify(base.matches)&&detail.tournament.lifecycleStatus===base.tournament.lifecycleStatus&&detail.tournament.broadcastEnabled===base.tournament.broadcastEnabled)return;
+  // Load updated standings and locks after an actual match change.
+  let p=null;try{p=await api('/tournament/predictions'+(state.authed?'/me':'')+'?id='+encodeURIComponent(tid),state.authed);}catch(_){/* scores can still be displayed */}
+  if(state.loading||state.saving||state.detail!==base||state.pred!==predBase||token()!==authToken)return;
+  state.detail=detail;state.t=detail.tournament;wzLivePredRetry=!p;if(p){state.pred=p;if(p.prediction?.open!==true)state.editMode=false;}
+  if(!detail.matches.some(m=>m.id===state.selected))state.selected=detail.matches[0]?.id||null;
+  cachePublic();renderAll();
+ }catch(_){/* Keep last confirmed display on temporary API errors. */}finally{wzLiveReadBusy=false;}
+}
+setInterval(()=>{void wzLiveRead()},7000);
+
 // Yeni token baska bir Market sekmesinde olustugunda, Arena'ya donulurse tek sefer kontrol et.
 // Aktif kullaniciyi sebepsiz yere yeniden sorgulama; sayfa arka plandayken istek yapma.
 let arenaKnownAuthToken=token();
@@ -1604,7 +1736,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&tid&&!sta
 $('wzMatchesTab').addEventListener('click',()=>wzSwitchFixtureView('matches'));
 $('wzPredictionsTab').addEventListener('click',()=>wzSwitchFixtureView('predictions'));
 $('refreshBtn').onclick=()=>refresh();$('pickA').onclick=()=>savePick(0);$('pickB').onclick=()=>savePick(1);$('arenaVerifyPick').onclick=()=>location.assign('https://www.weizend.com/?wz_auth=1');
-$('confirmPicks').onclick=()=>confirmCoupon();
+$('confirmPicks').onclick=()=>confirmCoupon();$('wzDirectConfirm').onclick=()=>confirmCoupon();$('wzDirectEdit').onclick=()=>$('editPicks').click();
 $('editPicks').onclick=()=>{if(state.pred?.prediction?.open!==true)return;state.editMode=!state.editMode;renderMatch();};
 $('arenaVerifyRetry').addEventListener('click',()=>{if(!state.loading)refresh();});
 $('wzPredPrev').onclick=()=>wzMovePrediction(-1);
@@ -1614,6 +1746,7 @@ $('wzGoMissing').onclick=()=>{
   state.selected=wzMissingDependency(missing)?.id||missing.id;
   renderBracket();renderMatch();
 };
+wzFitInit();
 if(!tid||tid.length>120||!/^[a-zA-Z0-9_:-]+$/.test(tid)){
  $('tournamentTitle').textContent='Turnuva seçilmedi';$('bracket').innerHTML='<div class="empty">Bir turnuvanın Arena bağlantısını aç. <a href="'+href+'">Siteye dön</a>.</div>';$('pickProgress').textContent='Turnuva bekleniyor.';$('authText').textContent='';$('participants').textContent='';$('predictionBoard').textContent='';$('refreshBtn').disabled=true;
 }else{restorePublic();try{if(sessionStorage.getItem('wz_v30_active_match_'+tid))$('v30ActiveMatch').style.display='inline-block';}catch{}refresh(true)}
@@ -1780,5 +1913,50 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 :where(#roomDialog,.wz622-team-dialog) :where(h2,h3,h4,strong){min-width:0;overflow-wrap:anywhere;}
 
 </style>
+<style id="wz-arena-fit-view">
+/* Arena fixture presentation only — existing match controls and API are retained. */
+#wzArenaFixturePanel .toolbar{flex-wrap:wrap}
+#wzArenaFixturePanel .toolbar h2{flex:1 1 150px;margin:0}
+#wzArenaFixturePanel .wz-fit-top{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#wzArenaFixturePanel .wz-fit-tools{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:0 0 9px}
+#wzArenaFixturePanel .wz-fit-tools button{padding:7px 10px;min-height:36px;font-size:12px;white-space:nowrap}
+#wzArenaFixturePanel #wzFitPercent{font-size:12px;color:#c9cbd1;min-width:41px;text-align:center;font-variant-numeric:tabular-nums}
+#wzArenaFixturePanel #wzFitHint{font-size:11px;color:#a9adb7;margin:0 0 9px;line-height:1.45}
+#wzArenaFixturePanel #bracket.wz-fit-ready{position:relative;overflow:auto;overscroll-behavior-x:contain;scroll-behavior:auto;min-width:0;max-width:100%;scrollbar-gutter:stable}
+#wzArenaFixturePanel #bracket.wz-fit-pan{touch-action:none;cursor:grab;overscroll-behavior:contain}
+#wzArenaFixturePanel:not(.wz-fit-full) #bracket.wz-fit-pan{max-height:72dvh}
+#wzArenaFixturePanel #bracket.wz-fit-dragging{cursor:grabbing;user-select:none}
+#wzArenaFixturePanel .wz-fit-stage{position:relative;overflow:hidden;margin-inline:auto}
+#wzArenaFixturePanel .rounds.wz-fit-layout{display:block;position:absolute;top:0;left:0;min-width:0;padding:0;transform-origin:top left;isolation:isolate}
+#wzArenaFixturePanel .wz-fit-layout .round{position:absolute;width:214px;display:block;min-width:0;z-index:1}
+#wzArenaFixturePanel .wz-fit-layout .round h3{height:32px;margin:0;padding:5px 8px;display:flex;align-items:center;white-space:nowrap;font-size:12px;box-sizing:border-box}
+#wzArenaFixturePanel .wz-fit-layout .round-matches{position:relative;display:block;min-height:0;margin:12px 0 0;padding:0}
+#wzArenaFixturePanel .wz-fit-layout .match{position:absolute;left:0;width:214px;min-height:80px;max-width:none;align-content:center;box-sizing:border-box}
+#wzArenaFixturePanel .wz-fit-layout .match-head{align-items:flex-start}
+#wzArenaFixturePanel .wz-fit-layout .match-head span:last-child{white-space:normal;text-align:right;overflow-wrap:anywhere}
+#wzArenaFixturePanel .wz-fit-layout .side strong{min-width:0;overflow-wrap:anywhere;word-break:normal}
+#wzArenaFixturePanel .wz-fit-layout .wz-fit-final h3{background:#3c301b;border-left-color:#e4bb61;color:#ffe2a2}
+#wzArenaFixturePanel .wz-fit-layout .wz-fit-third h3{background:#39271e;border-left-color:#c28e66;color:#f2c7a4}
+#wzArenaFixturePanel .wz-fit-layout .wz-fit-third .match{border-color:#8a654c}
+#wzArenaFixturePanel .wz-fit-layout .wz-fit-third .match.active{border-color:var(--red)}
+#wzArenaFixturePanel .wz-fit-lines{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:visible}
+body.wz-arena-fixture-open{overflow:hidden!important}
+body[data-wz-experience="arena"] #wzArenaFixturePanel.wz-fit-full{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;max-height:100dvh!important;max-width:none!important;margin:0!important;border-radius:0!important;z-index:9000;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))!important;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box}
+#wzArenaFixturePanel.wz-fit-full .toolbar{margin-top:0;flex:0 0 auto}
+#wzArenaFixturePanel.wz-fit-full .wz-fixture-tabs,#wzArenaFixturePanel.wz-fit-full .hint,#wzArenaFixturePanel.wz-fit-full .wz-fit-tools,#wzArenaFixturePanel.wz-fit-full #wzFitHint{flex:0 0 auto}
+#wzArenaFixturePanel.wz-fit-full #bracket{flex:1 1 0;min-height:0;overflow:auto;overscroll-behavior:contain;touch-action:none}
+#wzArenaFixturePanel.wz-fit-full #wzFitDetail{display:inline-flex}
+#wzFitDetail{display:none}
+#wzArenaFixturePanel .match .wz-direct-pick{width:100%;background:transparent;border:1px solid transparent;color:inherit;text-align:left;padding:4px 5px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font:inherit;min-height:24px}
+#wzArenaFixturePanel .match .wz-direct-pick:hover,#wzArenaFixturePanel .match .wz-direct-pick:focus-visible{border-color:#568ac8;background:#20334e}
+#wzArenaFixturePanel .match .wz-direct-pick.predicted{background:#153c62;border-color:#427db5}
+#wzArenaFixturePanel .match .wz-direct-pick:has(.correct){background:#17492e;border-color:#438354}
+#wzArenaFixturePanel .match .wz-direct-pick:has(.wrong){background:#51262e;border-color:#a14550}
+#wzDirectStatus{font-size:12px;margin:4px 0 8px;color:#e9c47a;overflow-wrap:anywhere}
+#wzDirectEdit[hidden],#wzDirectConfirm[hidden],#wzDirectStatus[hidden]{display:none!important}
+@media(max-height:500px){#wzArenaFixturePanel.wz-fit-full .hint,#wzArenaFixturePanel.wz-fit-full #wzFitHint{display:none}#wzArenaFixturePanel.wz-fit-full .toolbar{margin-bottom:6px;padding-bottom:5px}#wzArenaFixturePanel.wz-fit-full .wz-fixture-tabs{margin-bottom:6px}#wzArenaFixturePanel.wz-fit-full .wz-fixture-tab{padding:6px 8px}#wzArenaFixturePanel.wz-fit-full .wz-fit-tools{margin-bottom:5px}}
+@media(max-width:520px){#wzArenaFixturePanel .wz-fit-top .btn{font-size:11px;padding:8px 9px}#wzArenaFixturePanel.wz-fit-full .hint{display:none}#wzArenaFixturePanel.wz-fit-full .wz-fixture-tabs{margin-bottom:8px}#wzArenaFixturePanel .wz-fit-tools{gap:5px}}
+</style>
+
 </body>
 </html>
