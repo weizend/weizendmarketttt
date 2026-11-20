@@ -2528,6 +2528,16 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
 </style>
   <!-- WEİZEND V31.2.03: optional, reversible presentation layer; all JS and backend unchanged -->
   <link rel="stylesheet" href="./weizend-experience-v31203.css" id="wz-experience-v31203" />
+<style id="wztg-leaderboard-scroll">
+.wztg-rank-search{width:100%;margin:8px 0;padding:10px;background:#111;color:#fff;border:1px solid #444;border-radius:8px}
+.wztg-rank-scroll{max-height:430px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;overflow-x:auto}
+.wztg-rank-scroll .tPredictionLeaderRow,.wztg-rank-scroll .tPredictionLeaderHead{box-sizing:border-box;height:39px;min-height:39px;max-height:39px;line-height:1.3;padding:5px 7px}
+.wztg-rank-scroll .tPredictionLeaderHead,.wztg-rank-scroll thead th{position:sticky;top:0;z-index:1;background:#17191f}
+.wztg-rank-scroll table{width:100%;border-collapse:collapse}
+.wztg-rank-scroll .leaderboard tr{height:39px;min-height:39px}
+.wztg-rank-scroll .leaderboard td,.wztg-rank-scroll .leaderboard th{padding:5px 6px;white-space:nowrap;line-height:1.2;max-width:190px;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}
+.wztg-rank-count,.wztg-my-rank{font-size:12px;color:#bbb;margin:6px 0}
+</style>
 </head>
 
 <body data-wz-experience="admin">
@@ -2577,6 +2587,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
     </div>
 
     <div class="tabs">
+  <button id="tab-telegram" onclick="openTab('telegram')">✈️ Telegram</button>
 
   <button id="tab-products" class="active" onclick="openTab('products')">
     📦 Ürünler
@@ -2887,7 +2898,8 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
     <!-- PRODUCTS -->
     <!-- ===================================================== -->
 
-    <div id="section-products" class="section active">
+    <div id="section-telegram" class="section"><div class="card"><h2>✈️ Telegram Bildirimleri</h2><p class="muted">Gönderim mevcut Worker Cron taramasında yapılır. Bot anahtarı ve Chat ID yalnızca Cloudflare Secret olarak saklanır. Eski olaylar ilk açılışta tekrar gönderilmez.</p><p id="wztgConfigStatus" class="muted" role="status">Ayarlar yükleniyor...</p><label class="checkline"><input type="checkbox" id="wztgEnabled"> Telegram bildirimleri aktif</label><div id="wztgGroupList"></div><div class="btnRow"><button type="button" onclick="wztgSaveSettings()">Ayarları Kaydet</button><button type="button" class="secondary" onclick="wztgTest()">Test Bildirimi Gönder</button></div></div></div>
+<div id="section-products" class="section active">
 
       <div class="card">
 
@@ -5179,7 +5191,7 @@ function hideStatus(id){
    TABS — V31.0.70 reload persistence
 ========================================================= */
 const WZ70_ADMIN_TAB_KEY='wz_admin_last_tab_v3170';
-const WZ70_ADMIN_TABS=new Set(['products','giveaways','giftcodes','supportrewards','payments','purchases','users','messages','orders','tournaments','missxss','valorant-test']);
+const WZ70_ADMIN_TABS=new Set(['products','giveaways','giftcodes','supportrewards','payments','purchases','users','messages','orders','tournaments','missxss','valorant-test','telegram']);
 function wz70RememberAdminTab(name){try{sessionStorage.setItem(WZ70_ADMIN_TAB_KEY,name)}catch(_){}}
 function wz70RestoreAdminTab(){try{const tab=sessionStorage.getItem(WZ70_ADMIN_TAB_KEY);return WZ70_ADMIN_TABS.has(tab)?tab:'products'}catch(_){return 'products'}}
 function openTab(name){
@@ -5205,6 +5217,7 @@ function openTab(name){
     .getElementById(`tab-${name}`)
     ?.classList.add('active');
 
+  if(name === 'telegram')void wztgLoadSettings();
   if(name === 'products'){
     loadProducts();
   }
@@ -5365,7 +5378,9 @@ function openAdmin(){
   // Yönetim alanı hazır; geçici ilk çizim korumasını kapat.
   document.documentElement.classList.remove('wz77-admin-restoring');
 
-  openTab(wz70RestoreAdminTab());
+  const wztgTab=new URLSearchParams(location.search).get("wztg");
+  openTab(WZ70_ADMIN_TABS.has(wztgTab)?wztgTab:wz70RestoreAdminTab());
+  if(wztgTab==='tournaments')void wztgOpenMatchLink();
   startAdminMessagesPolling();
 }
 
@@ -11639,19 +11654,7 @@ function renderTournamentPredictions(data){
     return;
   }
 
-  leaderboard.innerHTML=`
-    <div class="tPredictionLeaderHead">
-      <span>Sıra</span><span>Kullanıcı</span><span>Puan</span><span>Doğru</span>
-    </div>
-    ${rows.slice(0,50).map(row=>`
-      <div class="tPredictionLeaderRow">
-        <span>${Number(row.rank)===1?'🏆':Number(row.rank)+'.'}</span>
-        <b>${esc(row.username||'-')}</b>
-        <strong>${Number(row.score||0)}</strong>
-        <span>${Number(row.correctCount||0)} / ${Number(row.scoredPicks||0)}</span>
-      </div>
-    `).join('')}
-  `;
+  wztgRankAdmin(leaderboard,rows);
 }
 
 async function loadTournamentPredictions(silent=false){
@@ -16617,5 +16620,14 @@ async function wz3103Check(encodedId){
 }
 
 </style>
+<script id="wztg-admin-ui">
+
+async function wztgLoadSettings(){const el=document.getElementById('wztgConfigStatus');try{const {r,d}=await api('/admin/telegram/settings');if(!r.ok||!d?.success)throw Error(d?.error||'Ayarlar okunamadı');document.getElementById('wztgEnabled').checked=!!d.enabled;const host=document.getElementById('wztgGroupList');host.replaceChildren();for(const [key,label] of Object.entries(d.labels||{})){const line=document.createElement('label');line.className='checkline';const box=document.createElement('input');box.type='checkbox';box.value=key;box.checked=d.enabled?d.groups.includes(key):(!d.groups.length||d.groups.includes(key));line.append(box,document.createTextNode(label));host.append(line);}el.textContent=d.configured?'Cloudflare Secret değerleri mevcut.':'TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID Secret değerlerini ekle.';}catch(e){el.textContent=e.message;}}
+async function wztgSaveSettings(){const el=document.getElementById('wztgConfigStatus');try{const {r,d}=await api('/admin/telegram/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:document.getElementById('wztgEnabled').checked,groups:[...document.querySelectorAll('#wztgGroupList input:checked')].map(x=>x.value)})});if(!r.ok||!d?.success)throw Error(d?.error||'Kaydedilemedi');el.textContent='✅ Telegram ayarları kaydedildi.';}catch(e){el.textContent='❌ '+e.message;}}
+async function wztgTest(){const el=document.getElementById('wztgConfigStatus');try{const {r,d}=await api('/admin/telegram/test',{method:'POST'});if(!r.ok||!d?.success)throw Error(d?.error||'Test başarısız');el.textContent='✅ Telegram mesajı gönderildi.';}catch(e){el.textContent='❌ '+e.message;}}
+async function wztgOpenMatchLink(){try{const p=new URLSearchParams(location.search),tid=p.get('tid'),mid=p.get('mid');if(!tid)return;await loadTournamentList();const sel=document.getElementById('tournamentSelect');if(!sel||![...sel.options].some(x=>x.value===tid))return;sel.value=tid;wz41ConfirmTournamentSwitch();await loadTournamentConfig();if(sel.value!==tid)return;if(mid){wz41OpenPanel('lobbies',false);await loadArenaLobbiesAdmin(tid);wz44OpenUrgentMatch(encodeURIComponent(mid));}else{wz41OpenPanel('bracket',false);}}catch(e){console.warn('Telegram admin link unavailable');}}
+function wztgRankAdmin(host,rows){const previous=host.querySelector('.wztg-rank-search');const oldScroll=host.querySelector('.wztg-rank-scroll')?.scrollTop||0;const oldQuery=previous?.value||'';const focused=document.activeElement===previous;if(!previous){host.innerHTML='<input class="wztg-rank-search" placeholder="Kick kullanıcı adı ara…" aria-label="Tahmin sıralamasında kullanıcı ara"><div class="wztg-rank-count"></div><div class="wztg-rank-scroll" tabindex="0" aria-label="Tahmin sıralaması"></div>';}const input=host.querySelector('.wztg-rank-search'),scroll=host.querySelector('.wztg-rank-scroll'),count=host.querySelector('.wztg-rank-count');const draw=(reset=false)=>{const top=reset?0:scroll.scrollTop;const q=input.value.trim().toLowerCase(),shown=rows.filter(r=>String(r.username||'').toLowerCase().includes(q));count.textContent=shown.length+' / '+rows.length+' katılımcı';scroll.innerHTML='<div class="tPredictionLeaderHead"><span>Sıra</span><span>Kullanıcı</span><span>Puan</span><span>Doğru</span></div>'+shown.map(row=>`<div class="tPredictionLeaderRow"><span>${['','🥇','🥈','🥉'][Number(row.rank)]||Number(row.rank)+'.'}</span><b title="${esc(row.username||'-')}">${esc(row.username||'-')}</b><strong>${Number(row.score||0)}</strong><span>${Number(row.correctCount||0)} / ${Number(row.scoredPicks||0)}</span></div>`).join('');scroll.scrollTop=top;};input.oninput=()=>draw(true);input.value=oldQuery;draw();scroll.scrollTop=oldScroll;if(focused)input.focus({preventScroll:true});}
+
+</script>
 </body>
 </html>
