@@ -12988,7 +12988,7 @@ function v3113Fingerprint(d){
  return JSON.stringify({enabled:d.enabled,broadcast:d.broadcastEnabled,manual:d.manualMode,run:d.runMode,
   started:d.startedAt,registrations:d.registrations,
   matches:(d.matches||[]).map(m=>({id:m.id,status:m.status,v30:m.v30,room:m.room,
-   approvalProgress:m.approvalProgress,approvalPlayers:m.approvalPlayers,
+   liveStage:m.liveStage,participantAName:m.participantAName,participantBName:m.participantBName,approvalProgress:m.approvalProgress,approvalPlayers:m.approvalPlayers,
    exemptPlayers:m.exemptPlayers,disputes:m.disputes,results:m.results,
    manuallyCalledAt:m.manuallyCalledAt}))});
 }
@@ -12999,7 +12999,7 @@ function v30AdminEnablePoll(){
  if(!tid||!snap?.data?.enabled)return;
  v30AdminLiveInterval=setInterval(async()=>{
   const host=document.getElementById('arenaLobbiesAdmin');
-  if(v30AdminPollBusy||document.visibilityState!=='visible'||
+  if(v30AdminPollBusy||wzLiveAdminBusy||document.visibilityState!=='visible'||
      wz41Panel!=='lobbies'||!document.getElementById('section-tournaments')?.classList.contains('active')||
      !host?.getClientRects().length)return;
   if(String(document.getElementById('tournamentSelect')?.value||'')!==String(tid)){
@@ -13013,8 +13013,9 @@ function v30AdminEnablePoll(){
    const next=v3113Fingerprint(latest);
    const prev=v3113LiveSnapshots.get(String(tid));
    if(next!==prev){
-    const editing=host.contains(document.activeElement)&&
-       ['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName);
+    const editing=(host.contains(document.activeElement)&&
+       ['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))||
+       !!host.querySelector('input[id^="wzlive-"]:focus')||[...host.querySelectorAll('input[id^="wzlive-"]')].some(el=>el.value!=='');
     if(!editing){v30AdminRender(latest,tid);v30AdminEnablePoll();}
     // If an editor is focused, defer repaint (never erase a referee's score).
    }else{
@@ -13120,6 +13121,23 @@ function wz30656AdminMatchTeamName(m,side,bracket){
   };
   return good(m?.[key])||good(bracket?.[key])||'Takım adı bulunamadı';
 }
+function wzLiveScoreText(raw){try{const r=typeof raw==='string'?JSON.parse(raw):raw;return r?.scoreA!=null&&r?.scoreB!=null?`${r.scoreA} - ${r.scoreB}`:String(r?.score||'');}catch(_){return '';}}
+let wzLiveAdminBusy=false;
+async function wzLiveMatchAdmin(key,action,button){
+ if(wzLiveAdminBusy)return;
+ const tournamentId=document.getElementById('tournamentSelect')?.value||'',matchId=decodeURIComponent(key);
+ const body={tournamentId,matchId,action};
+ if(action==='score'){
+  body.scoreA=String(document.getElementById('wzlive-a-'+key)?.value??'').trim();body.scoreB=String(document.getElementById('wzlive-b-'+key)?.value??'').trim();
+  if(!/^\d{1,2}$/.test(body.scoreA)||!/^\d{1,2}$/.test(body.scoreB)||Number(body.scoreA)===Number(body.scoreB))return alert('İki geçerli ve eşit olmayan skor gir.');
+ }
+ if(!confirm(action==='start'?'Bu maçı başlat?':action==='finish'?'Maçı bitirip sonuç girişini aç?':'Skoru kesinleştir: '+body.scoreA+' - '+body.scoreB+'?'))return;
+ wzLiveAdminBusy=true;button.disabled=true;
+ try{const {r,d}=await api('/admin/tournament/live-match',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok||!d?.success)throw Error(d?.error||'İşlem başarısız.');
+ if(document.getElementById('tournamentSelect')?.value===tournamentId){if(action==='score')await loadTournamentBracket(true);await loadArenaLobbiesAdmin(tournamentId);}}
+ catch(e){alert('Canlı maç: '+e.message+' · Yenileyip durumu kontrol et.');}
+ finally{wzLiveAdminBusy=false;button.disabled=false;}
+}
 function v30AdminRender(d,tid){
  const host=document.getElementById('arenaLobbiesAdmin');if(!host)return;
  const status=document.getElementById('arenaLobbiesRefreshStatus');
@@ -13135,11 +13153,15 @@ function v30AdminRender(d,tid){
      const bracket=names.get(String(m.id))||{};
      const a=wz30656AdminMatchTeamName(m,'a',bracket);
      const b=wz30656AdminMatchTeamName(m,'b',bracket);
-     const stage=String(m.status||'ready')==='completed'?'✅ Tamamlandı':'📺 Fikstür açık';
-     return `<div class="tournamentTeamCard" style="margin:7px 0">🏆 ${Number(m.round_number)}. Tur · ${esc(wz44No(m))} · <strong>${esc(String(a))} vs ${esc(String(b))}</strong><div class="muted">${stage}</div></div>`;
+     const phase=m.status==='completed'?'completed':m.liveStage||'waiting';
+     const stage=({completed:'✅ Tamamlandı',playing:'🟢 Maç oynanıyor',result_pending:'🟡 Maç bitti · Sonuç bekleniyor',finalizing:'⏳ Sonuç işleniyor / kontrol gerekli',waiting:'⚪ Maç bekliyor'})[phase];
+     const key=encodeURIComponent(String(m.id)).replace(/'/g,'%27');
+     const can=!!d.startedAt&&d.runMode==='live'&&m.status==='ready';
+     const controls=!can?'':phase==='waiting'?`<button type="button" class="smallBtn" onclick="wzLiveMatchAdmin('${key}','start',this)">▶ Maçı Başlat</button>`:phase==='playing'?`<button type="button" class="smallBtn warn" onclick="wzLiveMatchAdmin('${key}','finish',this)">🏁 Maçı Bitir</button>`:phase==='result_pending'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:9px 0"><label>${esc(a)}<input id="wzlive-a-${key}" type="number" min="0" max="99" inputmode="numeric"></label><label>${esc(b)}<input id="wzlive-b-${key}" type="number" min="0" max="99" inputmode="numeric"></label></div><button type="button" class="success" onclick="wzLiveMatchAdmin('${key}','score',this)">✓ Skoru Onayla</button>`:'';
+     return `<div class="tournamentTeamCard" style="margin:7px 0">🏆 ${Number(m.round_number)}. Tur · ${esc(wz44No(m))} · <strong>${esc(String(a))} vs ${esc(String(b))}</strong><div class="muted">${stage}</div>${phase==='completed'&&m.result_json?`<div class="muted">${esc(wzLiveScoreText(m.result_json))}</div>`:''}${controls}</div>`;
    }).join('');
    const startText=d.startedAt?'Turnuva başlatıldı: '+esc(new Date(d.startedAt).toLocaleString('tr-TR')):'Turnuva başlangıç saati beklenecek.';
-   const actions=`<div style="margin:10px 0;padding:12px;border:1px solid #6b4a22;border-radius:10px;background:#1b1410"><strong>📺 Canlı Yayın Turnuvası</strong><p class="muted">Oyunculara AFK lobi mesajı gönderilmeyecek. Kayıtlar tamamlanınca turnuva saati hatırlatılacak; başlangıçta da ayrı Turnuva Başladı mesajı gidecek. Fikstür ve tahminler WEİZEND ARENA'da açık kalacak. Skorları mevcut Fikstür / Maç Sonucu yönetiminden gir.</p></div>`;
+   const actions=`<div style="margin:10px 0;padding:12px;border:1px solid #6b4a22;border-radius:10px;background:#1b1410"><strong>📺 Canlı Yayın Turnuvası</strong><p class="muted">Oyunculara AFK lobi mesajı gönderilmeyecek. Kayıtlar tamamlanınca turnuva saati hatırlatılacak; başlangıçta da ayrı Turnuva Başladı mesajı gidecek. Fikstür ve tahminler WEİZEND ARENA'da açık kalacak. Canlı başlattıktan sonra maçları buradan başlat, bitir ve skorunu onayla.</p></div>`;
    host.innerHTML=wz30653AdminRoster(d)+actions+`<div class="inlineActions">${v303AdminStartButtons(d)}</div><p class="muted">${startText}</p>`+ (entries?`<div class="wz45-lobby-rows">${entries}</div>`:'<div class="tournamentEmpty">Fikstür henüz oluşmadı. Kayıtlar ve kadrolar tamamlanınca otomatik oluşturulacak.</div>');
    if(status)status.textContent=`✅ Canlı yayın turnuvası · ${matches.length} fikstür maçı · oyuncu lobileri kapalı`;
    return;
