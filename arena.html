@@ -97,6 +97,26 @@ main{width:min(1360px,100%);padding:18px 16px 55px;margin:auto}.hero{background:
 .bracket-viewport{overflow-x:auto;scrollbar-color:#872b2b #111}.rounds{display:flex;gap:12px;min-width:max-content;padding:4px 2px 13px}.round{width:214px;flex:none;display:flex;flex-direction:column}.round h3{padding:7px 10px;border-left:3px solid var(--red);background:#210f0f;margin:0 0 9px;font-size:12px}.round-matches{display:flex;flex-direction:column;justify-content:space-around;gap:11px;flex:1;min-height:315px}.match{width:100%;background:#171717;border:1px solid #393939;border-radius:10px;color:#fff;padding:10px;text-align:left;display:grid;gap:5px;min-height:80px}.match:hover,.match.active{border-color:var(--red)}.match-head{display:flex;justify-content:space-between;gap:4px;color:#aaa;font-size:10px}.side{display:flex;justify-content:space-between;gap:5px;font-weight:750;font-size:12px;overflow-wrap:anywhere}.side.winner{color:var(--green)}.side.predicted:not(.winner){color:var(--gold)}.side span{flex-shrink:0}.empty{border:1px dashed #404040;color:#aaa;border-radius:10px;background:#0c0c0c;text-align:center;padding:25px 14px}.match-focus{border:1px solid #3d3d3d;border-radius:10px;padding:12px;background:#0e0e0e;margin:7px 0}.focus-title{font-size:15px;font-weight:900;margin-bottom:9px;overflow-wrap:anywhere}.focus-line{color:#bbb;font-size:12px}.choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.choose{padding:12px 10px;border:1px solid #474747;background:#1e1e1e;border-radius:10px;color:white;font-weight:850;overflow-wrap:anywhere}.choose.selected{background:#462020;border-color:#ff5353;color:#fff}.choose:hover:not(:disabled){border-color:#f55}.pick-status{font-size:12px;color:#b9b9b9;margin:8px 0}.pick-status b{color:#fff}.btn{background:var(--red);border:1px solid var(--red);color:#fff;border-radius:9px;font-weight:900;padding:10px 12px}.btn.secondary{background:#1b1b1b;border-color:#3d3d3d}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:9px;margin:12px 0}.small{font-size:11px;color:#aaa}.members{display:grid;gap:8px}.member{border:1px solid #373737;background:#161616;border-radius:9px;padding:9px 11px}.member strong{display:block}.member small{display:block;color:#a9a9a9;margin-top:3px;overflow-wrap:anywhere}.leaderboard{width:100%;border-collapse:collapse}.leaderboard th,.leaderboard td{border-bottom:1px solid #343434;padding:8px 4px;text-align:left;font-size:12px}.leaderboard th{color:#aaa}.count{font-variant-numeric:tabular-nums}.footer{text-align:center;color:#777;margin-top:23px;font-size:11px}.skeleton{height:10px;margin:11px 0;background:linear-gradient(90deg,#222,#383838,#222);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:10px}@keyframes shimmer{to{background-position:-200% 0}}@media(max-width:960px){.grid{grid-template-columns:1fr}.round{width:200px}.round-matches{min-height:300px}}@media(max-width:520px){main{padding:12px 10px 45px}.panel{padding:12px}.hero{padding:15px}.brand strong{font-size:16px}.brand-logo{width:37px;height:37px;font-size:20px}.return{padding:9px 10px;font-size:12px}}
 
 
+/* WEIZEND 21.11 Arena sonuç / ödül sunumu. Yalnızca ön yüz. */
+.wz-award-finished{margin-top:14px;padding:14px 16px;border:1px solid #348353;border-radius:12px;background:linear-gradient(110deg,#143624,#11251a);color:#b8ffd4;font-size:17px;font-weight:950;letter-spacing:.015em}
+.wz-award-finished small{display:block;margin-top:3px;font-weight:600;font-size:12px;color:#d2ebd9;letter-spacing:0}
+.wz-awards{margin-top:15px;padding:15px;border:1px solid #73542b;border-radius:13px;background:linear-gradient(110deg,#211711,#171417)}
+.wz-awards h2{margin:0 0 12px;font-size:17px;color:#ffe0a3}
+.wz-award-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.wz-award-card{min-width:0;border:1px solid #51443c;border-radius:11px;padding:12px;background:#17171c}
+.wz-award-card.first{border-color:#be923c;background:linear-gradient(145deg,#302213,#191719)}
+.wz-award-card.second{border-color:#858e9b}
+.wz-award-card.third{border-color:#906347}
+.wz-award-card.prediction{border-color:#7664a5}
+.wz-award-label{font-size:11px;font-weight:900;letter-spacing:.04em;color:#ffdc9a}
+.wz-award-prize{font-size:15px;font-weight:900;color:#fff;margin:7px 0;overflow-wrap:anywhere;white-space:pre-wrap}
+.wz-award-name{padding-top:8px;margin-top:9px;border-top:1px solid #494044;color:#a5f5bd;font-size:12px;font-weight:850;overflow-wrap:anywhere}
+.wz-award-name.pending{color:#b5b2bb;font-weight:650}
+.wz-award-roster{margin-top:5px;color:#bdc3d0;font-size:11px;overflow-wrap:anywhere;white-space:normal}
+.wz-award-footnote{margin:10px 0 0!important;color:#c9bba8!important;font-size:11px}
+@media(max-width:980px){.wz-award-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:500px){.wz-awards{padding:11px}.wz-award-cards{grid-template-columns:1fr;gap:8px}.wz-award-card{padding:10px}.wz-award-prize{font-size:14px}}
+
 /* V30.6.39 — Ayrı MAÇLAR ve TAHMİNLER fikstürü; sunucu onaylı skorlar. */
 .wz-fixture-tabs{display:flex;gap:8px;padding:5px;background:#111115;border:1px solid #34343c;border-radius:12px;margin:0 0 12px}
 .wz-fixture-tab{flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:9px;color:#bcbcc3;padding:11px 10px;font-size:13px;font-weight:900;letter-spacing:.025em}
@@ -452,7 +472,11 @@ html,body{overscroll-behavior-y:auto}
 <a id="wzArenaReturnToDetails" class="wz-market-account wz-arena-return" href="./" title="Bu turnuvanın detaylarına geri dön"><span class="wz-account-avatar wz-arena-return-arrow" aria-hidden="true">←</span><span class="wz-account-copy"><b>Turnuva Detaylarına</b><small>Geri Dön</small></span></a>
 </div></header>
 <main>
-<section class="hero"><div class="eyebrow">🏆 WEİZEND ARENA</div><h1 id="tournamentTitle">Turnuva bilgileri hazırlanıyor</h1><p id="tournamentSubtitle">Katılımcılar, fikstür, maç sonuçları ve tahminler tek yerde.</p><div class="stats" id="stats"></div></section>
+<section class="hero"><div class="eyebrow">🏆 WEİZEND ARENA</div><h1 id="tournamentTitle">Turnuva bilgileri hazırlanıyor</h1><p id="tournamentSubtitle">Katılımcılar, fikstür, maç sonuçları ve tahminler tek yerde.</p><div class="stats" id="stats"></div>
+  <!-- Yalnızca sunucu tarafından doğrulanmış sonuçları gösteren ödül panosu. -->
+  <div id="wzAwardFinished" class="wz-award-finished" role="status" hidden>🏆 TURNUVA TAMAMLANDI <small>Tüm karşılaşmalar sonuçlandı.</small></div>
+  <section id="wzAwardBoard" class="wz-awards" aria-label="Turnuva ödülleri" hidden><h2>🏅 Turnuva Ödülleri ve Dereceler</h2><div id="wzAwardCards" class="wz-award-cards"></div><p id="wzAwardFootnote" class="wz-award-footnote" hidden></p></section>
+</section>
 <section id="arenaVerificationGuide" class="arena-verify-guide" role="region" aria-labelledby="arenaVerificationGuideTitle" hidden>
   <div class="arena-verify-guide-head"><span aria-hidden="true">🔐</span><strong id="arenaVerificationGuideTitle">Tahmin Yapmak İçin Kick Hesabını Doğrula</strong></div>
   <p id="arenaVerificationGuideIntro">Fikstürü herkes inceleyebilir. Ancak tahminlerini kaydetmek ve ödül yarışmasına katılmak için WEİZEND Market üzerinden Kick hesabını doğrulamalısın.</p>
@@ -604,6 +628,63 @@ function wz3114TournamentComplete(){
     || mains.find(m=>Number(m.roundNumber||0)===last);
   return !!final && String(final.status||'').toLowerCase()==='completed' && !!final.winnerId
     && matches.every(m=>['completed','bye'].includes(String(m.status||'').toLowerCase()));
+}
+// Sadece public turnuva özetini ve kesinleşmiş maç sonuçlarını okur.
+// Ödeme, skor, tahmin ya da turnuva kaydı üzerinde yazma işlemi YOKTUR.
+function wzAwardIdentity(participantId, fallback=''){
+ const d=state.detail||{},id=String(participantId||'');
+ if(!id)return {label:String(fallback||''),roster:''};
+ const team=(d.teams||[]).find(x=>String(x.id)===id);
+ if(team){const members=(team.members||[]).map(x=>String(x.username||'').trim()).filter(Boolean);
+  return {label:String(team.name||fallback||'Takım'),roster:members.join(' • ')};}
+ const person=(d.participants||[]).find(x=>String(x.id)===id);
+ if(person)return {label:String(person.username||fallback||'Oyuncu'),roster:String(person.riotId||person.gameId||'')};
+ return {label:String(fallback||nameFor(id)||'Oyuncu'),roster:''};
+}
+function wzAwardRender(){
+ const d=state.detail,t=d?.tournament||state.t||{},host=$('wzAwardBoard'),cards=$('wzAwardCards'),finish=$('wzAwardFinished');
+ if(!host||!cards||!finish)return;
+ if(!d){host.hidden=true;finish.hidden=true;return;}
+ const done=wz3114TournamentComplete();finish.hidden=!done;
+ const all=Array.isArray(d.matches)?d.matches:[];
+ const mains=all.filter(m=>(m.matchKind||'main')==='main');
+ const last=Math.max(0,...mains.map(m=>Number(m.roundNumber||0)));
+ const final=mains.find(m=>Number(m.roundNumber||0)===last&&Number(m.matchNumber||0)===1)||mains.find(m=>Number(m.roundNumber||0)===last);
+ const finalDone=!!final&&String(final.status||'').toLowerCase()==='completed'&&!!final.winnerId;
+ const winner=finalDone?wzAwardIdentity(final.winnerId,final.winnerName||''):null;
+ const loserId=finalDone?[final.participantAId,final.participantBId].find(id=>id&&String(id)!==String(final.winnerId)):null;
+ const runner=loserId?wzAwardIdentity(loserId,String(loserId)===String(final.participantAId)?final.participantAName:final.participantBName):null;
+ const third=all.find(m=>String(m.matchKind||'')==='third_place');
+ const thirdDone=!!third&&String(third.status||'').toLowerCase()==='completed'&&!!third.winnerId;
+ const bronze=thirdDone?wzAwardIdentity(third.winnerId,third.winnerName||''):null;
+ const rankRows=(state.pred?.leaderboard||[]).filter(r=>r&&Number(r.rank)===1);
+ const scoreTop=rankRows[0]&&Number(rankRows[0].score);
+ const leaders=rankRows.length?rankRows:(state.pred?.leaderboard||[]).filter(r=>Number.isFinite(scoreTop)&&Number(r.score)===scoreTop);
+ const uniqLeader=done&&leaders.length===1&&String(leaders[0].username||'').trim();
+ const predictionLeader=uniqLeader?'Sıralama lideri: '+String(leaders[0].username):done&&leaders.length>1?'Sıralamada eşitlik var — ödül sahibi henüz kesin değil':done?'Tahmin ödülü sonucu bekleniyor':'Turnuva sona erdiğinde gösterilecek';
+ const configured=[t.firstPrize,t.secondPrize,t.thirdPrize,t.predictionPrize].some(x=>String(x||'').trim());
+ // Ödül tanımlanmamış olsa bile kesinleşmiş derece kazananları görüntülenebilir.
+ host.hidden=!configured&&!finalDone&&!done;
+ if(host.hidden){cards.replaceChildren();return;}
+ const rows=[
+  {cls:'first',label:'🥇 1. ÖDÜL',value:t.firstPrize,owner:winner},
+  {cls:'second',label:'🥈 2. ÖDÜL',value:t.secondPrize,owner:runner},
+ ];
+ if(t.thirdPlaceEnabled===true||t.thirdPlaceEnabled===1||!!third||String(t.thirdPrize||'').trim())rows.push({cls:'third',label:'🥉 3. ÖDÜL',value:t.thirdPrize,owner:bronze});
+ if(String(t.predictionPrize||'').trim())rows.push({cls:'prediction',label:'🎯 EN İYİ TAHMİN',value:t.predictionPrize,owner:null,pred:predictionLeader});
+ const frag=document.createDocumentFragment();
+ for(const item of rows){
+  const card=document.createElement('article');card.className='wz-award-card '+item.cls;
+  const head=document.createElement('div');head.className='wz-award-label';head.textContent=item.label;
+  const value=document.createElement('div');value.className='wz-award-prize';value.textContent=String(item.value||'Ödül belirtilmedi');
+  const who=document.createElement('div');who.className='wz-award-name'+(item.owner?'':' pending');
+  who.textContent=item.pred|| (item.owner?.label? '👤 '+item.owner.label:(done?'Derece sonucu henüz doğrulanamadı':'Sonuç bekleniyor'));
+  card.append(head,value,who);
+  if(item.owner?.roster){const roster=document.createElement('div');roster.className='wz-award-roster';roster.textContent=item.owner.roster;card.append(roster);}
+  frag.append(card);
+ }
+ cards.replaceChildren(frag);
+ const note=$('wzAwardFootnote');if(note){const team=Number(t.teamSize||1)>1;note.hidden=!team;note.textContent=team?'Takımlı turnuvada derece ödülleri, yönetici kurallarına göre takım oyuncuları için geçerlidir.':'';}
 }
 function renderHero(){const t=state.t||{},loaded=!!state.detail;$('tournamentTitle').textContent=loaded?t.name||t.gameName||'Turnuva':'Turnuva bilgileri hazırlanıyor';$('tournamentSubtitle').textContent=loaded?`${t.gameName||'Oyun'} • ${t.mode==='solo'?'Solo':(t.teamSize||'?')+'v'+(t.teamSize||'?')} • ${t.bestOf||'BO1'}`:'Katılımcılar, fikstür, maç sonuçları ve tahminler tek yerde.';
  $('stats').innerHTML=loaded?`<span class="tag">${esc(t.gameName||'Oyun')}</span><span class="tag">${esc(t.bestOf||'BO1')}</span><span class="tag">${Number(t.registeredCount||0)} / ${Number(t.capacity||0)} ${t.mode==='solo'?'oyuncu':'takım'}</span><span class="tag ${wz3114TournamentComplete()?'wz3114-completed':'red'}">${wz3114TournamentComplete()?'🏆 TURNUVA TAMAMLANDI · Tüm maçlar sonuçlandı':t.earlyMatchStarted&&t.manualMatchMode==='manual'?'Maçlar Erken Başladı · Tahminler Kilitli':state.detail.matches.length?'Fikstür Yayında':'Fikstür Bekleniyor'}</span>`:'';}
@@ -1582,7 +1663,7 @@ async function lobbyReview(kind,data){
 $('lobbyRefresh').addEventListener('click',loadLobby);
 $('v30ActiveMatch').addEventListener('click',()=>{const id=sessionStorage.getItem('wz_v30_active_match_'+tid)||lobbySelected;if(id){const found=(state.detail?.matches||[]).find(m=>m.id===id);if(found){state.selected=id;renderBracket();renderMatch();openInvitationRoom();}else toast('Aktif maçın henüz fikstürde görünmüyor.','error');}});
 
-function renderAll(){renderLobby();renderHero();renderPredictionAward();renderBracket();renderParticipants();renderMatch();renderBoard();}
+function renderAll(){renderLobby();renderHero();renderPredictionAward();wzAwardRender();renderBracket();renderParticipants();renderMatch();renderBoard();}
 function cachePublic(){try{sessionStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),detail:state.detail}));}catch{}}
 function restorePublic(){
  // Yenilemede eski isimleri bir an gösterip sunucu cevabıyla değiştirme.
@@ -1710,14 +1791,14 @@ setInterval(()=>{void wzCheckPredictionLock()},60000);
 // Visible live fixture: read-only polling; no match actions or AFK changes.
 let wzLiveReadBusy=false,wzLiveLastRead=0,wzLivePredRetry=false;
 async function wzLiveRead(){
- if(wzLiveReadBusy||document.hidden||state.loading||state.saving||!state.detail||!state.t?.broadcastEnabled||!state.detail.matches?.length||(!wzLivePredRetry&&state.detail.matches.every(m=>['completed','bye'].includes(m.status))))return;
+ if(wzLiveReadBusy||document.hidden||state.loading||state.saving||!state.detail||!state.t?.broadcastEnabled||!state.detail.matches?.length||(!wzLivePredRetry&&String(state.t.lifecycleStatus||'')==='completed'&&state.detail.matches.every(m=>['completed','bye'].includes(m.status))))return;
  if(!$('roomDialog').hidden)return;
  if(state.t.lifecycleStatus!=='in_progress'&&Date.now()-wzLiveLastRead<28000)return;
  const base=state.detail,predBase=state.pred,authToken=token();wzLiveReadBusy=true;wzLiveLastRead=Date.now();
  try{
   const detail=await api('/tournament/public?id='+encodeURIComponent(tid));
   if(state.loading||state.saving||state.detail!==base||state.pred!==predBase||token()!==authToken||detail?.tournament?.id!==tid)return;
-  if(!wzLivePredRetry&&JSON.stringify(detail.matches)===JSON.stringify(base.matches)&&detail.tournament.lifecycleStatus===base.tournament.lifecycleStatus&&detail.tournament.broadcastEnabled===base.tournament.broadcastEnabled)return;
+  if(!wzLivePredRetry&&JSON.stringify(detail.matches)===JSON.stringify(base.matches)&&JSON.stringify(detail.tournament)===JSON.stringify(base.tournament))return;
   // Load updated standings and locks after an actual match change.
   let p=null;try{p=await api('/tournament/predictions'+(state.authed?'/me':'')+'?id='+encodeURIComponent(tid),state.authed);}catch(_){/* scores can still be displayed */}
   if(state.loading||state.saving||state.detail!==base||state.pred!==predBase||token()!==authToken)return;
