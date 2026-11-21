@@ -13126,18 +13126,44 @@ function wz30656AdminMatchTeamName(m,side,bracket){
 }
 function wzLiveScoreText(raw){try{const r=typeof raw==='string'?JSON.parse(raw):raw;return r?.scoreA!=null&&r?.scoreB!=null?`${r.scoreA} - ${r.scoreB}`:String(r?.score||'');}catch(_){return '';}}
 let wzLiveAdminBusy=false;
+function wzLiveAskLobbyCode(matchName){
+ return new Promise(resolve=>{
+  const overlay=document.createElement('div');overlay.id='wzLiveLobbyCodeOverlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:2147483640;background:rgba(0,0,0,.86);display:grid;place-items:center;padding:16px';
+  const panel=document.createElement('form');panel.style.cssText='width:min(460px,100%);max-height:90dvh;overflow:auto;background:#15171f;color:white;border:1px solid #565b67;border-radius:16px;padding:22px;box-shadow:0 25px 80px #000';
+  const title=document.createElement('h3');title.textContent='🎮 Canlı Maç — Lobi Kodu';title.style.margin='0 0 12px';
+  const info=document.createElement('p');info.textContent=(matchName||'Seçili maç')+' için lobi kodunu gir. Maç başladıktan sonra iki takımın kayıtlı oyuncularına ayrı ayrı mesaj gönderilecek.';info.style.cssText='line-height:1.5;color:#c8cbd4';
+  const input=document.createElement('input');input.type='text';input.required=true;input.minLength=3;input.maxLength=60;input.autocomplete='off';input.spellcheck=false;input.placeholder='Örn: ABC-123';input.setAttribute('aria-label','Valorant lobi kodu');
+  const note=document.createElement('p');note.textContent='Bu kod, sadece seçilen maçın oyuncularının WEİZEND mesaj kutusuna gönderilir.';note.style.cssText='font-size:12px;color:#bbb;line-height:1.4';
+  const buttons=document.createElement('div');buttons.style.cssText='display:flex;gap:10px;margin-top:14px';
+  const cancel=document.createElement('button');cancel.type='button';cancel.className='secondary';cancel.textContent='Vazgeç';
+  const send=document.createElement('button');send.type='submit';send.textContent='▶ Maçı Başlat ve Kodu Gönder';
+  buttons.append(cancel,send);panel.append(title,info,input,note,buttons);overlay.append(panel);document.body.append(overlay);
+  let done=false;const close=value=>{if(done)return;done=true;overlay.remove();document.removeEventListener('keydown',escKey);resolve(value)};
+  const escKey=e=>{if(e.key==='Escape'){e.preventDefault();close(null)}};document.addEventListener('keydown',escKey);
+  cancel.onclick=()=>close(null);overlay.addEventListener('click',e=>{if(e.target===overlay)close(null)});
+  panel.addEventListener('submit',e=>{e.preventDefault();const code=input.value.trim();if(code.length<3||code.length>60||/[\u0000-\u001f\u007f]/.test(code)){alert('Geçerli bir lobi kodu gir (3–60 karakter).');return;}close(code)});
+  input.focus();
+ });
+}
 async function wzLiveMatchAdmin(key,action,button){
  if(wzLiveAdminBusy)return;
  const tournamentId=document.getElementById('tournamentSelect')?.value||'',matchId=decodeURIComponent(key);
  const body={tournamentId,matchId,action};
+ if(action==='start'){
+  const matchName=button.closest('.tournamentTeamCard')?.querySelector('strong')?.textContent||'';
+  const lobbyCode=await wzLiveAskLobbyCode(matchName);
+  if(lobbyCode===null)return;
+  body.lobbyCode=lobbyCode;
+ }
  if(action==='score'){
   body.scoreA=String(document.getElementById('wzlive-a-'+key)?.value??'').trim();body.scoreB=String(document.getElementById('wzlive-b-'+key)?.value??'').trim();
   if(!/^\d{1,2}$/.test(body.scoreA)||!/^\d{1,2}$/.test(body.scoreB)||Number(body.scoreA)===Number(body.scoreB))return alert('İki geçerli ve eşit olmayan skor gir.');
  }
- if(!confirm(action==='start'?'Bu maçı başlat?':action==='finish'?'Maçı bitirip sonuç girişini aç?':'Skoru kesinleştir: '+body.scoreA+' - '+body.scoreB+'?'))return;
+ if(action!=='start'&&!confirm(action==='finish'?'Maçı bitirip sonuç girişini aç?':'Skoru kesinleştir: '+body.scoreA+' - '+body.scoreB+'?'))return;
  wzLiveAdminBusy=true;button.disabled=true;
  try{const {r,d}=await api('/admin/tournament/live-match',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok||!d?.success)throw Error(d?.error||'İşlem başarısız.');
- if(document.getElementById('tournamentSelect')?.value===tournamentId){if(action==='score')await loadTournamentBracket(true);await loadArenaLobbiesAdmin(tournamentId);}}
+ if(document.getElementById('tournamentSelect')?.value===tournamentId){if(action==='score')await loadTournamentBracket(true);await loadArenaLobbiesAdmin(tournamentId);}if(action==='start')alert(d.message||'Maç başladı. Lobi kodu mesajları oyunculara gönderiliyor.');}
  catch(e){alert('Canlı maç: '+e.message+' · Yenileyip durumu kontrol et.');}
  finally{wzLiveAdminBusy=false;button.disabled=false;}
 }
@@ -13164,7 +13190,7 @@ function v30AdminRender(d,tid){
      return `<div class="tournamentTeamCard" style="margin:7px 0">🏆 ${Number(m.round_number)}. Tur · ${esc(wz44No(m))} · <strong>${esc(String(a))} vs ${esc(String(b))}</strong><div class="muted">${stage}</div>${phase==='completed'&&m.result_json?`<div class="muted">${esc(wzLiveScoreText(m.result_json))}</div>`:''}${controls}</div>`;
    }).join('');
    const startText=d.startedAt?'Turnuva başlatıldı: '+esc(new Date(d.startedAt).toLocaleString('tr-TR')):'Turnuva başlangıç saati beklenecek.';
-   const actions=`<div style="margin:10px 0;padding:12px;border:1px solid #6b4a22;border-radius:10px;background:#1b1410"><strong>📺 Canlı Yayın Turnuvası</strong><p class="muted">Oyunculara AFK lobi mesajı gönderilmeyecek. Kayıtlar tamamlanınca turnuva saati hatırlatılacak; başlangıçta da ayrı Turnuva Başladı mesajı gidecek. Fikstür ve tahminler WEİZEND ARENA'da açık kalacak. Canlı başlattıktan sonra maçları buradan başlat, bitir ve skorunu onayla.</p></div>`;
+   const actions=`<div style="margin:10px 0;padding:12px;border:1px solid #6b4a22;border-radius:10px;background:#1b1410"><strong>📺 Canlı Yayın Turnuvası</strong><p class="muted">AFK sistemi devre dışıdır. Canlı maç başlatırken lobi kodu girilir ve o maçın oyuncularına mesaj gönderilir. Kayıtlar tamamlanınca turnuva saati hatırlatılacak; başlangıçta da ayrı Turnuva Başladı mesajı gidecek. Fikstür ve tahminler WEİZEND ARENA'da açık kalacak. Canlı başlattıktan sonra maçları buradan başlat, bitir ve skorunu onayla.</p></div>`;
    host.innerHTML=wz30653AdminRoster(d)+actions+`<div class="inlineActions">${v303AdminStartButtons(d)}</div><p class="muted">${startText}</p>`+ (entries?`<div class="wz45-lobby-rows">${entries}</div>`:'<div class="tournamentEmpty">Fikstür henüz oluşmadı. Kayıtlar ve kadrolar tamamlanınca otomatik oluşturulacak.</div>');
    if(status)status.textContent=`✅ Canlı yayın turnuvası · ${matches.length} fikstür maçı · oyuncu lobileri kapalı`;
    return;
