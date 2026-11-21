@@ -112,7 +112,6 @@ main{width:min(1360px,100%);padding:18px 16px 55px;margin:auto}.hero{background:
 .wz-award-prize{font-size:15px;font-weight:900;color:#fff;margin:7px 0;overflow-wrap:anywhere;white-space:pre-wrap}
 .wz-award-name{padding-top:8px;margin-top:9px;border-top:1px solid #494044;color:#a5f5bd;font-size:12px;font-weight:850;overflow-wrap:anywhere}
 .wz-award-name.pending{color:#b5b2bb;font-weight:650}
-.wz-award-roster{margin-top:5px;color:#bdc3d0;font-size:11px;overflow-wrap:anywhere;white-space:normal}
 .wz-award-footnote{margin:10px 0 0!important;color:#c9bba8!important;font-size:11px}
 @media(max-width:980px){.wz-award-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:500px){.wz-awards{padding:11px}.wz-award-cards{grid-template-columns:1fr;gap:8px}.wz-award-card{padding:10px}.wz-award-prize{font-size:14px}}
@@ -475,7 +474,7 @@ html,body{overscroll-behavior-y:auto}
 <section class="hero"><div class="eyebrow">🏆 WEİZEND ARENA</div><h1 id="tournamentTitle">Turnuva bilgileri hazırlanıyor</h1><p id="tournamentSubtitle">Katılımcılar, fikstür, maç sonuçları ve tahminler tek yerde.</p><div class="stats" id="stats"></div>
   <!-- Yalnızca sunucu tarafından doğrulanmış sonuçları gösteren ödül panosu. -->
   <div id="wzAwardFinished" class="wz-award-finished" role="status" hidden>🏆 TURNUVA TAMAMLANDI <small>Tüm karşılaşmalar sonuçlandı.</small></div>
-  <section id="wzAwardBoard" class="wz-awards" aria-label="Turnuva ödülleri" hidden><h2>🏅 Turnuva Ödülleri ve Dereceler</h2><div id="wzAwardCards" class="wz-award-cards"></div><p id="wzAwardFootnote" class="wz-award-footnote" hidden></p></section>
+  <section id="wzAwardBoard" class="wz-awards" aria-label="Turnuva ödülleri" hidden><h2>🏅 Turnuva ve Tahmin Ödülleri</h2><div id="wzAwardCards" class="wz-award-cards"></div><p id="wzAwardFootnote" class="wz-award-footnote" hidden></p></section>
 </section>
 <section id="arenaVerificationGuide" class="arena-verify-guide" role="region" aria-labelledby="arenaVerificationGuideTitle" hidden>
   <div class="arena-verify-guide-head"><span aria-hidden="true">🔐</span><strong id="arenaVerificationGuideTitle">Tahmin Yapmak İçin Kick Hesabını Doğrula</strong></div>
@@ -633,13 +632,22 @@ function wz3114TournamentComplete(){
 // Ödeme, skor, tahmin ya da turnuva kaydı üzerinde yazma işlemi YOKTUR.
 function wzAwardIdentity(participantId, fallback=''){
  const d=state.detail||{},id=String(participantId||'');
- if(!id)return {label:String(fallback||''),roster:''};
- const team=(d.teams||[]).find(x=>String(x.id)===id);
- if(team){const members=(team.members||[]).map(x=>String(x.username||'').trim()).filter(Boolean);
-  return {label:String(team.name||fallback||'Takım'),roster:members.join(' • ')};}
+ if(!id)return {label:String(fallback||'')};
+ const t=d.tournament||state.t||{};
+ const teamMode=Number(t.teamSize||1)>1;
+ if(teamMode){
+  // Takımlı turnuvada kişi adı yerine kesinlikle takım kaydını tercih et.
+  const team=(d.teams||[]).find(x=>String(x.id)===id);
+  if(team)return {label:String(team.name||fallback||'Takım adı bekleniyor')};
+  // Eski API yanıtlarında takım listesi olmayabilir; maçtaki takım adını kullan.
+  const matching=(d.matches||[]).find(m=>[m.participantAId,m.participantBId,m.winnerId].some(x=>String(x||'')===id));
+  const matchedName=matching?(String(matching.participantAId||'')===id?matching.participantAName:
+   String(matching.participantBId||'')===id?matching.participantBName:matching.winnerName):'';
+  return {label:String(matchedName||fallback||'Takım adı bekleniyor')};
+ }
  const person=(d.participants||[]).find(x=>String(x.id)===id);
- if(person)return {label:String(person.username||fallback||'Oyuncu'),roster:String(person.riotId||person.gameId||'')};
- return {label:String(fallback||nameFor(id)||'Oyuncu'),roster:''};
+ if(person)return {label:String(person.username||fallback||'Oyuncu')};
+ return {label:String(fallback||nameFor(id)||'Oyuncu')};
 }
 function wzAwardRender(){
  const d=state.detail,t=d?.tournament||state.t||{},host=$('wzAwardBoard'),cards=$('wzAwardCards'),finish=$('wzAwardFinished');
@@ -661,7 +669,7 @@ function wzAwardRender(){
  const scoreTop=rankRows[0]&&Number(rankRows[0].score);
  const leaders=rankRows.length?rankRows:(state.pred?.leaderboard||[]).filter(r=>Number.isFinite(scoreTop)&&Number(r.score)===scoreTop);
  const uniqLeader=done&&leaders.length===1&&String(leaders[0].username||'').trim();
- const predictionLeader=uniqLeader?'Sıralama lideri: '+String(leaders[0].username):done&&leaders.length>1?'Sıralamada eşitlik var — ödül sahibi henüz kesin değil':done?'Tahmin ödülü sonucu bekleniyor':'Turnuva sona erdiğinde gösterilecek';
+ const predictionLeader=uniqLeader?String(leaders[0].username):done&&leaders.length>1?'Sıralamada eşitlik var — ödül sahibi henüz kesin değil':done?'Tahmin ödülü sonucu bekleniyor':'Turnuva sona erdiğinde gösterilecek';
  const configured=[t.firstPrize,t.secondPrize,t.thirdPrize,t.predictionPrize].some(x=>String(x||'').trim());
  // Ödül tanımlanmamış olsa bile kesinleşmiş derece kazananları görüntülenebilir.
  host.hidden=!configured&&!finalDone&&!done;
@@ -678,9 +686,9 @@ function wzAwardRender(){
   const head=document.createElement('div');head.className='wz-award-label';head.textContent=item.label;
   const value=document.createElement('div');value.className='wz-award-prize';value.textContent=String(item.value||'Ödül belirtilmedi');
   const who=document.createElement('div');who.className='wz-award-name'+(item.owner?'':' pending');
-  who.textContent=item.pred|| (item.owner?.label? '👤 '+item.owner.label:(done?'Derece sonucu henüz doğrulanamadı':'Sonuç bekleniyor'));
+  const teamPrize=Number(t.teamSize||1)>1;
+  who.textContent=item.pred|| (item.owner?.label? (teamPrize?'👥 Takım: ':'👤 ')+item.owner.label:(done?'Derece sonucu henüz doğrulanamadı':'Sonuç bekleniyor'));
   card.append(head,value,who);
-  if(item.owner?.roster){const roster=document.createElement('div');roster.className='wz-award-roster';roster.textContent=item.owner.roster;card.append(roster);}
   frag.append(card);
  }
  cards.replaceChildren(frag);
