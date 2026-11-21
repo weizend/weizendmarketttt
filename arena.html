@@ -685,7 +685,7 @@ function wzAwardRender(){
   const card=document.createElement('article');card.className='wz-award-card '+item.cls;
   const head=document.createElement('div');head.className='wz-award-label';head.textContent=item.label;
   const value=document.createElement('div');value.className='wz-award-prize';value.textContent=String(item.value||'Ödül belirtilmedi');
-  const who=document.createElement('div');who.className='wz-award-name'+(item.owner?'':' pending');
+  const who=document.createElement('div');who.className='wz-award-name'+(item.owner||(item.cls==='prediction'&&!!uniqLeader)?'':' pending');
   const teamPrize=Number(t.teamSize||1)>1;
   who.textContent=item.pred|| (item.owner?.label? (teamPrize?'👥 Takım: ':'👤 ')+item.owner.label:(done?'Derece sonucu henüz doğrulanamadı':'Sonuç bekleniyor'));
   card.append(head,value,who);
