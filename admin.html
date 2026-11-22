@@ -2864,7 +2864,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
               <option value="10">×10 — Toplam 10 hak</option>
             </select>
           </label>
-          <p class="muted">Aktif çekilişte bağlantı adreslerini ve abone şansını güncelleyebilirsin. Mevcut katılımcıların görevleri geriye dönük değişmez; abone şansını değiştirirsen henüz yapılmamış kura için herkesin olasılıkları yeniden hesaplanır. Başlangıç tarihi katılımcı varken değiştirilmez; bitiş tarihi yalnızca uzatılır. Bu tür değişiklikleri katılımcılara duyur. Verilmiş Gift hakları silinmez.</p>
+          <p class="muted">Aktif çekilişte bağlantı adreslerini ve abone şansını güncelleyebilirsin. Mevcut katılımcıların görevleri geriye dönük değişmez; abone şansını değiştirirsen henüz yapılmamış kura için herkesin olasılıkları yeniden hesaplanır. Katılımcı bulunsa veya daha önce çıkarılmış katılımcı kaydı saklansa bile aktif çekilişin başlangıç ve bitiş tarihini değiştirebilirsin. Bitiş tarihi gelecekte ve başlangıçtan sonra olmalıdır. Tarih değişikliklerini katılımcılara duyur; biletler, eski katılım kayıtları ve verilmiş Gift hakları korunur.</p>
           <div class="wzg-row">
             <button type="button" id="wzg2EditSave" onclick="wzg2SaveLiveEdit()">💾 Değişiklikleri Kaydet</button>
             <button type="button" class="secondary" onclick="wzg2CloseLiveEdit()">Vazgeç</button>
@@ -14905,9 +14905,10 @@ function wzg2OpenLiveEdit(c){
   const dates=wzg136AdminDates(c);
   if(!c||!['active','closed','drawn'].includes(c.status))return;
   const now=Date.now(),startMs=dates.startAt?Date.parse(dates.startAt):NaN,endMs=Date.parse(c.end_at||dates.endAt||'');
+  // entry_count includes removed participants kept for audit; it is not today's active roster.
   const hasEntries=Number(c.entry_count||0)>0;
   const fullEdit=c.status==='active'&&!hasEntries&&(dates.pending||!Number.isFinite(startMs)||startMs>now);
-  const canEditStart=c.status==='active'&&!hasEntries;
+  const canEditStart=c.status==='active';
   wzg2EditCampaign={...c,__fullEdit:fullEdit,__canEditStart:canEditStart};
   let storedLinks={};try{storedLinks=JSON.parse(c.conditions_json||'{}').socialLinks||{}}catch(_){ }
   let storedConditions={};try{storedConditions=JSON.parse(c.conditions_json||'{}')}catch(_){ }
@@ -14934,7 +14935,7 @@ function wzg2OpenLiveEdit(c){
   });
   document.getElementById('wzg2EditContext').textContent=fullEdit
     ? 'Yayımlanmış çekiliş: '+c.title+' • Çekiliş numarası: '+c.id+' • Henüz katılım başlamadığı için tüm başlangıç ayarlarını düzenleyebilirsin.'
-    : 'Yayımlanmış çekiliş: '+c.title+' • Çekiliş numarası: '+c.id+' • '+(c.status==='drawn'?'Sonuçlandı.':c.status==='closed'?'Katılım kapandı.':'Katılım başladı.')+(c.status==='active'?' Mevcut görev adreslerini ve abone şansını güncelleyebilirsin. Katılımcı varsa başlangıç zamanı ve görev listesi sabit; bitiş yalnızca uzatılabilir. Abone hakkı değişirse henüz yapılmamış kura olasılıkları tüm katılımcılar için değişir.':' Tarihler ve kura sonuçları değiştirilemez.')+' Katılımcılar ve kazananlar korunur.';
+    : 'Yayımlanmış çekiliş: '+c.title+' • Çekiliş numarası: '+c.id+' • '+(c.status==='drawn'?'Sonuçlandı.':c.status==='closed'?'Katılım kapandı.':'Katılım başladı.')+(c.status==='active'?' Tarihleri katılımcı bulunsa da düzenleyebilirsin; katılım geçmişi ve biletler korunur. Sosyal görev listesi geçmiş katılımı olan çekilişte sabittir. Abone hakkı değişirse henüz yapılmamış kura olasılıkları tüm katılımcılar için değişir.':' Tarihler ve kura sonuçları değiştirilemez.')+' Katılımcılar ve kazananlar korunur.';
   document.getElementById('wzg2EditStatus').textContent='';
   const live=document.getElementById('wzgcLivePanel');if(live)live.hidden=false;
   const panel=document.getElementById('wzg2EditPanel');panel.hidden=false;
@@ -14987,9 +14988,8 @@ async function wzg2SaveLiveEdit(){
       if(!Number.isFinite(e)||e<=Date.now()||(Number.isFinite(s)&&e<=s)){
         status.textContent='❌ Bitiş tarihi gelecekte ve başlangıçtan sonra olmalı.';return;
       }
-      if(hasEntries&&e<Date.parse(wzg2EditCampaign.end_at)){
-        status.textContent='❌ Katılımcı varsa bitiş tarihi kısaltılamaz.';return;
-      }
+      // Tarih düzeltmesi katılım geçmişini değiştirmez. Sunucu da aynı
+      // başlangıç < bitiş ve bitiş > şimdi sınırlarını doğrular.
     }
   }
   const termsChanged=payload.title!==String(wzg2EditCampaign.title||'')||
@@ -15001,7 +15001,16 @@ async function wzg2SaveLiveEdit(){
   const warnings=[];
   if(termsChanged)warnings.push('Başlık/ödül bilgileri değişecek; katılımcılara duyurmalısın.');
   if(active&&weightChanged&&hasEntries)warnings.push('ÖNEMLİ: Abone hakkı '+oldWeight+' → '+payload.subscriberWeight+' olacak. Henüz yapılmamış kurada mevcut tüm katılımcıların kazanma olasılığı yeniden hesaplanacak.');
-  if(active&&hasEntries)warnings.push('Görev ekleme/kaldırma ve başlangıç tarihini değiştirme koruma gereği kapalıdır; yalnızca mevcut görev URL’leri düzeltilebilir.');
+  if(active&&hasEntries){
+    const oldDates=wzg136AdminDates(wzg2EditCampaign);
+    const changedStart=Number.isFinite(Date.parse(payload.start_at||''))&&Date.parse(payload.start_at)!==Date.parse(oldDates.startAt||'');
+    const changedEnd=Number.isFinite(Date.parse(payload.end_at||''))&&Date.parse(payload.end_at)!==Date.parse(oldDates.endAt||'');
+    if(changedStart||changedEnd){
+      warnings.push('⚠️ KATILIM GEÇMİŞİ OLAN ÇEKİLİŞTE TARİH DEĞİŞİYOR. Geçmiş biletler ve katılım hakları korunacak. Başlangıcı ileri almak yeni katılımları durdurabilir; bitişi öne almak katılım süresini kısaltır. Yeni tarihleri katılımcılara duyurmalısın.');
+      payload.confirmDateChange=true;
+    }
+    warnings.push('Geçmiş katılımcılar varsa görev ekleme/kaldırma kapalıdır; yalnızca mevcut görev URL’leri düzeltilebilir.');
+  }
   if(!confirm(warnings.length?warnings.join('\n\n')+'\n\nDeğişiklikleri kaydetmek istiyor musun?':
     'Çekilişin ayarları kaydedilsin mi?'))return;
   if(termsChanged)payload.confirmTermsChange=true;
@@ -15998,7 +16007,7 @@ function wzgcUpdateToolbar(c){
  const editableStatus=['active','closed','drawn'].includes(selected.status);
  const fullSettingsEditable=selected.status==='active'&&Number(selected.entry_count||0)===0&&(pending||start>now);
  edit.disabled=!editableStatus;
- edit.title=!editableStatus?'Kura sürerken veya iptal edilmiş çekiliş düzenlenemez.':fullSettingsEditable?'Katılım başlamadan önce tüm ayarları düzenleyebilirsin.':selected.status==='active'?'Aktif çekilişte mevcut bağlantı adresleri ve abone hakları güncellenebilir; abone hakkı değişikliği için ayrıca onay gerekir. Katılımcı varsa başlangıç sabit, bitiş yalnızca ileri alınır.':'Tamamlanmış veya kapalı çekilişte tarih, görev ve şans kuralları korunur.';
+ edit.title=!editableStatus?'Kura sürerken veya iptal edilmiş çekiliş düzenlenemez.':fullSettingsEditable?'Katılım başlamadan önce tüm ayarları düzenleyebilirsin.':selected.status==='active'?'Aktif çekilişte başlangıç ve bitiş tarihleri, geçmiş katılımcılar bulunsa da düzenlenebilir. Kaydedilmiş biletler korunur; tarih değişiklikleri için ayrıca onay gerekir.':'Tamamlanmış veya kapalı çekilişte tarih, görev ve şans kuralları korunur.';
  const roster=document.getElementById('wzgcActRoster');
  roster.disabled=selected.status==='cancelled';
  roster.title=roster.disabled?'İptal edilen çekiliş için katılımcı yönetimi kapalı.':'Sadece seçilen çekilişin katılımcılarını göster.';
