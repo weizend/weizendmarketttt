@@ -6028,7 +6028,7 @@ function renderSupportRewardEvents(){
        eventStatus==='pending_identity' && !hasAssignedGift);
     // Turnuvada kullanılmış kayıt da silinmez; yalnızca Admin listesinden gizlenir.
     const canDelete=usedCode || eventStatus==='cancelled' || eventStatus==='ignored_tournament' ||
-      (eventStatus==='code_issued' && giftStatus==='disabled');
+      (eventStatus==='code_issued' && ['disabled','expired'].includes(giftStatus));
     const codeLast4=String(item.redeem_code_last4||'').trim();
     // Full code is recovered only on the authenticated admin endpoint from
     // its original inbox delivery and SHA-256 checked against gift_codes.
@@ -16663,6 +16663,184 @@ async function wztgTest(){const el=document.getElementById('wztgConfigStatus');t
 async function wztgOpenMatchLink(){try{const p=new URLSearchParams(location.search),tid=p.get('tid'),mid=p.get('mid');if(!tid)return;await loadTournamentList();const sel=document.getElementById('tournamentSelect');if(!sel||![...sel.options].some(x=>x.value===tid))return;sel.value=tid;wz41ConfirmTournamentSwitch();await loadTournamentConfig();if(sel.value!==tid)return;if(mid){wz41OpenPanel('lobbies',false);await loadArenaLobbiesAdmin(tid);wz44OpenUrgentMatch(encodeURIComponent(mid));}else{wz41OpenPanel('bracket',false);}}catch(e){console.warn('Telegram admin link unavailable');}}
 function wztgRankAdmin(host,rows){const previous=host.querySelector('.wztg-rank-search');const oldScroll=host.querySelector('.wztg-rank-scroll')?.scrollTop||0;const oldQuery=previous?.value||'';const focused=document.activeElement===previous;if(!previous){host.innerHTML='<input class="wztg-rank-search" placeholder="Kick kullanıcı adı ara…" aria-label="Tahmin sıralamasında kullanıcı ara"><div class="wztg-rank-count"></div><div class="wztg-rank-scroll" tabindex="0" aria-label="Tahmin sıralaması"></div>';}const input=host.querySelector('.wztg-rank-search'),scroll=host.querySelector('.wztg-rank-scroll'),count=host.querySelector('.wztg-rank-count');const draw=(reset=false)=>{const top=reset?0:scroll.scrollTop;const q=input.value.trim().toLowerCase(),shown=rows.filter(r=>String(r.username||'').toLowerCase().includes(q));count.textContent=shown.length+' / '+rows.length+' katılımcı';scroll.innerHTML='<div class="tPredictionLeaderHead"><span>Sıra</span><span>Kullanıcı</span><span>Puan</span><span>Doğru</span></div>'+shown.map(row=>`<div class="tPredictionLeaderRow"><span>${['','🥇','🥈','🥉'][Number(row.rank)]||Number(row.rank)+'.'}</span><b title="${esc(row.username||'-')}">${esc(row.username||'-')}</b><strong>${Number(row.score||0)}</strong><span>${Number(row.correctCount||0)} / ${Number(row.scoredPicks||0)}</span></div>`).join('');scroll.scrollTop=top;};input.oninput=()=>draw(true);input.value=oldQuery;draw();scroll.scrollTop=oldScroll;if(focused)input.focus({preventScroll:true});}
 
+</script>
+<!-- WZ BULK V1: safe admin-list selection; original API endpoints, no batch financial operations -->
+<style id="wzAdminBulkStyle">
+.wzBulkToolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0;padding:12px;border:1px solid #4c343b;background:#17191f;border-radius:12px;color:#eee;font-size:13px}
+.wzBulkToolbar button{width:auto!important;min-width:0!important;min-height:38px!important;padding:7px 12px!important;font-size:12px!important}
+.wzBulkToolbar button:disabled{opacity:.45;cursor:not-allowed}
+.wzBulkToolbar .wzBulkAll{display:flex;gap:8px;align-items:center;font-weight:750;cursor:pointer}
+.wzBulkToolbar .wzBulkAll input,.wzBulkItem{width:17px!important;height:17px!important;min-width:17px!important;accent-color:#e52026;cursor:pointer}
+.wzBulkToolbar .wzBulkCount{font-weight:700;color:#fca5a5}
+.wzBulkToolbar .wzBulkReport{flex-basis:100%;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#b5c8d6}
+.wzBulkTh,.wzBulkTd{width:38px!important;min-width:38px!important;max-width:38px!important;padding:8px 7px!important;text-align:center!important}
+.wzBulkTh{color:#ddd}
+.wzBulkToolbar .wzBulkNote{flex-basis:100%;color:#aeb0b9;font-size:11px}
+</style>
+<script id="wzAdminBulkV1">
+(function(){
+  'use strict';
+  const sections=[
+    {key:'support',body:'supportRewardEventsBody',name:'Destek kayıtları',reload:()=>loadSupportRewardEvents(),word:'GIZLE'},
+    {key:'gift',body:'giftCodesBody',name:'Hediye kodları',reload:()=>loadGiftCodes(),word:'KALDIR'},
+    {key:'product',body:'productsBody',name:'Market ürünleri',reload:()=>loadProducts(),word:'URUNLERI KALDIR'},
+    {key:'purchase',body:'adminOrdersBody',name:'Sonuçlanmış satın almalar',reload:()=>loadAdminOrders(),word:'ARSIVLE'},
+    {key:'payment',body:'paymentsBody',name:'İptal edilmiş ödeme kayıtları',reload:()=>loadPayments(),word:'ODEMELERI SIL'}
+  ];
+  const busyGroups=new Set();
+  function parseButton(raw,fn){
+    if(!raw||!raw.includes(fn+'('))return '';
+    const tail=raw.slice(raw.indexOf(fn+'(')+fn.length+1);
+    const match=tail.match(/^\s*'([^']+)'/);
+    if(!match)return '';
+    try{return decodeURIComponent(match[1]);}catch(_){return '';}
+  }
+  function extract(tr,section){
+    const buttons=Array.from(tr.querySelectorAll('button[onclick]'));
+    const get=fn=>{for(const b of buttons){const v=parseButton(b.getAttribute('onclick'),fn);if(v)return v;}return '';};
+    if(section.key==='support'){
+      const id=get('deleteSupportRewardEvent');
+      return id?{id,action:'support'}:null;
+    }
+    if(section.key==='gift'){
+      const tourId=get('hideTournamentGiftRecord');
+      if(tourId)return {id:tourId,action:'tournamentGift'};
+      const id=get('deleteGiftCode');
+      return id?{id,action:'gift'}:null;
+    }
+    if(section.key==='product'){
+      const id=get('deleteProduct');
+      return id?{id,action:'product'}:null;
+    }
+    if(section.key==='purchase'){
+      const id=get('hideAdminPurchase');
+      if(!id)return null;
+      const item=(typeof adminOrdersCache!=='undefined'?adminOrdersCache:[]).find(o=>String(o.id)===id);
+      if(!item||item.adminArchived||document.getElementById('showArchivedOrders')?.checked===true)return null;
+      const status=String(item.status||'').toLowerCase();
+      // Active/pending purchases must go through individual cancellation/refund review.
+      if(!['delivered','cancelled','expired','failed','redeemed','completed'].includes(status))return null;
+      if(item.refund?.status==='pending'||item.manualReviewReason)return null;
+      return {id,action:'purchase',sourceType:String(item.sourceType||(item.paymentType==='gift_code'?'gift_code':'order')).toLowerCase()};
+    }
+    if(section.key==='payment'){
+      const id=get('deletePayment');
+      if(!id)return null;
+      const item=(typeof paymentsCache!=='undefined'?paymentsCache:[]).find(p=>String(p.id)===id);
+      // Pending payment deletion may impact settlement; leave it under individual confirmation.
+      return item&&String(item.status)==='cancelled'?{id,action:'payment'}:null;
+    }
+    return null;
+  }
+  function allowedRows(section){return [...section.bodyEl.querySelectorAll(':scope > tr')].filter(tr=>tr.querySelector('.wzBulkItem:not(:disabled)'));}
+  function refresh(section){
+    if(busyGroups.has(section.key))return;
+    const all=allowedRows(section), selected=all.filter(tr=>tr.querySelector('.wzBulkItem')?.checked);
+    section.counter.textContent=selected.length+' / '+all.length+' seçildi';
+    section.allEl.checked=all.length>0&&selected.length===all.length;
+    section.allEl.indeterminate=selected.length>0&&selected.length<all.length;
+    section.allEl.disabled=all.length===0;
+    section.apply.disabled=selected.length===0;
+    section.clear.disabled=selected.length===0;
+  }
+  function decorate(section){
+    let header=section.table.querySelector('thead tr');
+    if(header&&!header.querySelector('.wzBulkTh')){
+      const th=document.createElement('th');th.className='wzBulkTh';th.textContent='✓';th.title='Toplu işlem için seçim';
+      header.insertBefore(th,header.firstChild);
+    }
+    for(const row of [...section.bodyEl.children]){
+      if(row.tagName!=='TR'||row.querySelector('.wzBulkTd'))continue;
+      const item=extract(row,section);
+      if(!item){const placeholder=row.querySelector('td[colspan]');if(placeholder){const n=Number(placeholder.colSpan);if(n>0)placeholder.colSpan=n+1;}continue;}
+      const cell=document.createElement('td');cell.className='wzBulkTd';
+      const check=document.createElement('input');check.type='checkbox';check.className='wzBulkItem';
+      check.setAttribute('aria-label','Toplu kaldırma için kaydı seç');
+      check.dataset.key=item.id;check.dataset.action=item.action;
+      if(item.sourceType)check.dataset.sourceType=item.sourceType;
+      check.addEventListener('change',()=>refresh(section));
+      cell.append(check);row.insertBefore(cell,row.firstChild);
+    }
+    refresh(section);
+  }
+  async function post(path,body){
+    const {r,d}=await api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok||!d?.success)throw new Error(d?.error||'HTTP '+r.status);
+    return d;
+  }
+  async function handle(item){
+    switch(item.action){
+      case 'support':return post('/admin/support-rewards/event/delete',{id:item.id});
+      case 'gift':return post('/admin/gift-codes/delete',{id:item.id});
+      case 'tournamentGift':return post('/admin/gift-codes/hide-tournament-record',{id:item.id});
+      case 'product':return post('/admin/product/delete',{id:item.id});
+      case 'purchase':return post('/admin/purchase/hide',{sourceId:item.id,sourceType:item.sourceType});
+      case 'payment':return post('/admin/payment/delete',{paymentId:item.id});
+      default:throw new Error('Desteklenmeyen işlem türü.');
+    }
+  }
+  async function process(section){
+    if(busyGroups.has(section.key))return;
+    const selected=[...section.bodyEl.querySelectorAll('.wzBulkItem:checked')].map(x=>({id:x.dataset.key,action:x.dataset.action,sourceType:x.dataset.sourceType||''}));
+    if(!selected.length)return;
+    let note=section.name+' listesinden '+selected.length+' kayıt işlenecek.\n\n';
+    if(section.key==='support')note+='Yalnızca admin görünümünden gizlenecek. Kod ve hak geçmişi korunacak.';
+    if(section.key==='gift')note+='Kullanılmamış kodlar GEÇERSİZLEŞTİRİLİR; kullanılan ve bitmiş kodların geçmişi korunur.';
+    if(section.key==='product')note+='Seçilen ürünler Market ve Admin listesinden kaldırılır. Canlı ürün seçtiysen satış sona erer!';
+    if(section.key==='purchase')note+='Yalnızca sonuçlanmış işlemler admin listesinden gizlenir; ödeme/iadeye dokunulmaz.';
+    if(section.key==='payment')note+='İptal edilmiş ödeme kayıtları KALICI silinir. Geri alınamaz!';
+    if(!confirm(note+'\n\nİşlemlere devam edilsin mi?'))return;
+    if(['product','payment'].includes(section.key)){
+      const answer=prompt('Onaylamak için aynen yaz:\n'+section.word);
+      if(answer!==section.word)return;
+    }
+    busyGroups.add(section.key);
+    section.apply.disabled=true;section.allEl.disabled=true;section.clear.disabled=true;
+    let ok=0;let failed=0;const errors=[];
+    // Limit concurrency. Every request uses existing guarded endpoints with the same admin session.
+    for(let i=0;i<selected.length;i+=3){
+      const results=await Promise.allSettled(selected.slice(i,i+3).map(handle));
+      results.forEach((r,j)=>{
+        if(r.status==='fulfilled'){ok++;}
+        else{failed++;if(errors.length<5)errors.push(selected[i+j].id+': '+String(r.reason?.message||r.reason));}
+      });
+      section.report.textContent='İşleniyor: '+Math.min(i+3,selected.length)+' / '+selected.length+' · Başarılı: '+ok+' · Hatalı: '+failed;
+    }
+    // No re-entrancy into live lists; refresh once after the batch.
+    busyGroups.delete(section.key);
+    try{await section.reload();}catch(e){errors.push('Liste yenileme: '+String(e?.message||e));}
+    section.report.textContent='Tamamlandı. Kaldırılan: '+ok+', hata: '+failed+'.'+(errors.length?'\n'+errors.join('\n'):'');
+    refresh(section);
+  }
+  function init(){
+    for(const section of sections){
+      const body=document.getElementById(section.body);
+      const table=body?.closest('table');const wrap=table?.closest('.tableWrap');
+      if(!body||!table||!wrap||wrap.querySelector('.wzBulkToolbar'))continue;
+      section.bodyEl=body;section.table=table;
+      const bar=document.createElement('div');bar.className='wzBulkToolbar';
+      const label=document.createElement('label');label.className='wzBulkAll';
+      const check=document.createElement('input');check.type='checkbox';check.setAttribute('aria-label','Görünen tüm uygun kayıtları seç');
+      label.append(check,document.createTextNode(' Tümünü Seç'));
+      const count=document.createElement('span');count.className='wzBulkCount';count.textContent='0 seçildi';
+      const clear=document.createElement('button');clear.type='button';clear.className='secondary smallBtn';clear.textContent='Seçimi Temizle';
+      const apply=document.createElement('button');apply.type='button';apply.className='danger smallBtn';apply.textContent='🗑 Seçilenleri Kaldır';
+      const note=document.createElement('div');note.className='wzBulkNote';note.textContent='Yalnızca bu tablodaki ve mevcut aramada görünen uygun kayıtlar seçilir. Aktif/incelemede olan mali işlemler toplu silinmez.';
+      const report=document.createElement('div');report.className='wzBulkReport';report.setAttribute('role','status');report.setAttribute('aria-live','polite');
+      bar.append(label,count,clear,apply,note,report);wrap.parentNode.insertBefore(bar,wrap);
+      section.allEl=check;section.counter=count;section.clear=clear;section.apply=apply;section.report=report;
+      check.addEventListener('change',()=>{
+        for(const tr of allowedRows(section))tr.querySelector('.wzBulkItem').checked=check.checked;
+        refresh(section);
+      });
+      clear.addEventListener('click',()=>{for(const x of body.querySelectorAll('.wzBulkItem'))x.checked=false;refresh(section);});
+      apply.addEventListener('click',()=>process(section));
+      new MutationObserver(()=>decorate(section)).observe(body,{childList:true});
+      decorate(section);
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
 </script>
 </body>
 </html>
