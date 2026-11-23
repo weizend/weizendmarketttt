@@ -3365,7 +3365,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
           <label for="wz156GiftUsername" style="display:block;margin-top:14px">Yeni alıcının Kick adı (hesap doğrulaması şart değil)</label>
           <div class="wz156GiftForm"><input id="wz156GiftUsername" type="text" maxlength="40" autocomplete="off" placeholder="Kick kullanıcı adı" aria-label="Alıcı Kick kullanıcı adı"><button id="wz156GiftAssignButton" type="button" class="smallBtn" onclick="wz156AssignGiftFromModal()">+1 Gift Ata</button></div>
           <p id="wz156GiftFeedback" class="muted" role="status" aria-live="polite"></p>
-          <p class="muted" style="font-size:12px">Abonelik Gift tarihinden başlar. Her alıcı için "Ayı Yönet" ile 1–120 ay belirleyebilirsin; isim değişikliği ayrı "Adı Düzenle" butonundadır. Süresi biten abonelik çekilişte önceden kazanılmış avantajı silmez.</p>
+          <p class="muted" style="font-size:12px">Gift hakkı gerçek gönderim tarihinden başlar. "Gift Süresini Yönet" yalnızca aktif hediye süresini düzenler; "Toplam Abonelik Ayını Düzenle" ise kullanıcının bilinen geçmişini değiştirir ve Gift başlangıç/bitiş tarihini değiştirmez. İlk kayıtlı Gift alıcısının geçmişi bilinmiyorsa toplamı manuel girebilirsin. Süresi biten Gift önceki çekiliş avantajlarını silmez.</p>
         </div>
       </div>
 
@@ -3626,12 +3626,25 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
         <div id="userSummary" class="userSummaryGrid"></div>
 
 
-        <!-- V31.1.60 — Tek merkezli abonelik bilgisi: kullanıcı detayında yalnızca oku. -->
+        <!-- WEIZEND: Kullanıcı abonelik yönetimi: aktifse Düzenle/Kaldır, değilse Abone Ekle. -->
         <div class="card" style="margin-top:16px;margin-bottom:16px;border:1px solid #725065" id="wz160SubscriptionCard">
           <h3 style="margin-top:0">⭐ Abonelik Bilgileri</h3>
-          <p class="muted">Ay ve başlangıç tarihi yalnızca MissXss veya Destek Hakları üzerinden düzenlenir. Bu ekrandan abonelik kaydı değiştirilemez.</p>
           <div id="wz160SubscriptionCurrent" role="status" class="muted">Abonelik bilgisi yükleniyor...</div>
-          <p class="muted" style="font-size:12px">Abonelik sona erse bile daha önce kazanılan çekiliş şansı korunur.</p>
+          <div id="wzUserSubPanel" style="margin-top:12px">
+           <div class="btnRow">
+            <button class="smallBtn hidden" type="button" id="wzUserSubEditBtn" onclick="wzUserSubOpenEdit()">⭐ Abone Ekle</button>
+            <button class="danger smallBtn hidden" type="button" id="wzUserSubRemoveBtn" onclick="wzUserSubRemove()">🗑️ Kaldır</button>
+           </div>
+           <div id="wzUserSubEditor" class="hidden" style="margin-top:12px;padding:12px;border:1px solid #555;border-radius:12px">
+            <div class="grid2">
+             <div><label class="title">Abonelik ayı</label><input id="wzUserSubMonths" type="number" min="1" max="600" step="1" placeholder="Örnek: 2"></div>
+             <div><label class="title">Başlangıç tarihi ve saati (Türkiye)</label><input id="wzUserSubStart" type="datetime-local" step="1"></div>
+            </div>
+            <p class="muted" style="font-size:12px">Yalnızca ayı değiştirirsen geri sayımın başlangıcı ve bitişi değişmez. Başlangıcı özellikle değiştirirsen yeni bitiş 30 gün sonrasına hesaplanır. Kaldır işlemi mevcut dönemi kapatır; eski gerçek Kick/Gift kanıtları silinmez.</p>
+            <div class="btnRow"><button type="button" onclick="wzUserSubSave()">💾 Kaydet</button><button class="secondary" type="button" onclick="document.getElementById('wzUserSubEditor').classList.add('hidden')">Vazgeç</button></div>
+            <div id="wzUserSubFeedback" class="muted"></div>
+           </div>
+          </div>
         </div>
 
         <div id="userRestrictionBanner" class="userRestrictionBanner"></div>
@@ -6074,7 +6087,7 @@ function renderSupportRewardEvents(){
     const giftRecipientHtml=rewardType==='gift_subscription'
       ? `<button class="smallBtn wz156GiftBtn" type="button" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.gift_manage_id||item.id).replace(/'/g,'%27')}')">🎁 Alıcıları Yönet (${recipients.length}/${giftQty})</button>${giftStartAt?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç: ${esc(dateText(giftStartAt))}</div>`:''}${giftExpiresAt?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Bitiş: ${esc(dateText(giftExpiresAt))}</div>`:''}`
       : ['subscription','subscription_renewal'].includes(rewardType)
-      ? `<button class="smallBtn" type="button" onclick="wz158EditSubscriberMonths('${encodeURIComponent(userName)}','${encodeURIComponent(String(adminStart||liveEventStart||''))}',${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))})">✏️ Ayı Yönet · ${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))} AY</button>${liveEventStart?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç (bu işlem): ${esc(wz154AdminDate(liveEventStart))}</div>`:''}${adminStart?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Yönetici kayıt başlangıcı: ${esc(wz154AdminDate(adminStart))}</div>`:''}${adminEnd?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">${adminStart?'Yönetici hak bitişi':'Bitiş'}: ${esc(wz154AdminDate(adminEnd))}</div>`:''}`
+      ? `<button class="smallBtn" type="button" onclick="wzTenureEdit('${encodeURIComponent(userName)}',true)">📚 Toplam Ayı Düzenle · Sayaç Değişmez</button><button class="smallBtn" type="button" onclick="wzTenureEdit('${encodeURIComponent(userName)}',true)">📚 Toplam Ayı Düzenle</button>${liveEventStart?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç (bu işlem): ${esc(wz154AdminDate(liveEventStart))}</div>`:''}${adminStart?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Yönetici kayıt başlangıcı: ${esc(wz154AdminDate(adminStart))}</div>`:''}${adminEnd?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">${adminStart?'Yönetici hak bitişi':'Bitiş'}: ${esc(wz154AdminDate(adminEnd))}</div>`:''}`
       : '<span class="muted">-</span>';
     const tr=document.createElement('tr');
     tr.innerHTML=`
@@ -6148,8 +6161,12 @@ function wz156GiftModalDraw(){
   edit.onclick=()=>wz158SetGiftSlot(slot,person||null);actions.append(edit);
   if(person){
    const monthsButton=document.createElement('button');monthsButton.type='button';monthsButton.className='smallBtn';monthsButton.style.cssText='width:auto;align-self:flex-start;margin-top:5px';
-   monthsButton.textContent='⭐ Ayı Yönet · '+giftMonths+' AY';monthsButton.disabled=wz156GiftAssignBusy;
+   monthsButton.textContent='⏱️ Gift Süresini Yönet · '+giftMonths+' AY';monthsButton.disabled=wz156GiftAssignBusy;
    monthsButton.onclick=()=>wz161SetGiftMonths(slot,person);actions.append(monthsButton);
+   const tenureButton=document.createElement('button');tenureButton.type='button';tenureButton.className='smallBtn';
+   tenureButton.style.cssText='width:auto;align-self:flex-start;margin-top:5px';
+   tenureButton.textContent='📚 Toplam Abonelik Ayını Düzenle';tenureButton.disabled=wz156GiftAssignBusy;
+   tenureButton.onclick=()=>wzTenureEdit(person.recipient_username);actions.append(tenureButton);
   }
   row.append(label,detail,actions);list.append(row);
  }
@@ -6214,33 +6231,46 @@ function wz160LocalInputSeconds(iso){
  return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Istanbul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(d).replace(' ','T');
 }
 async function wz158EditSubscriberMonths(encodedName,encodedDate,current){
- const username=decodeURIComponent(encodedName||''),eventAt=decodeURIComponent(encodedDate||'');
- let state=null;
- try{
-  const {r,d}=await api('/admin/subscription-state?username='+encodeURIComponent(username));
-  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
-  state=d.subscription;
- }catch(e){alert('❌ Abonelik kaydı okunamadı: '+String(e?.message||e)+'\nİşlem uygulanmadı.');return}
- const existing=Math.max(1,Math.trunc(Number(state?.months||current||1)));
- const input=prompt('@'+username+' için kayıtlı abonelik ayı ('+existing+' AY). Yeni ay sayısı (1–120):',String(existing));
- if(input===null)return;
- const months=Number(input.trim());if(!Number.isSafeInteger(months)||months<1||months>120){alert('1–120 arası tam sayı gir.');return;}
- if(months===existing){alert('ℹ️ Zaten '+existing+' AY olarak kayıtlı. Değişiklik yapılmadı.');return;}
- const startLocal=wz160LocalInputSeconds(state?.startsAt||eventAt);
- if(!startLocal){alert('❌ Başlangıç tarihini okuyamadım. İşlem uygulanmadı.');return}
- if(!confirm('@'+username+' abonelik süresi '+existing+' AY → '+months+' AY olarak güncellensin mi?\nBaşlangıç korunacak: '+startLocal.replace('T',' ')))return;
- try{
-  const {r,d}=await api('/admin/manual-subscription/by-name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,startLocal,months})});
-  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
-  alert('✅ @'+username+': '+months+' AY kaydedildi. Başlangıç: '+wz154AdminDate(d.startsAt)+(d.awaitingVerification?' · Doğrulama bekliyor.':''));
-  await Promise.allSettled([loadSupportRewardEvents(),
-   document.getElementById('subscriberActivityOutput')?.style.display==='block'?loadRecentActivity('subscribers'):Promise.resolve(),
-   document.getElementById('usersBody')?loadUsers():Promise.resolve()]);
-  if(currentAdminUser&&normalizeAdminUsername(currentAdminUser.username)===normalizeAdminUsername(username)){
-   try{await openUser(encodeURIComponent(currentAdminUser.kick_uid))}catch(_){/* lists already updated */}
-  }
- }catch(e){alert('❌ '+String(e?.message||e))}
+ // Previous handler changed membership expiration when merely changing AY.
+ // Keep its old callers compatible, but direct all month corrections to the
+ // independent total-tenure editor. It never touches expiry or start time.
+ return wzTenureEdit(encodedName,true);
 }
+
+// WEIZEND V31.2.25 — Known total subscription tenure, separate from
+// Gift length and administrator-created subscription entitlement.
+async function wzTenureEdit(name,encoded=false){
+ const username=encoded?decodeURIComponent(String(name||'')):String(name||'');
+ let state;
+ try{
+  const {r,d}=await api('/admin/subscription-tenure?username='+encodeURIComponent(username));
+  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
+  state=d;
+ }catch(e){alert('❌ Toplam ay bilgisi alınamadı: '+String(e.message||e));return}
+ const current=state.known?state.months:null;
+ const label=state.known?'Şu an bilinen toplam: '+current+' ay.':'Geçmiş bilinmiyor. Bilinen toplamı sen girebilirsin.';
+ const input=prompt('@'+state.username+'\n'+label+'\n\nBu sayı, işlem tarihine kadar alınan Gift ve kendi aboneliklerini İÇERMELİDİR.\nHak süresini değiştirmez. (1–600):',current===null?'':String(current));
+ if(input===null)return;
+ const value=Number(input.trim());
+ if(!Number.isSafeInteger(value)||value<1||value>600){alert('❌ 1–600 arasında tam sayı gir.');return}
+ if(current===value){alert('ℹ️ Bilinen toplam ay zaten '+value+'.');return}
+ if(!state.latestEventAt){alert('❌ Tarihli ve doğrulanmış abonelik/Gift kaydı bulunamadı. Önce destek işlemini eşleştir.');return}
+ const original=new Date(state.latestEventAt);
+ const time=Number.isFinite(original.getTime())?original.toLocaleString('tr-TR'):'?';
+ if(!confirm('@'+state.username+'\nToplam bilinen abonelik ayı: '+(current===null?'Bilinmiyor':current)+' → '+value+'\n\nReferans işlem: '+time+'\n\nBu işlem hak süresini ve bitiş tarihini DEĞİŞTİRMEZ. Onaylıyor musun?'))return;
+ try{
+  const {r,d}=await api('/admin/subscription-tenure/set',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+   username:state.username,months:value,expectedMonths:current,
+   expectedLatestEventAt:state.latestEventAt,expectedCorrectedAt:state.correctedAt||null
+  })});
+  if(!r.ok||!d?.success)throw Error(d.error||'HTTP '+r.status);
+  alert('✅ @'+state.username+' için toplam abonelik geçmişi '+value+' ay kaydedildi.\nReferans işlem: '+time+'\nBaşlangıç/bitiş tarihleri değişmedi.');
+  await Promise.allSettled([loadSupportRewardEvents(),
+   document.getElementById('subscriberActivityOutput')?.style.display==='block'?loadRecentActivity('subscribers'):Promise.resolve()]);
+  wz156GiftModalDraw();
+ }catch(e){alert('❌ '+String(e.message||e)+'\nİşlem uygulanmamış olabilir. Listeyi yenileyip kontrol et.');}
+}
+
 function normalizeAdminUsername(s){return String(s||'').trim().replace(/^@/,'').toLocaleLowerCase('tr-TR')}
 
 async function loadSupportRewardEvents(){
@@ -7601,6 +7631,7 @@ function renderUserDetail(){
   // V31.0.81: Read-only ticket balance, asynchronous and bound to the current Kick UID.
   wz81ShowUserTicketBalance(u.kick_uid);
   wz160RenderUserSubscription(u.subscription);
+  wzUserSubLoad(u.kick_uid);
   document.getElementById('userDetailCard')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -7635,6 +7666,119 @@ function wz160RenderUserSubscription(state){
   el.append(from);
  }
 }
+
+// V31.2.26 — UID based administrator subscription corrections.
+// The total-month ledger and the countdown entitlement are independent.
+let wzUserSubSnapshot=null,wzUserSubBusy=false;
+async function wzUserSubLoad(uid){
+ wzUserSubSnapshot=null;
+ document.getElementById('wzUserSubEditBtn')?.classList.add('hidden');
+ document.getElementById('wzUserSubRemoveBtn')?.classList.add('hidden');
+ document.getElementById('wzUserSubEditor')?.classList.add('hidden');
+ const box=document.getElementById('wz160SubscriptionCurrent');
+ if(box)box.textContent='Abonelik bilgisi doğrulanıyor...';
+ try{
+  const {r,d}=await api('/admin/user/subscription-control?uid='+encodeURIComponent(uid));
+  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
+  if(String(currentAdminUser?.kick_uid)!==String(uid))return;
+  wzUserSubSnapshot=d;
+  const state=d.subscription||{source:'none',active:false,months:0};
+  wz160RenderUserSubscription({...state,months:d.tenure?.known?d.tenure.months:state.months});
+  if(box){
+   const history=document.createElement('div');history.style.cssText='margin-top:7px;font-weight:600';
+   history.textContent='📚 Toplam geçmiş: '+(d.tenure?.known?d.tenure.months+'. AY':'Henüz doğrulanmadı');
+   box.appendChild(history);
+   const detail=document.createElement('div');detail.className='muted';detail.style.fontSize='12px';
+   detail.textContent=(d.review?.blocked?'🗑️ Güncel abonelik kaldırıldı':state.source==='manual'?'Yönetici tanımı':'Doğrulanmış abonelik bilgisi')+
+     ' · Tür: '+(d.kind==='gift'?'🎁 Gift':'⭐ Kendi aboneliği')+' · Kick kayıtları korunur.';
+   box.appendChild(detail);
+  }
+  const active=state.active===true;
+  const editBtn=document.getElementById('wzUserSubEditBtn');
+  const removeBtn=document.getElementById('wzUserSubRemoveBtn');
+  if(editBtn){
+   editBtn.textContent=active?'✏️ Düzenle':'⭐ Abone Ekle';
+   editBtn.classList.remove('hidden'); editBtn.disabled=false;
+  }
+  if(removeBtn){
+   removeBtn.classList.toggle('hidden',!active);
+   removeBtn.disabled=!active;
+  }
+  document.getElementById('wzUserSubEditor')?.classList.add('hidden');
+ }catch(err){if(String(currentAdminUser?.kick_uid)===String(uid)&&box)
+  box.textContent='❌ Abonelik yönetimi yüklenemedi: '+String(err.message||err)}
+}
+// Tek yönetim yolu: aktifse Düzenle / Kaldır, aktif değilse Abone Ekle.
+function wzUserSubOpenEdit(){
+ const snap=wzUserSubSnapshot;
+ if(!snap||!currentAdminUser)return alert('Önce abonelik kaydını yükle.');
+ const state=snap.subscription||{};
+ const isActive=state.active===true;
+ const months=document.getElementById('wzUserSubMonths');
+ const start=document.getElementById('wzUserSubStart');
+ if(!months||!start)return;
+ // Kayıtlı geçmiş biliniyorsa, yeni abonelikte takip eden ayı öner.
+ // Geçmiş bilinmiyorsa kullanıcı manuel olarak doğru ayı girmelidir.
+ const known=snap.tenure?.known===true;
+ const oldMonths=known?Number(snap.tenure.months):0;
+ months.value=known?String(Math.min(600,isActive?Math.max(1,oldMonths):oldMonths+1)):'';
+ const realStart=isActive&&state.startsAt?state.startsAt:new Date().toISOString();
+ start.value=wz160LocalInputSeconds(realStart);
+ const editor=document.getElementById('wzUserSubEditor');
+ editor?.classList.remove('hidden');
+ const feedback=document.getElementById('wzUserSubFeedback');
+ if(feedback)feedback.textContent=isActive
+  ?'Sadece ayı değiştirirsen mevcut başlangıç ve bitiş saati korunur.'
+  :'Yeni aboneliğin gerçek başlangıç tarihini ve ayını gir.';
+ editor?.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+async function wzUserSubSave(){
+ if(wzUserSubBusy||!currentAdminUser||!wzUserSubSnapshot)return;
+ const uid=String(currentAdminUser.kick_uid),snap=wzUserSubSnapshot;
+ const months=Number(document.getElementById('wzUserSubMonths')?.value),
+  startLocal=String(document.getElementById('wzUserSubStart')?.value||'').trim();
+ if(!Number.isSafeInteger(months)||months<1||months>600)return alert('Abonelik ayı 1–600 arasında tam sayı olmalı.');
+ if(!startLocal)return alert('Başlangıç tarihi ve saatini seç.');
+ const active=snap.subscription?.active===true;
+ const oldStart=active&&snap.subscription?.startsAt?wz160LocalInputSeconds(snap.subscription.startsAt):null;
+ const changedStart=!active||oldStart!==startLocal;
+ if(!confirm('@'+snap.username+' için '+(active?'abonelik düzenlensin mi?':'abonelik eklensin mi?')+
+  '\nAy: '+months+'\nBaşlangıç: '+startLocal.replace('T',' ')+
+  '\n\n'+(changedStart?'Başlangıç tarihi değişeceği için 30 günlük süre bu tarihten hesaplanacak.':'Sadece ay değişiyorsa başlangıç ve bitiş saatleri AYNEN KALACAK.')+
+  '\nKick ödeme/Gift geçmişi silinmeyecek.'))return;
+ wzUserSubBusy=true;
+ try{
+  // The kind is a stored classification, not a form field.
+  const kind=snap.kind==='gift'?'gift':'self_paid';
+  const {r,d}=await api('/admin/user/subscription-control',{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({action:'set',uid,months,kind,startLocal,expectedVersion:snap.version})});
+  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
+  alert('✅ Abonelik kaydedildi. '+(d.clockPreserved?'Mevcut başlangıç/bitiş saati korunmuştur.':'Başlangıç tarihine göre 30 günlük süre kaydedildi.'));
+  await openUser(encodeURIComponent(uid));
+ }catch(e){alert('❌ '+String(e.message||e)+'\nİşlem uygulanmadıysa ekranı yenileyerek kontrol et.');}
+ finally{wzUserSubBusy=false}
+}
+async function wzUserSubRemove(){
+ const snap=wzUserSubSnapshot;
+ if(wzUserSubBusy||!currentAdminUser||!snap||snap.subscription?.active!==true)return;
+ const uid=String(currentAdminUser.kick_uid);
+ const current=snap.tenure?.known===true?Number(snap.tenure.months):null;
+ const previous=current===null?0:Math.max(0,current-1);
+ const note=current===null?'Geçmiş ay sayısı doğrulanmadığından kalan geçmiş 0 ay olarak işaretlenir.':
+  'Mevcut '+current+'. ay çıkarılır, önceki '+previous+' ay korunur.';
+ if(!confirm('@'+snap.username+' için GÜNCEL ABONELİK KALDIRILSIN MI?\n\n'+note+
+  '\nAktif abonelik kapanacak. Eski gerçek Kick/Gift kayıtları ve kazanılmış ödüller silinmeyecek.\nYeni doğrulanmış abonelik gelirse '+(previous+1)+'. ay olarak gerçek işlem tarihinde başlar.'))return;
+ wzUserSubBusy=true;
+ try{
+  const {r,d}=await api('/admin/user/subscription-control',{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({action:'remove_current',uid,expectedVersion:snap.version})});
+  if(!r.ok||!d?.success)throw Error(d?.error||'HTTP '+r.status);
+  alert('✅ Güncel abonelik kaldırıldı. Önceki '+d.validMonths+' ay korundu.');
+  await openUser(encodeURIComponent(uid));
+ }catch(e){alert('❌ '+String(e.message||e)+'\nEkranı yenileyip abonelik durumunu kontrol et.');}
+ finally{wzUserSubBusy=false}
+}
+
 async function wz81ShowUserTicketBalance(uid){
   const summary=document.getElementById('userSummary');
   if(!summary)return;
@@ -7652,6 +7796,7 @@ async function wz81ShowUserTicketBalance(uid){
 }
 
 function closeUserDetail(){
+  wzUserSubSnapshot=null;
   currentAdminUser = null;
   document.getElementById('userDetailCard')?.classList.add('hidden');
 }
@@ -14059,7 +14204,7 @@ function renderSimpleRecentActivity(kind,data){
       const amountHtml = kind === 'giftSubscriptions'
         ? `<div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end"><div class="activityAmount">${quantity.toLocaleString('tr-TR')} Gift</div>${item.giftManageId?`<button type="button" class="smallBtn" style="width:auto" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.giftManageId)}')">🎁 Yönet</button>`:'<small class="muted">Yönetim kaydı bulunamadı</small>'}</div>`
         : kind === 'subscribers'
-          ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="activityAmount">${Math.max(1,Math.trunc(Number(item.configuredMonths||1)))} AY</span><button type="button" class="smallBtn" style="width:auto" onclick="wz158EditSubscriberMonths('${encodeURIComponent(username)}','${encodeURIComponent(date)}',${Math.max(1,Math.trunc(Number(item.configuredMonths||1)))})">✏️ Ayı Yönet</button></div>`
+          ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="activityAmount">${Math.max(1,Math.trunc(Number(item.configuredMonths||1)))} AY</span><button type="button" class="smallBtn" style="width:auto" onclick="wz158EditSubscriberMonths('${encodeURIComponent(username)}','${encodeURIComponent(date)}',${Math.max(1,Math.trunc(Number(item.configuredMonths||1)))})">⏱️ Hak Süresini Yönet</button><button type="button" class="smallBtn" style="width:auto" onclick="wzTenureEdit('${encodeURIComponent(username)}',true)">📚 Toplam Ayı Düzenle</button></div>`
         : kind === 'kicks'
           ? `<div class="activityAmount">${quantity.toLocaleString('tr-TR')} Kicks</div>`
           : '';
