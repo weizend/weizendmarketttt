@@ -3365,7 +3365,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
           <label for="wz156GiftUsername" style="display:block;margin-top:14px">Yeni alıcının Kick adı (hesap doğrulaması şart değil)</label>
           <div class="wz156GiftForm"><input id="wz156GiftUsername" type="text" maxlength="40" autocomplete="off" placeholder="Kick kullanıcı adı" aria-label="Alıcı Kick kullanıcı adı"><button id="wz156GiftAssignButton" type="button" class="smallBtn" onclick="wz156AssignGiftFromModal()">+1 Gift Ata</button></div>
           <p id="wz156GiftFeedback" class="muted" role="status" aria-live="polite"></p>
-          <p class="muted" style="font-size:12px">Gift hakkı gerçek gönderim tarihinden başlar. "Gift Süresini Yönet" yalnızca aktif hediye süresini düzenler; "Toplam Abonelik Ayını Düzenle" ise kullanıcının bilinen geçmişini değiştirir ve Gift başlangıç/bitiş tarihini değiştirmez. İlk kayıtlı Gift alıcısının geçmişi bilinmiyorsa toplamı manuel girebilirsin. Süresi biten Gift önceki çekiliş avantajlarını silmez.</p>
+          <p class="muted" style="font-size:12px">Abonelik Gift tarihinden başlar. Her alıcı için "Ayı Yönet" ile 1–120 ay belirleyebilirsin; isim değişikliği ayrı "Adı Düzenle" butonundadır. Süresi biten abonelik çekilişte önceden kazanılmış avantajı silmez.</p>
         </div>
       </div>
 
@@ -6087,7 +6087,7 @@ function renderSupportRewardEvents(){
     const giftRecipientHtml=rewardType==='gift_subscription'
       ? `<button class="smallBtn wz156GiftBtn" type="button" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.gift_manage_id||item.id).replace(/'/g,'%27')}')">🎁 Alıcıları Yönet (${recipients.length}/${giftQty})</button>${giftStartAt?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç: ${esc(dateText(giftStartAt))}</div>`:''}${giftExpiresAt?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Bitiş: ${esc(dateText(giftExpiresAt))}</div>`:''}`
       : ['subscription','subscription_renewal'].includes(rewardType)
-      ? `<button class="smallBtn" type="button" onclick="wzTenureEdit('${encodeURIComponent(userName)}',true)">📚 Toplam Ayı Düzenle · Sayaç Değişmez</button><button class="smallBtn" type="button" onclick="wzTenureEdit('${encodeURIComponent(userName)}',true)">📚 Toplam Ayı Düzenle</button>${liveEventStart?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç (bu işlem): ${esc(wz154AdminDate(liveEventStart))}</div>`:''}${adminStart?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Yönetici kayıt başlangıcı: ${esc(wz154AdminDate(adminStart))}</div>`:''}${adminEnd?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">${adminStart?'Yönetici hak bitişi':'Bitiş'}: ${esc(wz154AdminDate(adminEnd))}</div>`:''}`
+      ? `<button class="smallBtn" type="button" onclick="wz158EditSubscriberMonths('${encodeURIComponent(userName)}','${encodeURIComponent(String(adminStart||liveEventStart||''))}',${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))})">✏️ Ayı Yönet · ${Math.max(1,Math.trunc(Number(item.subscriptionState?.months||1)))} AY</button>${liveEventStart?`<div class="muted" style="margin-top:4px;font-size:11px;line-height:1.4;word-break:break-word">Başlangıç (bu işlem): ${esc(wz154AdminDate(liveEventStart))}</div>`:''}${adminStart?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">Yönetici kayıt başlangıcı: ${esc(wz154AdminDate(adminStart))}</div>`:''}${adminEnd?`<div class="muted" style="font-size:11px;line-height:1.4;word-break:break-word">${adminStart?'Yönetici hak bitişi':'Bitiş'}: ${esc(wz154AdminDate(adminEnd))}</div>`:''}`
       : '<span class="muted">-</span>';
     const tr=document.createElement('tr');
     tr.innerHTML=`
@@ -6161,12 +6161,8 @@ function wz156GiftModalDraw(){
   edit.onclick=()=>wz158SetGiftSlot(slot,person||null);actions.append(edit);
   if(person){
    const monthsButton=document.createElement('button');monthsButton.type='button';monthsButton.className='smallBtn';monthsButton.style.cssText='width:auto;align-self:flex-start;margin-top:5px';
-   monthsButton.textContent='⏱️ Gift Süresini Yönet · '+giftMonths+' AY';monthsButton.disabled=wz156GiftAssignBusy;
+   monthsButton.textContent='⭐ Ayı Yönet · '+giftMonths+' AY';monthsButton.disabled=wz156GiftAssignBusy;
    monthsButton.onclick=()=>wz161SetGiftMonths(slot,person);actions.append(monthsButton);
-   const tenureButton=document.createElement('button');tenureButton.type='button';tenureButton.className='smallBtn';
-   tenureButton.style.cssText='width:auto;align-self:flex-start;margin-top:5px';
-   tenureButton.textContent='📚 Toplam Abonelik Ayını Düzenle';tenureButton.disabled=wz156GiftAssignBusy;
-   tenureButton.onclick=()=>wzTenureEdit(person.recipient_username);actions.append(tenureButton);
   }
   row.append(label,detail,actions);list.append(row);
  }
@@ -7552,7 +7548,7 @@ function renderUsers(){
     const tr=document.createElement('tr');
     if(u.status==='blocked') tr.classList.add('user-row-blocked');
     tr.innerHTML=`
-      <td><strong>${u.subscription?.active?'⭐ ':''}${esc(u.username||'-')}</strong>${u.subscription?.active?`<div class="muted" style="font-size:11px">${Number(u.subscription.months||1)} AY</div>`:''}</td>
+      <td><strong>${u.subscription?.active?'⭐ ':''}${esc(u.username||'-')}</strong>${u.subscription?.active?`<div class="muted" style="font-size:11px">${u.subscription.totalMonthsKnown===false?'Ay doğrulanmadı':Number(u.subscription.months||1)+' AY'}</div>`:''}</td>
       <td>${esc(u.nickname||'-')}</td>
       <td>${esc(points(u.points))}</td>
       <td>${esc(String(u.ticketsAvailable??0))}</td>
@@ -7666,7 +7662,6 @@ function wz160RenderUserSubscription(state){
   el.append(from);
  }
 }
-
 // V31.2.26 — UID based administrator subscription corrections.
 // The total-month ledger and the countdown entitlement are independent.
 let wzUserSubSnapshot=null,wzUserSubBusy=false;
@@ -14204,7 +14199,7 @@ function renderSimpleRecentActivity(kind,data){
       const amountHtml = kind === 'giftSubscriptions'
         ? `<div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end"><div class="activityAmount">${quantity.toLocaleString('tr-TR')} Gift</div>${item.giftManageId?`<button type="button" class="smallBtn" style="width:auto" onclick="wz156OpenGiftRecipients('${encodeURIComponent(item.giftManageId)}')">🎁 Yönet</button>`:'<small class="muted">Yönetim kaydı bulunamadı</small>'}</div>`
         : kind === 'subscribers'
-          ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="activityAmount">${Math.max(1,Math.trunc(Number(item.configuredMonths||1)))} AY</span><button type="button" class="smallBtn" style="width:auto" onclick="wz158EditSubscriberMonths('${encodeURIComponent(username)}','${encodeURIComponent(date)}',${Math.max(1,Math.trunc(Number(item.configuredMonths||1)))})">⏱️ Hak Süresini Yönet</button><button type="button" class="smallBtn" style="width:auto" onclick="wzTenureEdit('${encodeURIComponent(username)}',true)">📚 Toplam Ayı Düzenle</button></div>`
+          ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="activityAmount">${item.monthsKnown===false?'Ay doğrulanmadı':Math.max(1,Math.trunc(Number(item.configuredMonths||1)))+' AY'}</span><button type="button" class="smallBtn" style="width:auto" onclick="wz158EditSubscriberMonths('${encodeURIComponent(username)}','${encodeURIComponent(date)}',${Math.max(1,Math.trunc(Number(item.configuredMonths||1)))})">✏️ Ayı Yönet</button></div>`
         : kind === 'kicks'
           ? `<div class="activityAmount">${quantity.toLocaleString('tr-TR')} Kicks</div>`
           : '';
