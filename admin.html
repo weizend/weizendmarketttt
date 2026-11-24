@@ -5837,30 +5837,42 @@ let supportRewardEventsCache = [];
 // aynı salt-okunur /admin/subscription-tenure kaynağını kullanır.
 // Eski support event / Gift duration ayını toplam abonelik geçmişi sanma.
 const wzSupTenureRequests = new Map();
+// D1 OPT V2: short-lived DISPLAY labels only. All edits still read the server.
+const WZ_SUP_TENURE_LABEL_TTL_MS=240000;
+let wzSupTenureSession='';
 let wzSupTenureObserver = null;
 function wzSupTenureCheck(button){
   if(!button || !button.isConnected) return;
   const username=String(button.dataset.wzTenureName||'');
   const key=username.trim().replace(/^@+/, '').toLocaleLowerCase('tr-TR');
   if(!key){button.textContent='✏️ Ayı Yönet · Kullanıcı yok';return;}
-  let pending=wzSupTenureRequests.get(key);
-  if(!pending){
-    pending=(async()=>{
+  const session=token();
+  if(wzSupTenureSession!==session){wzSupTenureRequests.clear();wzSupTenureSession=session;}
+  if(!session)return;
+  let entry=wzSupTenureRequests.get(key);
+  if(entry&&entry.expiresAt<=Date.now()){wzSupTenureRequests.delete(key);entry=null;}
+  if(!entry){
+    entry={expiresAt:Infinity,pending:null};
+    wzSupTenureRequests.set(key,entry);
+    entry.pending=(async()=>{
       const {r,d}=await api('/admin/subscription-tenure?username='+encodeURIComponent(username)+'&_='+Date.now());
       if(!r.ok||!d?.success) throw new Error(d?.error||'Abonelik ayı alınamadı');
       const n=Number(d.months);
       return d.known===true&&Number.isSafeInteger(n)&&n>=1
         ? '✏️ Ayı Yönet · '+n+' AY'
         : '✏️ Ayı Yönet · Ay doğrulanmadı';
-    })().catch(error=>{
+    })().then(label=>{
+      entry.expiresAt=Date.now()+WZ_SUP_TENURE_LABEL_TTL_MS;
+      return label;
+    }).catch(error=>{
+      if(wzSupTenureRequests.get(key)===entry)wzSupTenureRequests.delete(key);
       console.warn('SUPPORT_TENURE_LABEL',String(error?.message||error).slice(0,120));
       // Never silently convert an unavailable total into "1 AY".
       return '✏️ Ayı Yönet · Ay bilgisi alınamadı';
     });
-    wzSupTenureRequests.set(key,pending);
   }
-  pending.then(label=>{
-    if(button.isConnected && String(button.dataset.wzTenureName||'')===username)
+  entry.pending.then(label=>{
+    if(token()===session && button.isConnected && String(button.dataset.wzTenureName||'')===username)
       button.textContent=label;
   });
 }
@@ -6321,7 +6333,7 @@ async function wzTenureEdit(name,encoded=false){
 
 function normalizeAdminUsername(s){return String(s||'').trim().replace(/^@/,'').toLocaleLowerCase('tr-TR')}
 
-async function loadSupportRewardEvents(){
+async function loadSupportRewardEvents(background=false){
   const body=document.getElementById('supportRewardEventsBody');
   const seq=++wz156EventsSeq;
   wz156EventsPending++;
@@ -6334,8 +6346,16 @@ async function loadSupportRewardEvents(){
     const {r,d}=await wz156ReadWithRetry(`/admin/support-rewards/events${qs}`);
     if(seq!==wz156EventsSeq)return;
     if(!r.ok || !d?.success) throw new Error(d?.error || `HTTP ${r.status}`);
-    supportRewardEventsCache=Array.isArray(d.events)?d.events:[];
-    wzSupTenureRequests.clear();
+    const nextEvents=Array.isArray(d.events)?d.events:[];
+    // Explicit refresh/mutation always invalidates. Automatic refresh may reuse
+    // labels only if the entire support list is unchanged, for at most 4 min
+    // from calculation. Expired off-screen labels are removed here as well.
+    if(background!==true || JSON.stringify(supportRewardEventsCache)!==JSON.stringify(nextEvents)){
+      wzSupTenureRequests.clear();
+    }else{
+      for(const [key,entry] of wzSupTenureRequests)if(entry.expiresAt<=Date.now())wzSupTenureRequests.delete(key);
+    }
+    supportRewardEventsCache=nextEvents;
     wz156EventsLoaded=true;
     renderSupportRewardEvents();
     hideStatus('supportRewardEventsStatus');
@@ -6352,9 +6372,9 @@ async function loadSupportRewardEvents(){
 
 // Tab açık ve görünürken yalnızca mevcut kayıtları yeniler. Destek tarama/ödül oluşturma YOK.
 setInterval(()=>{
-  if(document.visibilityState==='hidden'||wz156EventsPending>0||wz156GiftAssignBusy)return;
+  if(!token()||document.visibilityState==='hidden'||wz156EventsPending>0||wz156GiftAssignBusy)return;
   if(!document.getElementById('section-supportrewards')?.classList.contains('active'))return;
-  loadSupportRewardEvents().catch(console.error);
+  loadSupportRewardEvents(true).catch(console.error);
 },120000); // D1 OPT: read-only background refresh; manual refresh remains immediate.
 
 async function syncSupportRewardSourcesAdmin(){
