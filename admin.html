@@ -6355,7 +6355,7 @@ setInterval(()=>{
   if(document.visibilityState==='hidden'||wz156EventsPending>0||wz156GiftAssignBusy)return;
   if(!document.getElementById('section-supportrewards')?.classList.contains('active'))return;
   loadSupportRewardEvents().catch(console.error);
-},60000);
+},120000); // D1 OPT: read-only background refresh; manual refresh remains immediate.
 
 async function syncSupportRewardSourcesAdmin(){
   try{
