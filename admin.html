@@ -6048,7 +6048,7 @@ function renderSupportRewardEvents(){
   const pending=supportRewardEventsCache.filter(x=>String(x.status)==='pending_identity').length;
   const issued=supportRewardEventsCache.filter(x=>String(x.status)==='code_issued').length;
   const cancelled=supportRewardEventsCache.filter(x=>String(x.status)==='cancelled').length;
-  const totalPoints=supportRewardEventsCache.reduce((sum,x)=>sum+Math.max(0,Math.trunc(Number(x.points_awarded||0))),0);
+  const totalPoints=supportRewardEventsCache.reduce((sum,x)=>sum+(x.pending_reward_cancelled?0:Math.max(0,Math.trunc(Number(x.points_awarded||0)))),0);
 
   if(summary){
     summary.innerHTML=`
@@ -6084,13 +6084,12 @@ function renderSupportRewardEvents(){
     }
     // A redeemed gift code has already awarded the user. Never offer cancellation then.
     const usedCode=giftStatus==='redeemed';
-    const hasAssignedGift=Array.isArray(item.gift_recipients)&&item.gift_recipients.length>0;
-    // İşlemdeki ya da kullanılmış kod iptal edilemez; atanmış Gift hakkı bozulmaz.
+    const pendingOnly=eventStatus==='pending_identity' && !item.gift_code_id;
+    // Bekleyen puan ödülü, alıcının gerçek aboneliğinden bağımsızdır.
     const canCancel=!usedCode && giftStatus!=='processing' &&
-      (eventStatus==='code_issued' && giftStatus==='unused' ||
-       eventStatus==='pending_identity' && !hasAssignedGift);
+      (eventStatus==='code_issued' && giftStatus==='unused' || pendingOnly);
     // Turnuvada kullanılmış kayıt da silinmez; yalnızca Admin listesinden gizlenir.
-    const canDelete=usedCode || eventStatus==='cancelled' || eventStatus==='ignored_tournament' ||
+    const canDelete=pendingOnly || usedCode || eventStatus==='cancelled' || eventStatus==='ignored_tournament' ||
       (eventStatus==='code_issued' && ['disabled','expired'].includes(giftStatus));
     const codeLast4=String(item.redeem_code_last4||'').trim();
     // Full code is recovered only on the authenticated admin endpoint from
@@ -6149,11 +6148,13 @@ function renderSupportRewardEvents(){
       <td><span class="badge ${statusBadge}">${esc(statusText)}</span></td>
       <td><span class="supportRewardCode" title="${esc(fullCode ? 'Tam hediye kodu' : (codeLast4 ? 'Eski mesaj bulunamadığı için kodun yalnızca son 4 hanesi gösteriliyor' : 'Kod oluşturulmadı'))}">${esc(codeText)}</span></td>
       <td>${redeemerText}${redeemerMeta}</td>
-      <td>${canCancel
-        ? `<button class="smallBtn danger" onclick="cancelSupportRewardEvent('${encodeURIComponent(item.id)}')">🚫 İptal Et</button>`
-        : canDelete
-          ? `<button class="iconDanger" title="Kaydı Admin listesinden gizle; turnuva kullanımı, kod, puan ve Gift hakkı korunur" aria-label="Destek kaydını sil" onclick="deleteSupportRewardEvent('${encodeURIComponent(item.id)}')">🗑️</button>`
-          : '<span class="muted">-</span>'}</td>`;
+      <td>${pendingOnly
+        ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button class="smallBtn danger" onclick="cancelSupportRewardEvent('${encodeURIComponent(item.id)}',true)">🚫 İptal Et</button><button class="iconDanger" title="Bekleyen puan ödülünü iptal et ve listeden kaldır; abonelik hakkı korunur" aria-label="Bekleyen ödülü iptal et ve kaldır" onclick="deleteSupportRewardEvent('${encodeURIComponent(item.id)}',true)">🗑️</button></div>`
+        : canCancel
+          ? `<button class="smallBtn danger" onclick="cancelSupportRewardEvent('${encodeURIComponent(item.id)}')">🚫 İptal Et</button>`
+          : canDelete
+            ? `<button class="iconDanger" title="Kaydı Admin listesinden gizle; turnuva kullanımı, kod, puan ve Gift hakkı korunur" aria-label="Destek kaydını sil" onclick="deleteSupportRewardEvent('${encodeURIComponent(item.id)}')">🗑️</button>`
+            : '<span class="muted">-</span>'}</td>`;
     fragment.appendChild(tr);
   }
   body.appendChild(fragment);
@@ -6382,14 +6383,14 @@ async function syncSupportRewardSourcesAdmin(){
   }
 }
 
-async function cancelSupportRewardEvent(encodedId){
+async function cancelSupportRewardEvent(encodedId,pendingOnly=false){
   const id=decodeURIComponent(encodedId||'');
   if(!id) return;
-  if(!confirm('Kullanılmamış destek ödül kodu iptal edilsin mi? Gift alıcısının abonelik hakkı etkilenmez.')) return;
+  if(!confirm(pendingOnly?'Bekleyen puan ödülü iptal edilsin mi? Kullanıcı hesabını doğrulasa bile bu ödül için kod oluşturulmaz. Abonelik ve Gift alıcısının hakkı korunur.':'Kullanılmamış destek ödül kodu iptal edilsin mi? Gift alıcısının abonelik hakkı etkilenmez.')) return;
 
   try{
     const {r,d}=await api('/admin/support-rewards/event/cancel',{
-      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,pendingOnly})
     });
     if(!r.ok || !d?.success) throw new Error(d?.error || `HTTP ${r.status}`);
     showStatus('supportRewardEventsStatus','✅ Destek ödülü iptal edildi.',true);
@@ -6400,17 +6401,17 @@ async function cancelSupportRewardEvent(encodedId){
   }
 }
 
-async function deleteSupportRewardEvent(encodedId){
+async function deleteSupportRewardEvent(encodedId,pendingOnly=false){
   const id=decodeURIComponent(encodedId||'');
   if(!id) return;
-  if(!confirm('Bu destek kaydı Admin listesinden gizlensin mi?\n\nTurnuvada kullanılan destek kaydının asıl geçmişi, turnuva tahsisi, puanlar, varsa Gift alıcıları ve denetim kayıtları korunacaktır. Yalnızca bu Admin listesinden gizlenecektir.')) return;
+  if(!confirm(pendingOnly?'Bekleyen puan ödülü kalıcı olarak iptal edilip listeden kaldırılsın mı? Sonradan doğrulama yapılsa bile kod oluşmaz. Gerçek destek, abonelik ve Gift alıcısı kayıtları korunur.':'Bu destek kaydı Admin listesinden gizlensin mi?\n\nTurnuvada kullanılan destek kaydının asıl geçmişi, turnuva tahsisi, puanlar, varsa Gift alıcıları ve denetim kayıtları korunacaktır. Yalnızca bu Admin listesinden gizlenecektir.')) return;
 
   try{
     const {r,d}=await api('/admin/support-rewards/event/delete',{
-      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,pendingOnly})
     });
     if(!r.ok || !d?.success) throw new Error(d?.error || `HTTP ${r.status}`);
-    showStatus('supportRewardEventsStatus','✅ Kayıt listeden gizlendi. Kod, puan ve hediye abonelik hakları korunuyor.',true);
+    showStatus('supportRewardEventsStatus',pendingOnly?'✅ Bekleyen ödül iptal edildi ve kaldırıldı. Abonelik hakları korunuyor.':'✅ Kayıt listeden gizlendi. Kod, puan ve hediye abonelik hakları korunuyor.',true);
     await loadSupportRewardEvents();
   }catch(error){
     showStatus('supportRewardEventsStatus','❌ '+esc(error.message || error),false);
@@ -16892,7 +16893,8 @@ function wztgRankAdmin(host,rows){const previous=host.querySelector('.wztg-rank-
     const get=fn=>{for(const b of buttons){const v=parseButton(b.getAttribute('onclick'),fn);if(v)return v;}return '';};
     if(section.key==='support'){
       const id=get('deleteSupportRewardEvent');
-      return id?{id,action:'support'}:null;
+      const item=id&&supportRewardEventsCache.find(x=>String(x.id)===id);
+      return id?{id,action:item?.status==='pending_identity'&&!item.gift_code_id?'supportPending':'support'}:null;
     }
     if(section.key==='gift'){
       const tourId=get('hideTournamentGiftRecord');
@@ -16963,6 +16965,7 @@ function wztgRankAdmin(host,rows){const previous=host.querySelector('.wztg-rank-
   async function handle(item){
     switch(item.action){
       case 'support':return post('/admin/support-rewards/event/delete',{id:item.id});
+      case 'supportPending':return post('/admin/support-rewards/event/delete',{id:item.id,pendingOnly:true});
       case 'gift':return post('/admin/gift-codes/delete',{id:item.id});
       case 'tournamentGift':return post('/admin/gift-codes/hide-tournament-record',{id:item.id});
       case 'product':return post('/admin/product/delete',{id:item.id});
@@ -16976,7 +16979,7 @@ function wztgRankAdmin(host,rows){const previous=host.querySelector('.wztg-rank-
     const selected=[...section.bodyEl.querySelectorAll('.wzBulkItem:checked')].map(x=>({id:x.dataset.key,action:x.dataset.action,sourceType:x.dataset.sourceType||''}));
     if(!selected.length)return;
     let note=section.name+' listesinden '+selected.length+' kayıt işlenecek.\n\n';
-    if(section.key==='support')note+='Yalnızca admin görünümünden gizlenecek. Kod ve hak geçmişi korunacak.';
+    if(section.key==='support')note+='Bekleyen puan ödülleri iptal edilip gizlenecek; diğer uygun kayıtlar yalnızca gizlenecek. Gerçek destek, abonelik ve Gift hakları korunacak.';
     if(section.key==='gift')note+='Kullanılmamış kodlar GEÇERSİZLEŞTİRİLİR; kullanılan ve bitmiş kodların geçmişi korunur.';
     if(section.key==='product')note+='Seçilen ürünler Market ve Admin listesinden kaldırılır. Canlı ürün seçtiysen satış sona erer!';
     if(section.key==='purchase')note+='Yalnızca sonuçlanmış işlemler admin listesinden gizlenir; ödeme/iadeye dokunulmaz.';
