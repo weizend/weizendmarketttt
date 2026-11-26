@@ -2588,7 +2588,7 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
 
     <div class="tabs">
   <button id="tab-telegram" onclick="openTab('telegram')">✈️ Telegram</button>
-  <button type="button" onclick="location.href='gunluk-odul.html?admin=1'">🎁 Günlük Ödül Yönetimi</button>
+  <button id="tab-dailyrewards" type="button" onclick="openTab('dailyrewards')">🎁 Günlük Ödül Yönetimi</button>
 
   <button id="tab-products" class="active" onclick="openTab('products')">
     📦 Ürünler
@@ -2900,6 +2900,9 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
     <!-- ===================================================== -->
 
     <div id="section-telegram" class="section"><div class="card"><h2>✈️ Telegram Bildirimleri</h2><p class="muted">Gönderim mevcut Worker Cron taramasında yapılır. Bot anahtarı ve Chat ID yalnızca Cloudflare Secret olarak saklanır. Eski olaylar ilk açılışta tekrar gönderilmez.</p><p id="wztgConfigStatus" class="muted" role="status">Ayarlar yükleniyor...</p><label class="checkline"><input type="checkbox" id="wztgEnabled"> Telegram bildirimleri aktif</label><div id="wztgGroupList"></div><div class="btnRow"><button type="button" onclick="wztgSaveSettings()">Ayarları Kaydet</button><button type="button" class="secondary" onclick="wztgTest()">Test Bildirimi Gönder</button></div></div></div>
+<div id="section-dailyrewards" class="section">
+  <div id="wzDailyAdminHost" style="width:100%;min-width:0"></div>
+</div>
 <div id="section-products" class="section active">
 
       <div class="card">
@@ -5205,11 +5208,38 @@ function hideStatus(id){
    TABS — V31.0.70 reload persistence
 ========================================================= */
 const WZ70_ADMIN_TAB_KEY='wz_admin_last_tab_v3170';
-const WZ70_ADMIN_TABS=new Set(['products','giveaways','giftcodes','supportrewards','payments','purchases','users','messages','orders','tournaments','missxss','valorant-test','telegram']);
+const WZ70_ADMIN_TABS=new Set(['products','giveaways','giftcodes','supportrewards','payments','purchases','users','messages','orders','tournaments','missxss','valorant-test','telegram','dailyrewards']);
 function wz70RememberAdminTab(name){try{sessionStorage.setItem(WZ70_ADMIN_TAB_KEY,name)}catch(_){}}
 function wz70RestoreAdminTab(){try{const tab=sessionStorage.getItem(WZ70_ADMIN_TAB_KEY);return WZ70_ADMIN_TABS.has(tab)?tab:'products'}catch(_){return 'products'}}
+// V8: Daily reward settings live inside the existing admin tab; no background API loading.
+let wzDailyAdminResize=null;
+function wzDailyAdminUnmount(){
+  if(wzDailyAdminResize){wzDailyAdminResize.disconnect();wzDailyAdminResize=null;}
+  document.getElementById('wzDailyAdminHost')?.replaceChildren();
+}
+function wzDailyAdminMount(){
+  const host=document.getElementById('wzDailyAdminHost');
+  if(!host||host.querySelector('iframe')||!token())return;
+  const frame=document.createElement('iframe');
+  frame.title='Günlük Ödül Yönetimi';
+  frame.style.cssText='display:block;width:100%;height:700px;border:0;background:transparent;';
+  frame.addEventListener('load',()=>{
+    if(!frame.isConnected)return;
+    if(wzDailyAdminResize){wzDailyAdminResize.disconnect();wzDailyAdminResize=null;}
+    try{
+      const content=frame.contentDocument?.querySelector('main');
+      if(!content)return;
+      const resize=()=>{if(frame.isConnected)frame.style.height=Math.max(220,Math.ceil(content.getBoundingClientRect().height)+4)+'px';};
+      resize();
+      if(typeof ResizeObserver==='function'){wzDailyAdminResize=new ResizeObserver(resize);wzDailyAdminResize.observe(content);}
+    }catch(_){/* Default frame height retains native scrolling. */}
+  });
+  frame.src='gunluk-odul.html?admin=1&embed=1';
+  host.appendChild(frame);
+}
 function openTab(name){
   if(!WZ70_ADMIN_TABS.has(name))return;
+  if(name!=='dailyrewards')wzDailyAdminUnmount();
   // Önceki sürümden kalmış bildirim DOM düğümleri sekme geçişini bozmasın.
   document.querySelectorAll('#adminArea .tabs .wz168-operation-feedback').forEach(el=>el.remove());
   wz70RememberAdminTab(name);
@@ -5231,6 +5261,7 @@ function openTab(name){
     .getElementById(`tab-${name}`)
     ?.classList.add('active');
 
+  if(name === 'dailyrewards')wzDailyAdminMount();
   if(name === 'telegram')void wztgLoadSettings();
   if(name === 'products'){
     loadProducts();
@@ -5348,6 +5379,7 @@ async function loginAdmin(){
 
 async function logoutAdmin(){
 
+  wzDailyAdminUnmount();
   disconnectAdminRealtime();
 
   try{
