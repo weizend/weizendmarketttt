@@ -7677,6 +7677,8 @@ async function openUser(encodedUid){
     const {r,d} = await api(`/admin/user?uid=${encodeURIComponent(uid)}`);
     if(!r.ok || !d?.success || !d?.user) throw new Error(d?.error || `HTTP ${r.status}`);
     currentAdminUser = d.user;
+    currentAdminUser.socialAccounts=d.socialAccounts||{};
+    currentAdminUser.socialSnapshots=Array.isArray(d.socialSnapshots)?d.socialSnapshots:[];
     currentAdminUser.subscription=d.subscription||null;
     currentAdminUser.notes = Array.isArray(d.notes) ? d.notes : [];
     renderUserDetail();
@@ -7701,6 +7703,19 @@ function renderUserDetail(){
     <div class="userSummaryItem"><span>İlk Doğrulama</span><strong>${esc(dateText(u.first_verified_at))}</strong></div>
     <div class="userSummaryItem"><span>Son Görülme</span><strong>${esc(dateText(u.last_seen_at || u.last_activity_at))}</strong></div>
   `;
+
+  // V18 private admin user detail, handles are declarations, not verified ownership.
+  const summary=document.getElementById('userSummary');
+  let socials=document.getElementById('wzAdminSocialAccounts');
+  if(!socials){socials=document.createElement('section');socials.id='wzAdminSocialAccounts';socials.style.cssText='padding:14px;margin:12px 0;border:1px solid #3c3c45;border-radius:12px';summary.after(socials);}
+  socials.replaceChildren();const heading=document.createElement('h3');heading.textContent='Bağlı Sosyal Medya Hesapları';socials.append(heading);
+  const bases={instagram:'https://www.instagram.com/',youtube:'https://www.youtube.com/@',tiktok:'https://www.tiktok.com/@'};
+  const names={instagram:'Instagram',youtube:'YouTube',tiktok:'TikTok'};
+  function socialRows(parent,record){for(const k of Object.keys(bases)){const line=document.createElement('p');line.style.margin='7px 0';line.append(document.createTextNode(names[k]+': '));if(record?.[k]){const a=document.createElement('a');a.href=bases[k]+encodeURIComponent(String(record[k]));a.target='_blank';a.rel='noopener noreferrer';a.textContent='@'+record[k];a.style.color='#ff8b90';line.append(a);}else line.append(document.createTextNode('Eklenmedi'));parent.append(line);}}
+  socialRows(socials,u.socialAccounts);
+  const detail=document.createElement('details'),label=document.createElement('summary');label.textContent='Çekilişe katıldığı andaki hesaplar (son 30 kayıt)';detail.append(label);
+  for(const rec of u.socialSnapshots||[]){let snapshot;try{snapshot=JSON.parse(rec.social_snapshot_v18)}catch(_){continue}const item=document.createElement('div');item.style.cssText='border-top:1px solid #414148;margin-top:10px;padding-top:10px';const title=document.createElement('strong');title.textContent=(rec.title||rec.giveaway_id)+' · '+dateText(rec.created_at);item.append(title);socialRows(item,snapshot);detail.append(item);}
+  if(!(u.socialSnapshots||[]).length){const p=document.createElement('p');p.textContent='Henüz yeni sistemle kayıt alınmamış.';detail.append(p);}socials.append(detail);
 
   const banner = document.getElementById('userRestrictionBanner');
   if(banner){
