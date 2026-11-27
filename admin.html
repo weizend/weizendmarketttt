@@ -2538,6 +2538,17 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
 .wztg-rank-scroll .leaderboard td,.wztg-rank-scroll .leaderboard th{padding:5px 6px;white-space:nowrap;line-height:1.2;max-width:190px;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}
 .wztg-rank-count,.wztg-my-rank{font-size:12px;color:#bbb;margin:6px 0}
 </style>
+<style id="wz3101-valorant-mobile-fix">
+/* Scoped to the VALORANT API test; no shared control rules changed. */
+#section-valorant-test .wz3101-consent{display:grid;grid-template-columns:22px minmax(0,1fr);align-items:start;gap:10px;margin:12px 0;padding:8px 0;min-width:0;cursor:pointer;line-height:1.5}
+#section-valorant-test #wz3101Confirm{box-sizing:border-box!important;width:20px!important;min-width:20px!important;max-width:20px!important;height:20px!important;min-height:20px!important;max-height:20px!important;padding:0!important;margin:2px 0 0!important;accent-color:#e52026;appearance:auto!important;-webkit-appearance:checkbox!important;cursor:pointer}
+#section-valorant-test .wz3101-consent span{display:block;min-width:0;white-space:normal;word-break:normal;overflow-wrap:break-word}
+#section-valorant-test #wz3101Result{box-sizing:border-box;max-width:100%;min-width:0}
+@media(max-width:760px){
+  #section-valorant-test .wz3101-actions{display:grid!important;grid-template-columns:minmax(0,1fr);gap:8px!important}
+  #section-valorant-test .wz3101-actions button{width:100%!important;min-width:0;white-space:normal}
+}
+</style>
 </head>
 
 <body data-wz-experience="admin">
@@ -2654,11 +2665,11 @@ html:has(#wzg66Overlay:not([hidden])),body:has(#wzg66Overlay:not([hidden])){over
           <label class="title" for="wz3101Region">VALORANT Bölgesi</label>
           <select id="wz3101Region"><option value="eu">EU (Türkiye)</option><option value="na">NA</option><option value="ap">AP</option><option value="kr">KR</option><option value="br">BR</option><option value="latam">LATAM</option></select>
         </div>
-        <label style="display:flex;align-items:center;gap:9px;margin:12px 0">
-          <input id="wz3101Confirm" type="checkbox" style="width:auto;flex:0 0 auto" />
+        <label class="wz3101-consent" for="wz3101Confirm">
+          <input id="wz3101Confirm" type="checkbox" />
           <span>Bu Riot hesabı bana ait veya sahibinden açık veri sorgulama iznim var.</span>
         </label>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="wz3101-actions" style="display:flex;gap:10px;flex-wrap:wrap">
           <button type="button" onclick="wz3101TestApi('account')" style="width:auto">Hesap / PUUID Test Et</button>
           <button type="button" class="secondary" onclick="wz3101TestApi('matches')" style="width:auto">Son 2 Maçı Test Et</button>
         </div>
